@@ -1,0 +1,32 @@
+# 의존성
+node_modules/
+
+# 빌드 산출물
+dist/
+*.tsbuildinfo
+
+# 엔진 바이너리 (npm run fetch-engine 으로 내려받음, 저장소에 커밋하지 않음)
+public/engine/*
+!public/engine/.gitkeep
+
+# 환경 변수 — 절대 커밋 금지
+.env
+.env.*
+!.env.example
+
+# 테스트 도구 산출물
+.playwright-mcp/
+
+# 로그 / 캐시
+*.log
+npm-debug.log*
+.vite/
+.vercel/
+
+# OS / 에디터
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

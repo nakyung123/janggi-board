@@ -1,0 +1,28 @@
+{
+  "name": "janggi-board",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Fairy-Stockfish 기반 장기 분석 보드 (Yixin-Board 스타일 자유 편집 + 실시간 분석)",
+  "scripts": {
+    "fetch-engine": "node scripts/fetch-engine.mjs",
+    "verify-engine": "node scripts/verify-engine.mjs",
+    "predev": "node scripts/fetch-engine.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/fetch-engine.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "fairy-stockfish-nnue.wasm": "^1.1.12",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}
