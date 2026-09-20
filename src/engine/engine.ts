@@ -5,11 +5,14 @@
 
 import type {
   AnalysisLine,
+  PositionProbe,
+  PositionRef,
   AnalysisSnapshot,
   EngineOptions,
   LoadProgress,
   SearchLimits,
 } from "./types";
+import { positionCommand } from "./types";
 import { parseInfo, parsePerftMoves } from "./uci";
 
 const ENGINE_BASE = "/engine/";
@@ -228,28 +231,36 @@ export class JanggiEngine {
   // --- 국면 조회 ---------------------------------------------------------
 
   /**
-   * 합법수 전체. 엔진이 규칙의 유일한 근거이므로 UI 는 규칙을 따로 구현하지 않는다.
-   * 한수쉼은 궁이 제자리로 가는 수(초 e2e2 / 한 e9e9)로 나온다.
+   * 국면을 한 번에 살핀다. 엔진에게 두 가지를 묻는다.
+   *   d           → 엔진이 해석한 FEN 과 "Checkers:" (궁을 노리는 기물 자리)
+   *   go perft 1  → 합법수 전체
+   * 합법수가 0이면 대국이 끝난 것이고, Checkers 가 비어 있지 않으면 장군이다.
+   * 두 질문을 한 작업으로 묶어 큐를 덜 오간다.
    */
-  async legalMoves(fen: string): Promise<string[]> {
+  async probe(ref: PositionRef): Promise<PositionProbe> {
     return this.queue(async () => {
-      this.send("position fen " + fen);
-      const done = this.collect((l) => l.startsWith("Nodes searched"));
-      this.send("go perft 1");
-      return parsePerftMoves(await done);
-    });
-  }
+      this.send(positionCommand(ref));
 
-  /** 엔진이 국면을 어떻게 해석했는지 되돌려 받는다. 편집한 판의 검증에 쓴다. */
-  async normalizeFen(fen: string): Promise<string | null> {
-    return this.queue(async () => {
-      this.send("position fen " + fen);
-      const done = this.collect((l) => l.startsWith("Fen:"));
+      const dumped = this.collect((l) => l.startsWith("Checkers:"));
       this.send("d");
-      const out = await done;
-      return (
-        out.find((l) => l.startsWith("Fen:"))?.replace("Fen:", "").trim() ?? null
-      );
+      const dump = await dumped;
+
+      const normalized =
+        dump.find((l) => l.startsWith("Fen:"))?.replace("Fen:", "").trim() ??
+        null;
+      const checkers =
+        dump
+          .find((l) => l.startsWith("Checkers:"))
+          ?.replace("Checkers:", "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean) ?? [];
+
+      const listed = this.collect((l) => l.startsWith("Nodes searched"));
+      this.send("go perft 1");
+      const legal = parsePerftMoves(await listed);
+
+      return { fen: normalized, checkers, legal };
     });
   }
 
@@ -274,7 +285,7 @@ export class JanggiEngine {
    * 탐색이 끝나면 마지막 스냅샷의 running 이 false 가 된다.
    */
   analyze(
-    fen: string,
+    ref: PositionRef,
     limits: SearchLimits,
     onUpdate: (snap: AnalysisSnapshot) => void
   ): void {
@@ -283,7 +294,9 @@ export class JanggiEngine {
       // 줄을 서 있는 사이에 국면이 또 바뀌었다면 이 요청은 버린다.
       if (gen !== this.searchGen) return;
 
-      const choToMove = fen.split(/\s+/)[1] !== "b";
+      // 둘 차례는 시작 국면과 둔 수의 개수로 정해진다.
+      const startsWithCho = ref.startFen.split(/\s+/)[1] !== "b";
+      const choToMove = ref.moves.length % 2 === 0 ? startsWithCho : !startsWithCho;
       const lines = new Map<number, AnalysisLine>();
       const snap: AnalysisSnapshot = {
         lines: [],
@@ -331,7 +344,7 @@ export class JanggiEngine {
       };
       this.listeners.add(listener);
 
-      this.send("position fen " + fen);
+      this.send(positionCommand(ref));
       let go = "go";
       if (limits.infinite) go += " infinite";
       if (limits.depth) go += " depth " + limits.depth;
