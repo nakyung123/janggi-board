@@ -1,0 +1,257 @@
+/* 장기판과 기물, 그리고 편집 팔레트. */
+
+/* --- 장기판 ------------------------------------------------------------ */
+
+.board {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.46);
+  touch-action: none;
+  user-select: none;
+}
+
+.board .grid line {
+  stroke: #6b4b28;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.72;
+}
+
+.board text.coord {
+  fill: #7d5a33;
+  font-size: 14px;
+  font-weight: 500;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.board .piece {
+  cursor: grab;
+}
+
+.board .piece.dragging {
+  cursor: grabbing;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+.board .piece-base {
+  fill: #8a6033;
+  stroke: #5d3f1f;
+  stroke-width: 1.5;
+}
+
+.board .piece-inner {
+  fill: url(#pieceFace);
+  stroke: rgba(120, 82, 40, 0.5);
+  stroke-width: 1;
+}
+
+.board .last-move {
+  fill: rgba(79, 140, 255, 0.2);
+  stroke: rgba(79, 140, 255, 0.55);
+  stroke-width: 1.5;
+}
+
+.board .selected {
+  fill: none;
+  stroke: #f5c451;
+  stroke-width: 3;
+}
+
+.board .target {
+  fill: rgba(31, 41, 55, 0.5);
+}
+
+.board .target-capture {
+  fill: none;
+  stroke: rgba(220, 38, 38, 0.75);
+  stroke-width: 3.5;
+}
+
+.board .hit {
+  cursor: default;
+}
+
+.board .hit.active {
+  cursor: pointer;
+}
+
+.board .best-arrow {
+  stroke: #1d4ed8;
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.board .drag-layer.removing {
+  opacity: 0.45;
+}
+
+.board-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* --- 팔레트 ------------------------------------------------------------ */
+
+.palette {
+  margin-top: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.palette-side {
+  width: 22px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.palette-side.cho {
+  color: var(--cho);
+}
+
+.palette-side.han {
+  color: var(--han);
+}
+
+.palette-side.muted {
+  color: var(--muted);
+  font-weight: 500;
+  width: auto;
+  margin-right: 4px;
+}
+
+.palette-piece {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1e3c6;
+  border: 1px solid #8a6033;
+  border-radius: 8px;
+}
+
+.palette-piece.cho {
+  color: #166534;
+}
+
+.palette-piece.han {
+  color: #b91c1c;
+}
+
+.palette-piece.erase {
+  width: auto;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--panel-2);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.palette-piece.active {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.palette-hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+/* 장군을 맞은 궁. 눈에 확 띄어야 해서 붉은 테두리에 맥박을 준다. */
+.board .checked-king {
+  fill: none;
+  stroke: #ef4444;
+  stroke-width: 4;
+  animation: check-pulse 1s ease-in-out infinite;
+}
+
+@keyframes check-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 분석 줄에 마우스를 올렸을 때 미리 보는 수. 최선수(파랑)와 색으로 구분한다. */
+.board .hover-arrow {
+  stroke: #d97706;
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+/* --- 대국 상태 배너 ---------------------------------------------------- */
+
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  padding: 9px 13px;
+  border-radius: var(--radius);
+  border: 1px solid;
+  font-size: 13px;
+}
+
+.status-text {
+  font-weight: 700;
+}
+
+.status-detail {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.status-banner.check {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ffb4b4;
+}
+
+.status-banner.over {
+  background: rgba(79, 140, 255, 0.14);
+  border-color: rgba(79, 140, 255, 0.5);
+  color: #cbdcff;
+}
+
+.status-banner.invalid {
+  background: rgba(245, 196, 81, 0.1);
+  border-color: rgba(245, 196, 81, 0.4);
+  color: #f0d79a;
+}
+
+.status-banner button {
+  margin-left: auto;
+}
+
+.board-actions .stop {
+  margin-left: auto;
+  color: var(--han);
+  border-color: rgba(255, 107, 107, 0.4);
+}

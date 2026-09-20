@@ -3,8 +3,8 @@
 // 한 수씩 눌러 그 시점 국면으로 되돌아갈 수 있다. 되돌아간 뒤 다른 수를 두면
 // 그 지점부터 기보가 새로 이어진다.
 
-import { SIDE_LABEL } from "../janggi/pieces";
-import type { Side } from "../janggi/pieces";
+import { SIDE_LABEL } from "../../janggi/pieces";
+import type { Side } from "../../janggi/pieces";
 
 export interface HistoryEntry {
   fen: string;
@@ -12,6 +12,8 @@ export interface HistoryEntry {
   move: string | null;
   notation: string;
   mover: Side | null;
+  /** 이 국면의 초(楚) 기준 평가치. 아직 분석 전이면 null. 형세 그래프가 쓴다. */
+  score: number | null;
 }
 
 interface Props {

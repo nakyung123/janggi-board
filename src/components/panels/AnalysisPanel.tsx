@@ -3,14 +3,16 @@
 // 엔진이 탐색하는 동안 후보 수순 여러 개를 계속 갱신해서 보여준다.
 // 줄에 마우스를 올리면 그 수가 판에 화살표로 표시되고, 누르면 실제로 둔다.
 
-import type { AnalysisSnapshot } from "../engine/types";
-import type { Board } from "../janggi/board";
-import { describeLine, formatScore, splitMove } from "../janggi/notation";
+import type { AnalysisSnapshot } from "../../engine/types";
+import type { Board } from "../../janggi/board";
+import { describeLine, formatScore, splitMove } from "../../janggi/notation";
 
 interface Props {
   snapshot: AnalysisSnapshot | null;
   board: Board;
   enabled: boolean;
+  /** 편집 중이면 안내 문구가 달라진다 */
+  editing?: boolean;
   onHoverLine: (move: string | null) => void;
   onPlayLine: (move: string) => void;
 }
@@ -28,6 +30,7 @@ export function AnalysisPanel({
   snapshot,
   board,
   enabled,
+  editing,
   onHoverLine,
   onPlayLine,
 }: Props) {
@@ -59,7 +62,11 @@ export function AnalysisPanel({
       </div>
 
       {lines.length === 0 ? (
-        <p className="muted pad">국면을 읽는 중…</p>
+        <p className="muted pad">
+          {editing
+            ? "판을 고치는 대로 다시 분석합니다. 궁이 빠져 있으면 분석할 수 없습니다."
+            : "국면을 읽는 중…"}
+        </p>
       ) : (
         <ol className="pv-list">
           {lines.map((line) => {
@@ -86,8 +93,8 @@ export function AnalysisPanel({
       )}
 
       <p className="pv-legend muted">
-        점수는 초(楚) 기준입니다. 양수면 초가 유리합니다. 줄을 누르면 그 수를
-        둡니다.
+        점수는 초(楚) 기준입니다. 양수면 초가 유리합니다.
+        {editing ? " 편집 중에는 줄을 눌러도 두어지지 않습니다." : " 줄을 누르면 그 수를 둡니다."}
       </p>
     </div>
   );

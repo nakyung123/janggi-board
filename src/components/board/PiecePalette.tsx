@@ -3,8 +3,8 @@
 // 여기서 기물을 하나 고른 뒤 판의 교차점을 누르면 그 자리에 놓인다.
 // 지우개를 고르면 누른 자리의 기물이 사라진다.
 
-import type { PieceChar, Side } from "../janggi/pieces";
-import { PIECE_TYPES, SIDE_LABEL, charOf, pieceInfo } from "../janggi/pieces";
+import type { PieceChar, Side } from "../../janggi/pieces";
+import { PIECE_TYPES, SIDE_LABEL, charOf, pieceInfo } from "../../janggi/pieces";
 import { PieceGlyph } from "./PieceGlyph";
 
 export type Brush = PieceChar | "erase" | null;

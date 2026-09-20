@@ -3,7 +3,7 @@
 // 스레드와 해시를 올리면 같은 시간에 더 깊이 본다. 브라우저에서는 코어 수만큼
 // 스레드를 쓰는 게 보통 가장 빠르지만, 화면이 버벅이면 하나 줄이는 편이 낫다.
 
-import type { EngineOptions, SearchLimits } from "../engine/types";
+import type { EngineOptions, SearchLimits } from "../../engine/types";
 
 interface Props {
   options: EngineOptions;

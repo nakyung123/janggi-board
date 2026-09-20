@@ -3,9 +3,9 @@
 // 장기판과 편집 팔레트가 같은 글자를 써야 해서 따로 뺐다.
 // 초는 초서체, 한은 정자체로 서로 다른 도형을 쓴다.
 
-import type { PieceChar } from "../janggi/pieces";
-import { sideOf } from "../janggi/pieces";
-import { GLYPHS, glyphTransform } from "../janggi/glyphs";
+import type { PieceChar } from "../../janggi/pieces";
+import { sideOf } from "../../janggi/pieces";
+import { GLYPHS, glyphTransform } from "../../janggi/glyphs";
 
 export const GLYPH_COLOR = { cho: "#15653c", han: "#b91c1c" } as const;
 

@@ -1,0 +1,92 @@
+/* 전역 토큰과 기본 요소.
+   색·글꼴 같은 밑바탕과 button/input 기본 모양을 여기서 정한다. */
+
+:root {
+  --bg: #14161a;
+  --panel: #1c1f26;
+  --panel-2: #232733;
+  --line: #2f3542;
+  --text: #e6e8ee;
+  --muted: #9aa3b2;
+  --cho: #35d07f;
+  --han: #ff6b6b;
+  --accent: #4f8cff;
+  --radius: 10px;
+  /* 외부 폰트를 받지 않는다. COEP require-corp 아래에서 막힐 수 있고,
+     이 도구는 인터넷 없이도 돌아가야 한다. 장기 한자는 명조 계열이 어울린다. */
+  --sans: "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
+  --serif: "Batang", "바탕", "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+button:hover:not(:disabled) {
+  background: #2c3140;
+  border-color: #3d4557;
+}
+
+button:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+button.ghost {
+  background: transparent;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+.pad {
+  padding: 10px 2px;
+}
+
+.error {
+  color: var(--han);
+  font-size: 12.5px;
+  margin-top: 6px;
+}
+
+b.cho,
+.cho {
+  color: var(--cho);
+}
+
+b.han,
+.han {
+  color: var(--han);
+}

@@ -4,10 +4,10 @@
 // 격자선을 긋고 교차점마다 기물을 얹는다. 궁성에는 사선이 추가로 들어간다.
 
 import { useCallback, useRef, useState } from "react";
-import type { Board as BoardMap, Square } from "../janggi/board";
-import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../janggi/board";
-import { pieceInfo } from "../janggi/pieces";
-import { toJanggiCoord } from "../janggi/notation";
+import type { Board as BoardMap, Square } from "../../janggi/board";
+import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
+import { pieceInfo } from "../../janggi/pieces";
+import { toJanggiCoord } from "../../janggi/notation";
 import { PieceGlyph } from "./PieceGlyph";
 
 const CELL = 62;
@@ -24,7 +24,12 @@ export interface BoardProps {
   /** 지금 고른 기물이 갈 수 있는 곳 */
   targets: Square[];
   lastMove: { from: Square; to: Square } | null;
+  /** 엔진이 첫손에 꼽는 수. 파란 화살표. */
   bestMove: { from: Square; to: Square } | null;
+  /** 분석 줄에 마우스를 올려 미리 보는 수. 노란 화살표라 최선수와 헷갈리지 않는다. */
+  hoverMove?: { from: Square; to: Square } | null;
+  /** 장군을 맞은 궁의 자리 */
+  checkedKing?: Square | null;
   onSquareClick: (square: Square) => void;
   onMove: (from: Square, to: Square) => void;
   /** 편집 모드에서 기물을 판 밖으로 끌어내면 지운다. */
@@ -50,6 +55,8 @@ export function Board(props: BoardProps) {
     targets,
     lastMove,
     bestMove,
+    hoverMove,
+    checkedKing,
     onSquareClick,
     onMove,
     onRemove,
@@ -223,9 +230,16 @@ export function Board(props: BoardProps) {
     for (let f = 0; f < FILES; f++) squares.push(sq(f, r));
   }
 
-  const arrow = bestMove
-    ? { a: posOf(bestMove.from), b: posOf(bestMove.to) }
-    : null;
+  // 최선수와 미리보기 수를 색으로 나눈다. 둘 다 파랗던 때는 구분이 안 됐다.
+  const arrows = [
+    bestMove && { key: "best", cls: "best-arrow", m: bestMove, head: "arrowBest" },
+    hoverMove && { key: "hover", cls: "hover-arrow", m: hoverMove, head: "arrowHover" },
+  ].filter(Boolean) as {
+    key: string;
+    cls: string;
+    m: { from: Square; to: Square };
+    head: string;
+  }[];
 
   return (
     <svg
@@ -246,15 +260,11 @@ export function Board(props: BoardProps) {
           <stop offset="0%" stopColor="#fffdf7" />
           <stop offset="100%" stopColor="#f0e2c4" />
         </radialGradient>
-        <marker
-          id="arrowhead"
-          markerWidth="4"
-          markerHeight="4"
-          refX="2.4"
-          refY="2"
-          orient="auto"
-        >
+        <marker id="arrowBest" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 z" fill="#1d4ed8" />
+        </marker>
+        <marker id="arrowHover" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
+          <path d="M0,0 L4,2 L0,4 z" fill="#d97706" />
         </marker>
       </defs>
 
@@ -280,6 +290,20 @@ export function Board(props: BoardProps) {
             />
           );
         })}
+
+      {/* 장군을 맞은 궁 */}
+      {checkedKing &&
+        (() => {
+          const p = posOf(checkedKing);
+          return (
+            <circle
+              className="checked-king"
+              cx={p.x}
+              cy={p.y}
+              r={CELL * 0.48}
+            />
+          );
+        })()}
 
       {/* 선택 표시 */}
       {selected &&
@@ -341,17 +365,22 @@ export function Board(props: BoardProps) {
 
       {squares.map((s) => renderPiece(s, false))}
 
-      {/* 엔진 추천수 화살표 */}
-      {arrow && (
-        <line
-          className="best-arrow"
-          x1={arrow.a.x}
-          y1={arrow.a.y}
-          x2={arrow.b.x}
-          y2={arrow.b.y}
-          markerEnd="url(#arrowhead)"
-        />
-      )}
+      {/* 엔진 추천수(파랑)와 미리보기 수(노랑) */}
+      {arrows.map((a) => {
+        const p = posOf(a.m.from);
+        const q = posOf(a.m.to);
+        return (
+          <line
+            key={a.key}
+            className={a.cls}
+            x1={p.x}
+            y1={p.y}
+            x2={q.x}
+            y2={q.y}
+            markerEnd={`url(#${a.head})`}
+          />
+        );
+      })}
 
       {/* 끌고 있는 기물은 맨 위에 다시 그린다. */}
       {drag && (

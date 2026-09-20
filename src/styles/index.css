@@ -1,0 +1,6 @@
+/* 스타일 진입점. 순서가 곧 우선순위라 base 를 가장 먼저 읽는다. */
+
+@import "./base.css";
+@import "./layout.css";
+@import "./board.css";
+@import "./panels.css";
