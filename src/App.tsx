@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { Board } from "./components/Board";
-import { PiecePalette } from "./components/PiecePalette";
-import type { Brush } from "./components/PiecePalette";
-import { AnalysisPanel, arrowOf } from "./components/AnalysisPanel";
-import { EngineControls } from "./components/EngineControls";
-import { MoveList } from "./components/MoveList";
-import type { HistoryEntry } from "./components/MoveList";
-import { PositionTools } from "./components/PositionTools";
+import { Board } from "./components/board/Board";
+import { PiecePalette } from "./components/board/PiecePalette";
+import type { Brush } from "./components/board/PiecePalette";
+import { AnalysisPanel, arrowOf } from "./components/panels/AnalysisPanel";
+import { EngineControls } from "./components/panels/EngineControls";
+import { EvalGraph } from "./components/panels/EvalGraph";
+import { MoveList } from "./components/panels/MoveList";
+import type { HistoryEntry } from "./components/panels/MoveList";
+import { PositionTools } from "./components/panels/PositionTools";
+import { StatusBanner } from "./components/StatusBanner";
 
 import { useAnalysis, useEngine } from "./engine/useEngine";
-import type { EngineOptions, SearchLimits } from "./engine/types";
+import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
+import { useKeyboard } from "./hooks/useKeyboard";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen } from "./janggi/board";
@@ -19,11 +22,13 @@ import type { Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
 import { applySetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
+import { gameStatus, isGameOver } from "./janggi/status";
+import { buildRecord, downloadRecord, parseRecord } from "./janggi/record";
 
 type EngineSide = "none" | "cho" | "han" | "both";
 
 const initialHistory: HistoryEntry[] = [
-  { fen: START_FEN, move: null, notation: "시작", mover: null },
+  { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
 ];
 
 /** 장기에는 승진도 앙파상도 없다. 수를 두는 일은 기물 하나를 옮기는 것이 전부다. */
@@ -47,11 +52,17 @@ export default function App() {
 
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
   const [cursor, setCursor] = useState(0);
-  const [editMode, setEditMode] = useState(false);
-  const [brush, setBrush] = useState<Brush>(null);
   const [flipped, setFlipped] = useState(false);
   const [selected, setSelected] = useState<Square | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // 편집 모드는 기보와 따로 논다.
+  // 편집하는 동안 판은 draft 에만 반영하고, 편집을 끝낼 때 비로소 기보를 정한다.
+  // 이렇게 해야 "편집 한 번 눌렀다가 두던 판이 날아가는" 일이 없다.
+  const [draft, setDraft] = useState<Position | null>(null);
+  const editMode = draft !== null;
+  const [brush, setBrush] = useState<Brush>(null);
 
   const [analysisOn, setAnalysisOn] = useState(true);
   const [engineSide, setEngineSide] = useState<EngineSide>("none");
@@ -61,15 +72,31 @@ export default function App() {
     multiPV: 3,
     variant: "janggi",
   });
-  // 분석판의 기본 동작은 '계속 생각하기'다. 국면을 바꾸면 그 자리에서 다시 판다.
-  // 엔진이 둘 차례일 때만 아래에서 시간 제한을 걸어준다.
-  const [limits, setLimits] = useState<SearchLimits>({ infinite: true });
+  // 기본값은 3초. 무제한은 코어를 계속 붙잡고 있어서 기본으로 두기엔 부담스럽다.
+  const [limits, setLimits] = useState<SearchLimits>({ movetimeMs: 3000 });
 
   const entry = history[cursor];
-  const position = useMemo(() => parseFen(entry.fen), [entry.fen]);
-  const fen = entry.fen;
+  const played = useMemo(() => parseFen(entry.fen), [entry.fen]);
+  const position = draft ?? played;
 
-  // 엔진이 둘 차례인지 --------------------------------------------------
+  /**
+   * 엔진에 넘길 국면. 지금 FEN 만 주면 안 되고 수순을 함께 줘야 한다.
+   * 장기의 장군반복 금지·빅장 판정이 "어떻게 여기까지 왔는가"를 보기 때문이다.
+   * 편집 중에는 수순이랄 게 없으니 고친 판 자체를 시작 국면으로 준다.
+   */
+  const positionRef: PositionRef = useMemo(() => {
+    if (draft) return { startFen: toFen(draft), moves: [] };
+    return {
+      startFen: history[0].fen,
+      moves: history
+        .slice(1, cursor + 1)
+        .map((h) => h.move)
+        .filter((m): m is string => Boolean(m)),
+    };
+  }, [draft, history, cursor]);
+
+  // --- 엔진 차례 --------------------------------------------------------
+
   const engineTurn =
     !editMode &&
     (engineSide === "both" ||
@@ -77,8 +104,7 @@ export default function App() {
 
   // 엔진이 둘 차례인데 시간 제한이 없으면 영원히 생각한다. 1초로 막아준다.
   const effectiveLimits: SearchLimits = useMemo(
-    () =>
-      engineTurn && limits.infinite ? { movetimeMs: 1000 } : limits,
+    () => (engineTurn && limits.infinite ? { movetimeMs: 1000 } : limits),
     [engineTurn, limits]
   );
 
@@ -101,13 +127,21 @@ export default function App() {
     if (engine) void engine.setOptions(options);
   }, [engine, options]);
 
-  const { snapshot, legal } = useAnalysis(
+  const { snapshot, legal, checkers, probed } = useAnalysis(
     engine,
-    fen,
-    (analysisOn || engineTurn) && !editMode,
+    positionRef,
+    analysisOn || engineTurn,
     effectiveLimits,
     optionsKey
   );
+
+  // --- 대국 상태 --------------------------------------------------------
+
+  const gstatus = useMemo(
+    () => gameStatus({ position, legal, checkers, ready: probed }),
+    [position, legal, checkers, probed]
+  );
+  const over = isGameOver(gstatus);
 
   // --- 수 두기 ----------------------------------------------------------
 
@@ -125,6 +159,7 @@ export default function App() {
             move: from + to,
             notation: notation.short,
             mover: current.turn,
+            score: null,
           },
         ];
       });
@@ -134,24 +169,89 @@ export default function App() {
     [cursor]
   );
 
-  /** 편집 결과를 기보의 새 시작점으로 삼는다. 편집 중에는 수순을 쌓지 않는다. */
-  const replacePosition = useCallback((next: Position) => {
-    setHistory([
-      { fen: toFen(next), move: null, notation: "편집", mover: null },
-    ]);
-    setCursor(0);
-    setSelected(null);
-  }, []);
+  /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
+  useEffect(() => {
+    if (editMode || !snapshot?.lines.length) return;
+    const line = snapshot.lines[0];
+    const score = line.mate !== null ? (line.mate > 0 ? 20 : -20) : line.score;
+    setHistory((prev) => {
+      if (!prev[cursor] || prev[cursor].score === score) return prev;
+      const next = [...prev];
+      next[cursor] = { ...next[cursor], score };
+      return next;
+    });
+  }, [snapshot, cursor, editMode]);
 
   // 엔진 차례가 되면 탐색이 끝나는 대로 그 수를 둔다.
   const playedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!engineTurn || !snapshot || snapshot.running || !snapshot.bestmove) return;
-    if (playedFor.current === fen) return;
-    playedFor.current = fen;
+    if (!engineTurn || over) return;
+    if (!snapshot || snapshot.running || !snapshot.bestmove) return;
+    const key = positionRef.startFen + "|" + positionRef.moves.join(" ");
+    if (playedFor.current === key) return;
+    playedFor.current = key;
     const { from, to } = splitMove(snapshot.bestmove);
     if (from && to) pushMove(from, to);
-  }, [engineTurn, snapshot, fen, pushMove]);
+  }, [engineTurn, snapshot, positionRef, pushMove, over]);
+
+  // --- 기보 이동 --------------------------------------------------------
+
+  const goTo = useCallback(
+    (i: number) => {
+      setCursor((c) => {
+        const next = Math.max(0, Math.min(history.length - 1, i));
+        if (next !== c) setSelected(null);
+        return next;
+      });
+    },
+    [history.length]
+  );
+
+  useKeyboard(
+    useMemo(
+      () => ({
+        prev: () => goTo(cursor - 1),
+        next: () => goTo(cursor + 1),
+        first: () => goTo(0),
+        last: () => goTo(history.length - 1),
+        flip: () => setFlipped((f) => !f),
+        toggleAnalysis: () => setAnalysisOn((a) => !a),
+      }),
+      [cursor, goTo, history.length]
+    ),
+    !editMode
+  );
+
+  // --- 편집 -------------------------------------------------------------
+
+  const enterEdit = () => {
+    setDraft(parseFen(entry.fen));
+    setSelected(null);
+    setBrush(null);
+  };
+
+  /**
+   * 편집을 끝낸다. 판이 그대로면 기보를 건드리지 않고, 달라졌을 때만
+   * 편집한 국면을 새 시작점으로 삼는다.
+   */
+  const leaveEdit = () => {
+    if (!draft) return;
+    const editedFen = toFen(draft);
+    if (editedFen !== entry.fen) {
+      setHistory([
+        { fen: editedFen, move: null, notation: "편집", mover: null, score: null },
+      ]);
+      setCursor(0);
+      setNotice("편집한 국면을 새 시작 국면으로 삼았습니다.");
+    }
+    setDraft(null);
+    setSelected(null);
+    setBrush(null);
+  };
+
+  const editBoard = (change: (b: BoardMap) => BoardMap) => {
+    setDraft((d) => (d ? { ...d, board: change({ ...d.board }) } : d));
+  };
 
   // --- 판 조작 ----------------------------------------------------------
 
@@ -172,21 +272,21 @@ export default function App() {
   const handleSquareClick = (square: Square) => {
     if (editMode) {
       if (brush === "erase") {
-        const board = { ...position.board };
-        delete board[square];
-        replacePosition({ ...position, board });
+        editBoard((b) => {
+          delete b[square];
+          return b;
+        });
         return;
       }
       if (brush) {
-        replacePosition({
-          ...position,
-          board: { ...position.board, [square]: brush },
-        });
+        editBoard((b) => ({ ...b, [square]: brush }));
         return;
       }
       setSelected(selected === square ? null : square);
       return;
     }
+
+    if (over) return;
 
     if (selected && targets.includes(square)) {
       pushMove(selected, square);
@@ -203,55 +303,127 @@ export default function App() {
 
   const handleMove = (from: Square, to: Square) => {
     if (editMode) {
-      const board = { ...position.board };
-      if (board[from]) {
-        board[to] = board[from];
-        delete board[from];
-        replacePosition({ ...position, board });
-      }
+      editBoard((b) => {
+        if (!b[from]) return b;
+        b[to] = b[from];
+        delete b[from];
+        return b;
+      });
       return;
     }
+    if (over) return;
     if (legalFrom.get(from)?.includes(to)) pushMove(from, to);
     else setSelected(null);
   };
 
   const handleRemove = (square: Square) => {
     if (!editMode) return;
-    const board = { ...position.board };
-    delete board[square];
-    replacePosition({ ...position, board });
-  };
-
-  const handleSetup = (side: Side, setup: Setup) => {
-    replacePosition({
-      ...position,
-      board: applySetup(position.board, side, setup),
+    editBoard((b) => {
+      delete b[square];
+      return b;
     });
   };
 
-  const handleFen = (value: string) => {
-    const parsed = parseFen(value); // 형식이 틀리면 여기서 예외가 난다
+  // --- 국면 도구 --------------------------------------------------------
+
+  const startFrom = (next: Position, label: string) => {
+    if (editMode) {
+      setDraft(next);
+      return;
+    }
     setHistory([
-      { fen: toFen(parsed), move: null, notation: "불러옴", mover: null },
+      { fen: toFen(next), move: null, notation: label, mover: null, score: null },
     ]);
     setCursor(0);
     setSelected(null);
   };
 
+  const handleFen = (value: string) => {
+    startFrom(parseFen(value), "불러옴"); // 형식이 틀리면 parseFen 이 예외를 던진다
+  };
+
+  // --- 기보 저장·불러오기 -----------------------------------------------
+
+  const saveRecord = () => {
+    downloadRecord(
+      buildRecord({
+        startFen: history[0].fen,
+        moves: history
+          .slice(1)
+          .map((h) => ({
+            move: h.move ?? "",
+            notation: h.notation,
+            score: h.score ?? undefined,
+          })),
+        variant: options.variant,
+      })
+    );
+  };
+
+  const loadRecord = async (file: File) => {
+    try {
+      const record = parseRecord(await file.text());
+
+      // 시작 국면에서 수를 하나씩 다시 두며 기보를 되살린다.
+      const rebuilt: HistoryEntry[] = [
+        { fen: record.startFen, move: null, notation: "시작", mover: null, score: null },
+      ];
+      let pos = parseFen(record.startFen);
+      for (const m of record.moves) {
+        const { from, to } = splitMove(m.move);
+        if (!from || !pos.board[from]) {
+          throw new Error(`${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`);
+        }
+        const mover = pos.turn;
+        pos = applyMove(pos, from, to);
+        rebuilt.push({
+          fen: toFen(pos),
+          move: m.move,
+          notation: m.notation || m.move,
+          mover,
+          score: m.score ?? null,
+        });
+      }
+
+      setDraft(null);
+      setHistory(rebuilt);
+      setCursor(rebuilt.length - 1);
+      setSelected(null);
+      setNotice(`기보를 불러왔습니다. ${record.moves.length}수.`);
+    } catch (err) {
+      setNotice(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
   // --- 화살표 -----------------------------------------------------------
 
+  const hoverArrow = arrowOf(hover);
   const bestArrow =
-    arrowOf(hover) ??
-    (!editMode && snapshot?.lines[0]?.pv[0]
+    !hoverArrow && snapshot?.lines[0]?.pv[0]
       ? arrowOf(snapshot.lines[0].pv[0])
-      : null);
+      : null;
 
-  const lastMove = entry.move
-    ? (() => {
-        const { from, to } = splitMove(entry.move);
-        return from && to && from !== to ? { from, to } : null;
-      })()
-    : null;
+  const lastMove = useMemo(() => {
+    if (editMode || !entry.move) return null;
+    const { from, to } = splitMove(entry.move);
+    return from && to && from !== to ? { from, to } : null;
+  }, [editMode, entry.move]);
+
+  // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
+  const checkedKing = useMemo(() => {
+    if (checkers.length === 0) return null;
+    return (
+      Object.entries(position.board).find(
+        ([, p]) => p.toLowerCase() === "k" && sideOf(p) === position.turn
+      )?.[0] ?? null
+    );
+  }, [checkers, position]);
 
   // --- 화면 -------------------------------------------------------------
 
@@ -300,17 +472,33 @@ export default function App() {
     <div className="app">
       <header className="top">
         <h1>장기 분석판</h1>
-        <span className="badge">{evalMode ?? ""}</span>
+        <span className="badge" title={evalMode ?? ""}>
+          {evalMode?.includes("NNUE") ? "신경망 적용됨" : (evalMode ?? "")}
+        </span>
         <span className="turn-tag">
-          둘 차례:{" "}
-          <b className={position.turn}>
-            {position.turn === "cho" ? "초 楚" : "한 漢"}
-          </b>
+          {editMode ? (
+            <b className="editing">판 편집 중</b>
+          ) : (
+            <>
+              둘 차례:{" "}
+              <b className={position.turn}>
+                {position.turn === "cho" ? "초 楚" : "한 漢"}
+              </b>
+            </>
+          )}
         </span>
       </header>
 
+      {notice && <div className="notice">{notice}</div>}
+
       <main className="layout">
         <section className="board-col">
+          <StatusBanner
+            status={gstatus}
+            canUndo={cursor > 0 && !editMode}
+            onUndo={() => goTo(cursor - 1)}
+          />
+
           <Board
             board={position.board}
             flipped={flipped}
@@ -319,35 +507,46 @@ export default function App() {
             targets={targets}
             lastMove={lastMove}
             bestMove={bestArrow}
+            hoverMove={hoverArrow}
+            checkedKing={checkedKing}
             onSquareClick={handleSquareClick}
             onMove={handleMove}
             onRemove={handleRemove}
           />
-          {editMode && <PiecePalette brush={brush} onPick={setBrush} />}
-          {!editMode && (
+
+          {editMode ? (
+            <PiecePalette brush={brush} onPick={setBrush} />
+          ) : (
             <div className="board-actions">
+              <button type="button" disabled={cursor === 0} onClick={() => goTo(0)}>
+                ⇤
+              </button>
               <button
                 type="button"
                 disabled={cursor === 0}
-                onClick={() => {
-                  setCursor((c) => Math.max(0, c - 1));
-                  setSelected(null);
-                }}
+                onClick={() => goTo(cursor - 1)}
+                title="← 키"
               >
                 ← 무르기
               </button>
               <button
                 type="button"
                 disabled={cursor >= history.length - 1}
-                onClick={() => {
-                  setCursor((c) => Math.min(history.length - 1, c + 1));
-                  setSelected(null);
-                }}
+                onClick={() => goTo(cursor + 1)}
+                title="→ 키"
               >
                 다시 →
               </button>
               <button
                 type="button"
+                disabled={cursor >= history.length - 1}
+                onClick={() => goTo(history.length - 1)}
+              >
+                ⇥
+              </button>
+              <button
+                type="button"
+                disabled={over}
                 title="궁을 제자리에 두는 것이 장기의 한수쉼입니다"
                 onClick={() => {
                   const king = Object.entries(position.board).find(
@@ -360,6 +559,16 @@ export default function App() {
               >
                 한수쉼
               </button>
+              {engineSide !== "none" && (
+                <button
+                  type="button"
+                  className="ghost stop"
+                  onClick={() => setEngineSide("none")}
+                  title="엔진이 두는 것을 멈춥니다"
+                >
+                  ■ 엔진 멈춤
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -368,29 +577,36 @@ export default function App() {
           <PositionTools
             position={position}
             editMode={editMode}
-            onEditMode={(on) => {
-              setEditMode(on);
-              setSelected(null);
-              setBrush(null);
-            }}
+            onEditMode={(on) => (on ? enterEdit() : leaveEdit())}
             onFen={handleFen}
-            onTurn={(turn) => replacePosition({ ...position, turn })}
-            onSetup={handleSetup}
-            onClear={() => replacePosition({ ...position, board: {} })}
+            onTurn={(turn) => startFrom({ ...position, turn }, "편집")}
+            onSetup={(side: Side, setup: Setup) =>
+              startFrom(
+                { ...position, board: applySetup(position.board, side, setup) },
+                "편집"
+              )
+            }
+            onClear={() => startFrom({ ...position, board: {} }, "편집")}
             onReset={() => {
+              setDraft(null);
               setHistory(initialHistory);
               setCursor(0);
               setSelected(null);
             }}
             onFlip={() => setFlipped((f) => !f)}
+            onSave={saveRecord}
+            onLoad={loadRecord}
+            canSave={history.length > 1}
           />
 
           <AnalysisPanel
             snapshot={snapshot}
             board={position.board}
-            enabled={(analysisOn || engineTurn) && !editMode}
+            enabled={analysisOn || engineTurn}
+            editing={editMode}
             onHoverLine={setHover}
             onPlayLine={(move) => {
+              if (editMode || over) return;
               const { from, to } = splitMove(move);
               if (from && to) pushMove(from, to);
             }}
@@ -407,14 +623,12 @@ export default function App() {
             onEngineSide={setEngineSide}
           />
 
-          <MoveList
-            history={history}
-            cursor={cursor}
-            onJump={(i) => {
-              setCursor(i);
-              setSelected(null);
-            }}
-          />
+          {!editMode && (
+            <>
+              <EvalGraph history={history} cursor={cursor} onJump={goTo} />
+              <MoveList history={history} cursor={cursor} onJump={goTo} />
+            </>
+          )}
         </section>
       </main>
     </div>
