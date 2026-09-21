@@ -91,6 +91,7 @@ export class JanggiEngine {
     threads: 1,
     hashMb: 128,
     multiPV: 3,
+    skill: 20,
     variant: "janggi",
   };
 
@@ -198,6 +199,8 @@ export class JanggiEngine {
     this.send("setoption name Threads value " + o.threads);
     this.send("setoption name Hash value " + o.hashMb);
     this.send("setoption name MultiPV value " + o.multiPV);
+    // 급수 대국의 손잡이. 20 이 전력, 낮출수록 최선수를 덜 고른다.
+    this.send("setoption name Skill Level value " + o.skill);
     await this.ready();
   }
 
@@ -281,6 +284,92 @@ export class JanggiEngine {
   }
 
   /**
+   * 탐색 한 번. 이미 큐 안에 들어와 있다고 가정한다.
+   * analyze() 와 analyzeOnce() 가 이 한 몸을 같이 쓴다.
+   */
+  private async runSearch(
+    ref: PositionRef,
+    limits: SearchLimits,
+    onUpdate?: (snap: AnalysisSnapshot) => void
+  ): Promise<AnalysisSnapshot> {
+    // 둘 차례는 시작 국면과 둔 수의 개수로 정해진다.
+    const startsWithCho = ref.startFen.split(/\s+/)[1] !== "b";
+    const choToMove = ref.moves.length % 2 === 0 ? startsWithCho : !startsWithCho;
+    const lines = new Map<number, AnalysisLine>();
+    const snap: AnalysisSnapshot = {
+      lines: [],
+      depth: 0,
+      nodes: 0,
+      nps: 0,
+      timeMs: 0,
+      hashfull: 0,
+      bestmove: null,
+      running: true,
+    };
+
+    // 매 info 라인마다 렌더링하면 초당 수십 번이라 화면이 버벅인다.
+    // 갱신은 모아뒀다가 일정 간격으로 흘려보낸다.
+    let dirty = false;
+    const collectLines = () =>
+      [...lines.values()]
+        .sort((a, b) => a.multipv - b.multipv)
+        .map((l) => ({ ...l }));
+    const flush = () => {
+      if (!dirty || !onUpdate) return;
+      dirty = false;
+      onUpdate({ ...snap, lines: collectLines() });
+    };
+    // 결과만 받아가는 쪽(복기)은 중간 보고가 필요 없다.
+    const ticker = onUpdate ? window.setInterval(flush, 120) : 0;
+
+    const done = this.collect(
+      (l) => l.startsWith("bestmove"),
+      24 * 60 * 60 * 1000
+    );
+    const listener: Listener = (line) => {
+      const info = parseInfo(line, choToMove);
+      if (!info?.pv || info.depth === undefined) return;
+      lines.set(info.multipv ?? 1, {
+        multipv: info.multipv ?? 1,
+        depth: info.depth,
+        seldepth: info.seldepth ?? info.depth,
+        score: info.score ?? 0,
+        mate: info.mate ?? null,
+        pv: info.pv,
+      });
+      snap.depth = Math.max(snap.depth, info.depth);
+      snap.nodes = info.nodes ?? snap.nodes;
+      snap.nps = info.nps ?? snap.nps;
+      snap.timeMs = info.timeMs ?? snap.timeMs;
+      snap.hashfull = info.hashfull ?? snap.hashfull;
+      dirty = true;
+    };
+    this.listeners.add(listener);
+
+    this.send(positionCommand(ref));
+    let go = "go";
+    if (limits.infinite) go += " infinite";
+    if (limits.depth) go += " depth " + limits.depth;
+    if (limits.nodes) go += " nodes " + limits.nodes;
+    if (limits.movetimeMs) go += " movetime " + limits.movetimeMs;
+    this.searching = true;
+    this.send(go);
+
+    const out = await done;
+    this.searching = false;
+    if (ticker) window.clearInterval(ticker);
+    this.listeners.delete(listener);
+
+    const best = out.find((l) => l.startsWith("bestmove"))?.split(" ")[1];
+    snap.bestmove = best && best !== "(none)" ? best : null;
+    snap.running = false;
+    dirty = true;
+    flush();
+
+    return { ...snap, lines: collectLines() };
+  }
+
+  /**
    * 국면을 분석한다. 진행 상황이 갱신될 때마다 onUpdate 가 호출되고,
    * 탐색이 끝나면 마지막 스냅샷의 running 이 false 가 된다.
    */
@@ -293,79 +382,30 @@ export class JanggiEngine {
     const job = this.queue(async () => {
       // 줄을 서 있는 사이에 국면이 또 바뀌었다면 이 요청은 버린다.
       if (gen !== this.searchGen) return;
-
-      // 둘 차례는 시작 국면과 둔 수의 개수로 정해진다.
-      const startsWithCho = ref.startFen.split(/\s+/)[1] !== "b";
-      const choToMove = ref.moves.length % 2 === 0 ? startsWithCho : !startsWithCho;
-      const lines = new Map<number, AnalysisLine>();
-      const snap: AnalysisSnapshot = {
-        lines: [],
-        depth: 0,
-        nodes: 0,
-        nps: 0,
-        timeMs: 0,
-        hashfull: 0,
-        bestmove: null,
-        running: true,
-      };
-
-      // 매 info 라인마다 렌더링하면 초당 수십 번이라 화면이 버벅인다.
-      // 갱신은 모아뒀다가 일정 간격으로 흘려보낸다.
-      let dirty = false;
-      const flush = () => {
-        if (!dirty) return;
-        dirty = false;
-        const sorted = [...lines.values()].sort((a, b) => a.multipv - b.multipv);
-        onUpdate({ ...snap, lines: sorted.map((l) => ({ ...l })) });
-      };
-      const ticker = window.setInterval(flush, 120);
-
-      const done = this.collect(
-        (l) => l.startsWith("bestmove"),
-        24 * 60 * 60 * 1000
-      );
-      const listener: Listener = (line) => {
-        const info = parseInfo(line, choToMove);
-        if (!info?.pv || info.depth === undefined) return;
-        lines.set(info.multipv ?? 1, {
-          multipv: info.multipv ?? 1,
-          depth: info.depth,
-          seldepth: info.seldepth ?? info.depth,
-          score: info.score ?? 0,
-          mate: info.mate ?? null,
-          pv: info.pv,
-        });
-        snap.depth = Math.max(snap.depth, info.depth);
-        snap.nodes = info.nodes ?? snap.nodes;
-        snap.nps = info.nps ?? snap.nps;
-        snap.timeMs = info.timeMs ?? snap.timeMs;
-        snap.hashfull = info.hashfull ?? snap.hashfull;
-        dirty = true;
-      };
-      this.listeners.add(listener);
-
-      this.send(positionCommand(ref));
-      let go = "go";
-      if (limits.infinite) go += " infinite";
-      if (limits.depth) go += " depth " + limits.depth;
-      if (limits.movetimeMs) go += " movetime " + limits.movetimeMs;
-      this.searching = true;
-      this.send(go);
-
-      const out = await done;
-      this.searching = false;
-      window.clearInterval(ticker);
-      this.listeners.delete(listener);
-
-      const best = out.find((l) => l.startsWith("bestmove"))?.split(" ")[1];
-      snap.bestmove = best && best !== "(none)" ? best : null;
-      snap.running = false;
-      dirty = true;
-      flush();
+      await this.runSearch(ref, limits, onUpdate);
     });
 
     // stop() 이 이 작업의 끝을 기다릴 수 있게 해둔다. 실패해도 멈추지 않도록 삼킨다.
     this.searchSettled = job.catch(() => undefined);
     void job;
+  }
+
+  /**
+   * 한 국면을 끝까지 분석하고 결과를 돌려준다.
+   * 기보를 처음부터 끝까지 한 수씩 훑는 복기가 이걸 쓴다.
+   */
+  async analyzeOnce(
+    ref: PositionRef,
+    limits: SearchLimits
+  ): Promise<AnalysisSnapshot> {
+    const gen = ++this.searchGen;
+    const job = this.queue(async () => {
+      if (gen !== this.searchGen) {
+        throw new Error("분석이 취소되었습니다.");
+      }
+      return this.runSearch(ref, limits);
+    });
+    this.searchSettled = job.catch(() => undefined);
+    return job;
   }
 }

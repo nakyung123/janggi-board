@@ -25,6 +25,12 @@ export interface AnalysisSnapshot {
 export interface SearchLimits {
   depth?: number;
   movetimeMs?: number;
+  /**
+   * 탐색할 노드 수. 급수 대국이 쓴다.
+   * 시간으로 자르면 빠른 PC 의 3급이 느린 PC 에서는 5급이 되므로,
+   * 기기에 상관없이 같은 실력을 내려면 노드로 잘라야 한다.
+   */
+  nodes?: number;
   infinite?: boolean;
 }
 
@@ -32,6 +38,11 @@ export interface EngineOptions {
   threads: number;
   hashMb: number;
   multiPV: number;
+  /**
+   * 엔진의 Skill Level(-20~20). 낮을수록 최선수를 덜 고른다.
+   * 급수를 만드는 두 손잡이 중 하나다(나머지 하나는 SearchLimits.nodes).
+   */
+  skill: number;
   /** janggi(표준) · janggimodern(카카오 호환) · janggitraditional(빅장 무승부) */
   variant: "janggi" | "janggimodern" | "janggitraditional" | "janggicasual";
 }
