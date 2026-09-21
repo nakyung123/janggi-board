@@ -3,29 +3,45 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Board } from "./components/board/Board";
 import { PiecePalette } from "./components/board/PiecePalette";
 import type { Brush } from "./components/board/PiecePalette";
+import { ModeTabs } from "./components/ModeTabs";
+import type { Mode } from "./components/ModeTabs";
 import { AnalysisPanel, arrowOf } from "./components/panels/AnalysisPanel";
 import { EngineControls } from "./components/panels/EngineControls";
 import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
+import { PlayPanel } from "./components/panels/PlayPanel";
+import type { MySide } from "./components/panels/PlayPanel";
 import { PositionTools } from "./components/panels/PositionTools";
+import { ReviewPanel } from "./components/panels/ReviewPanel";
 import { StatusBanner } from "./components/StatusBanner";
 
 import { useAnalysis, useEngine } from "./engine/useEngine";
 import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
+import { positionKey } from "./engine/types";
+import {
+  DEFAULT_LEVEL_ID,
+  DEFAULT_REVIEW_DEPTH_ID,
+  MIN_THINK_MS,
+  levelById,
+  limitsOf,
+  reviewDepthById,
+} from "./engine/levels";
 import { useKeyboard } from "./hooks/useKeyboard";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen } from "./janggi/board";
 import { describeMove, splitMove } from "./janggi/notation";
 import type { Side } from "./janggi/pieces";
-import { sideOf } from "./janggi/pieces";
+import { SIDE_LABEL, sideOf } from "./janggi/pieces";
 import { applySetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
 import { gameStatus, isGameOver } from "./janggi/status";
 import { buildRecord, downloadRecord, parseRecord } from "./janggi/record";
-
-type EngineSide = "none" | "cho" | "han" | "both";
+import type { RecordPlayer, RecordResult } from "./janggi/record";
+import { bestArrowOf, runReview } from "./janggi/review";
+import type { ReviewProgress, ReviewedMove } from "./janggi/review";
+import { 이가 } from "./janggi/korean";
 
 const initialHistory: HistoryEntry[] = [
   { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
@@ -50,6 +66,7 @@ function applyMove(pos: Position, from: Square, to: Square): Position {
 export default function App() {
   const { engine, status, progress, error, evalMode } = useEngine();
 
+  const [mode, setMode] = useState<Mode>("play");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
   const [cursor, setCursor] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -57,16 +74,25 @@ export default function App() {
   const [hover, setHover] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  // 편집 모드는 기보와 따로 논다.
-  // 편집하는 동안 판은 draft 에만 반영하고, 편집을 끝낼 때 비로소 기보를 정한다.
-  // 이렇게 해야 "편집 한 번 눌렀다가 두던 판이 날아가는" 일이 없다.
+  // --- 대국 ------------------------------------------------------------
+  const [mySide, setMySide] = useState<MySide>("cho");
+  const [levelId, setLevelId] = useState(DEFAULT_LEVEL_ID);
+  const [resigned, setResigned] = useState<Side | null>(null);
+  /** 두는 동안 훈수를 볼지. 기본은 꺼둔다 — 켜두면 대국이 아니라 받아쓰기가 된다. */
+  const [hintOn, setHintOn] = useState(false);
+  const level = levelById(levelId);
+
+  // --- 편집 (분석 모드) -------------------------------------------------
+  // 편집 모드는 기보와 따로 논다. 편집하는 동안 판은 draft 에만 반영하고,
+  // 편집을 끝낼 때 비로소 기보를 정한다. 이렇게 해야 "편집 한 번 눌렀다가
+  // 두던 판이 날아가는" 일이 없다.
   const [draft, setDraft] = useState<Position | null>(null);
   const editMode = draft !== null;
   const [brush, setBrush] = useState<Brush>(null);
 
+  // --- 분석 설정 --------------------------------------------------------
   const [analysisOn, setAnalysisOn] = useState(true);
-  const [engineSide, setEngineSide] = useState<EngineSide>("none");
-  const [options, setOptions] = useState<EngineOptions>({
+  const [prefs, setPrefs] = useState<Omit<EngineOptions, "skill">>({
     threads: Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4)),
     hashMb: 128,
     multiPV: 3,
@@ -75,9 +101,18 @@ export default function App() {
   // 기본값은 3초. 무제한은 코어를 계속 붙잡고 있어서 기본으로 두기엔 부담스럽다.
   const [limits, setLimits] = useState<SearchLimits>({ movetimeMs: 3000 });
 
+  // --- 복기 -------------------------------------------------------------
+  const [reviewDepthId, setReviewDepthId] = useState(DEFAULT_REVIEW_DEPTH_ID);
+  const [reviewed, setReviewed] = useState<ReviewedMove[] | null>(null);
+  const [reviewRunning, setReviewRunning] = useState(false);
+  const [reviewProgress, setReviewProgress] = useState<ReviewProgress | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const cancelReview = useRef(false);
+
   const entry = history[cursor];
   const played = useMemo(() => parseFen(entry.fen), [entry.fen]);
   const position = draft ?? played;
+  const started = history.length > 1;
 
   /**
    * 엔진에 넘길 국면. 지금 FEN 만 주면 안 되고 수순을 함께 줘야 한다.
@@ -97,15 +132,39 @@ export default function App() {
 
   // --- 엔진 차례 --------------------------------------------------------
 
-  const engineTurn =
-    !editMode &&
-    (engineSide === "both" ||
-      (engineSide !== "none" && engineSide === position.turn));
+  const engineSide: "none" | Side | "both" =
+    mode !== "play" ? "none" : mySide === "watch" ? "both" : mySide === "cho" ? "han" : "cho";
 
-  // 엔진이 둘 차례인데 시간 제한이 없으면 영원히 생각한다. 1초로 막아준다.
-  const effectiveLimits: SearchLimits = useMemo(
-    () => (engineTurn && limits.infinite ? { movetimeMs: 1000 } : limits),
-    [engineTurn, limits]
+  /**
+   * 엔진이 지금 둬야 하는지.
+   * 기보 끝이 아닐 때는 두지 않는다. 무르고 되짚어 보는 중에 엔진이 끼어들어
+   * 기보를 잘라먹으면 곤란하다.
+   */
+  const atTip = cursor === history.length - 1;
+  const engineTurn =
+    mode === "play" &&
+    atTip &&
+    !editMode &&
+    (engineSide === "both" || engineSide === position.turn);
+
+  /**
+   * 엔진의 실력과 탐색량.
+   * 엔진이 둘 차례면 급수대로 약하게, 사람이 둘 차례(=훈수)면 전력으로 본다.
+   * 훈수까지 약한 엔진이 내놓으면 도움이 안 된다.
+   */
+  const searchLimits: SearchLimits = useMemo(() => {
+    if (mode !== "play") return limits;
+    return engineTurn ? limitsOf(level) : { movetimeMs: 2000 };
+  }, [mode, engineTurn, level, limits]);
+
+  const options: EngineOptions = useMemo(
+    () => ({
+      ...prefs,
+      // 대국 중 훈수는 후보수 하나면 충분하다. 넓게 보면 느려질 뿐이다.
+      multiPV: mode === "play" ? 1 : prefs.multiPV,
+      skill: mode === "play" && engineTurn ? level.skill : 20,
+    }),
+    [prefs, mode, engineTurn, level.skill]
   );
 
   const optionsKey = useMemo(
@@ -114,24 +173,31 @@ export default function App() {
         options.threads,
         options.hashMb,
         options.multiPV,
+        options.skill,
         options.variant,
-        effectiveLimits.depth,
-        effectiveLimits.movetimeMs,
-        effectiveLimits.infinite,
+        searchLimits.depth,
+        searchLimits.movetimeMs,
+        searchLimits.nodes,
+        searchLimits.infinite,
         engineTurn,
       ].join("|"),
-    [options, effectiveLimits, engineTurn]
+    [options, searchLimits, engineTurn]
   );
 
   useEffect(() => {
-    if (engine) void engine.setOptions(options);
-  }, [engine, options]);
+    if (engine && !reviewRunning) void engine.setOptions(options);
+  }, [engine, options, reviewRunning]);
+
+  /** 복기 중에는 실시간 분석을 세워둔다. 같은 엔진을 둘이 나눠 쓸 수는 없다. */
+  const analysisEnabled =
+    !reviewRunning &&
+    (mode === "play" ? hintOn || engineTurn : mode === "analyze" ? analysisOn : false);
 
   const { snapshot, legal, checkers, probed } = useAnalysis(
     engine,
     positionRef,
-    analysisOn || engineTurn,
-    effectiveLimits,
+    analysisEnabled,
+    searchLimits,
     optionsKey
   );
 
@@ -141,7 +207,7 @@ export default function App() {
     () => gameStatus({ position, legal, checkers, ready: probed }),
     [position, legal, checkers, probed]
   );
-  const over = isGameOver(gstatus);
+  const over = isGameOver(gstatus) || resigned !== null;
 
   // --- 수 두기 ----------------------------------------------------------
 
@@ -165,13 +231,18 @@ export default function App() {
       });
       setCursor((c) => c + 1);
       setSelected(null);
+      // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
+      setReviewed(null);
     },
     [cursor]
   );
 
   /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
   useEffect(() => {
-    if (editMode || !snapshot?.lines.length) return;
+    if (editMode || reviewRunning || !snapshot?.lines.length) return;
+    // 급수를 낮춘 엔진의 점수는 형세 그래프에 쓰지 않는다. 약하게 본 값이라
+    // 그래프가 실제 형세와 어긋난다.
+    if (mode === "play" && engineTurn) return;
     const line = snapshot.lines[0];
     const score = line.mate !== null ? (line.mate > 0 ? 20 : -20) : line.score;
     setHistory((prev) => {
@@ -180,18 +251,24 @@ export default function App() {
       next[cursor] = { ...next[cursor], score };
       return next;
     });
-  }, [snapshot, cursor, editMode]);
+  }, [snapshot, cursor, editMode, reviewRunning, mode, engineTurn]);
 
   // 엔진 차례가 되면 탐색이 끝나는 대로 그 수를 둔다.
   const playedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!engineTurn || over) return;
     if (!snapshot || snapshot.running || !snapshot.bestmove) return;
-    const key = positionRef.startFen + "|" + positionRef.moves.join(" ");
+    const key = positionKey(positionRef);
     if (playedFor.current === key) return;
-    playedFor.current = key;
     const { from, to } = splitMove(snapshot.bestmove);
-    if (from && to) pushMove(from, to);
+    if (!from || !to) return;
+
+    // 약한 급수는 2천 노드만 보고 끝나서 눈 깜짝할 새에 둔다. 최소한의 뜸은 들인다.
+    const timer = window.setTimeout(() => {
+      playedFor.current = key;
+      pushMove(from, to);
+    }, MIN_THINK_MS);
+    return () => window.clearTimeout(timer);
   }, [engineTurn, snapshot, positionRef, pushMove, over]);
 
   // --- 기보 이동 --------------------------------------------------------
@@ -215,11 +292,12 @@ export default function App() {
         first: () => goTo(0),
         last: () => goTo(history.length - 1),
         flip: () => setFlipped((f) => !f),
-        toggleAnalysis: () => setAnalysisOn((a) => !a),
+        toggleAnalysis: () =>
+          mode === "play" ? setHintOn((h) => !h) : setAnalysisOn((a) => !a),
       }),
-      [cursor, goTo, history.length]
+      [cursor, goTo, history.length, mode]
     ),
-    !editMode
+    !editMode && !reviewRunning
   );
 
   // --- 편집 -------------------------------------------------------------
@@ -242,6 +320,8 @@ export default function App() {
         { fen: editedFen, move: null, notation: "편집", mover: null, score: null },
       ]);
       setCursor(0);
+      setReviewed(null);
+      setResigned(null);
       setNotice("편집한 국면을 새 시작 국면으로 삼았습니다.");
     }
     setDraft(null);
@@ -269,6 +349,12 @@ export default function App() {
 
   const targets = selected ? (legalFrom.get(selected) ?? []) : [];
 
+  /** 복기 중에는 판을 읽기만 한다. 대국 중에는 내 차례의 기물만 집을 수 있다. */
+  const canTouchBoard =
+    !over &&
+    mode !== "review" &&
+    !(mode === "play" && (engineTurn || mySide === "watch"));
+
   const handleSquareClick = (square: Square) => {
     if (editMode) {
       if (brush === "erase") {
@@ -286,7 +372,7 @@ export default function App() {
       return;
     }
 
-    if (over) return;
+    if (!canTouchBoard) return;
 
     if (selected && targets.includes(square)) {
       pushMove(selected, square);
@@ -311,7 +397,7 @@ export default function App() {
       });
       return;
     }
-    if (over) return;
+    if (!canTouchBoard) return;
     if (legalFrom.get(from)?.includes(to)) pushMove(from, to);
     else setSelected(null);
   };
@@ -322,6 +408,13 @@ export default function App() {
       delete b[square];
       return b;
     });
+  };
+
+  const passMove = () => {
+    const king = Object.entries(position.board).find(
+      ([, p]) => p.toLowerCase() === "k" && sideOf(p) === position.turn
+    );
+    if (king && legal.has(king[0] + king[0])) pushMove(king[0], king[0]);
   };
 
   // --- 국면 도구 --------------------------------------------------------
@@ -336,26 +429,69 @@ export default function App() {
     ]);
     setCursor(0);
     setSelected(null);
+    setReviewed(null);
+    setResigned(null);
   };
 
   const handleFen = (value: string) => {
     startFrom(parseFen(value), "불러옴"); // 형식이 틀리면 parseFen 이 예외를 던진다
   };
 
+  /** 새 대국. 지금 시작 국면(상차림 포함)은 그대로 두고 수만 지운다. */
+  const newGame = () => {
+    const base = parseFen(history[0].fen);
+    setHistory([
+      {
+        fen: toFen({ ...base, turn: "cho", halfmove: 0, fullmove: 1 }),
+        move: null,
+        notation: "시작",
+        mover: null,
+        score: null,
+      },
+    ]);
+    setCursor(0);
+    setSelected(null);
+    setReviewed(null);
+    setResigned(null);
+    playedFor.current = null;
+    setNotice(`새 대국을 시작합니다. 상대는 ${level.name} 입니다.`);
+  };
+
+  const resign = () => {
+    if (mySide === "watch") return;
+    setResigned(mySide);
+    setNotice("기권했습니다. 복기 탭에서 어디가 갈림길이었는지 볼 수 있습니다.");
+  };
+
   // --- 기보 저장·불러오기 -----------------------------------------------
+
+  const recordPlayers = (): Record<"cho" | "han", RecordPlayer> => {
+    const make = (side: Side): RecordPlayer =>
+      mySide === side
+        ? { kind: "human", label: "나" }
+        : { kind: "engine", level: levelId, label: level.name };
+    return { cho: make("cho"), han: make("han") };
+  };
+
+  const recordResult = (): RecordResult => {
+    if (gstatus.kind === "checkmate") return gstatus.winner;
+    if (gstatus.kind === "stalemate") return gstatus.winner;
+    if (resigned) return resigned === "cho" ? "han" : "cho";
+    return "unfinished";
+  };
 
   const saveRecord = () => {
     downloadRecord(
       buildRecord({
         startFen: history[0].fen,
-        moves: history
-          .slice(1)
-          .map((h) => ({
-            move: h.move ?? "",
-            notation: h.notation,
-            score: h.score ?? undefined,
-          })),
-        variant: options.variant,
+        moves: history.slice(1).map((h) => ({
+          move: h.move ?? "",
+          notation: h.notation,
+          score: h.score ?? undefined,
+        })),
+        variant: prefs.variant,
+        players: recordPlayers(),
+        result: recordResult(),
       })
     );
   };
@@ -372,7 +508,9 @@ export default function App() {
       for (const m of record.moves) {
         const { from, to } = splitMove(m.move);
         if (!from || !pos.board[from]) {
-          throw new Error(`${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`);
+          throw new Error(
+            `${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`
+          );
         }
         const mover = pos.turn;
         pos = applyMove(pos, from, to);
@@ -389,10 +527,70 @@ export default function App() {
       setHistory(rebuilt);
       setCursor(rebuilt.length - 1);
       setSelected(null);
+      setReviewed(null);
+      setResigned(null);
       setNotice(`기보를 불러왔습니다. ${record.moves.length}수.`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : String(err));
     }
+  };
+
+  // --- 복기 -------------------------------------------------------------
+
+  const startReview = async () => {
+    if (!engine || history.length < 2) return;
+    const moves = history
+      .slice(1)
+      .map((h) => h.move)
+      .filter((m): m is string => Boolean(m));
+    if (moves.length === 0) return;
+
+    cancelReview.current = false;
+    setReviewError(null);
+    setReviewed(null);
+    setReviewProgress(null);
+    setReviewRunning(true);
+
+    try {
+      // 실시간 분석을 먼저 세운다. 엔진은 하나뿐이라 둘이 나눠 쓸 수 없다.
+      await engine.stop();
+      await engine.setOptions({ ...prefs, multiPV: 1, skill: 20 });
+
+      const result = await runReview({
+        engine,
+        startFen: history[0].fen,
+        moves,
+        nodes: reviewDepthById(reviewDepthId).nodes,
+        onProgress: setReviewProgress,
+        shouldStop: () => cancelReview.current,
+      });
+
+      setReviewed(result);
+
+      // 복기로 얻은 점수를 기보에 옮겨 적는다. 실시간 분석 때 찍힌 값보다
+      // 깊이가 고르기 때문에 형세 그래프가 훨씬 정확해진다.
+      if (result.length > 0) {
+        setHistory((prev) => {
+          const next = [...prev];
+          if (next[0]) next[0] = { ...next[0], score: result[0].scoreBefore };
+          for (const r of result) {
+            if (next[r.index]) next[r.index] = { ...next[r.index], score: r.scoreAfter };
+          }
+          return next;
+        });
+      }
+      if (!cancelReview.current) setNotice("복기가 끝났습니다.");
+    } catch (err) {
+      setReviewError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setReviewRunning(false);
+      setReviewProgress(null);
+    }
+  };
+
+  const stopReview = () => {
+    cancelReview.current = true;
+    void engine?.stop();
   };
 
   useEffect(() => {
@@ -403,11 +601,21 @@ export default function App() {
 
   // --- 화살표 -----------------------------------------------------------
 
+  const currentReview = useMemo(
+    () => reviewed?.find((r) => r.index === cursor) ?? null,
+    [reviewed, cursor]
+  );
+
   const hoverArrow = arrowOf(hover);
-  const bestArrow =
-    !hoverArrow && snapshot?.lines[0]?.pv[0]
-      ? arrowOf(snapshot.lines[0].pv[0])
-      : null;
+  const bestArrow = useMemo(() => {
+    // 복기 중에는 "이랬어야 했다" 를 그린다.
+    if (mode === "review") return bestArrowOf(currentReview);
+    if (hoverArrow) return null;
+    // 대국 중에는 훈수를 켰을 때만 최선수를 보여준다.
+    if (mode === "play" && !hintOn) return null;
+    const first = snapshot?.lines[0]?.pv[0];
+    return first ? arrowOf(first) : null;
+  }, [mode, currentReview, hoverArrow, hintOn, snapshot]);
 
   const lastMove = useMemo(() => {
     if (editMode || !entry.move) return null;
@@ -468,6 +676,8 @@ export default function App() {
     );
   }
 
+  const thinking = engineTurn && Boolean(snapshot?.running);
+
   return (
     <div className="app">
       <header className="top">
@@ -478,16 +688,32 @@ export default function App() {
         <span className="turn-tag">
           {editMode ? (
             <b className="editing">판 편집 중</b>
+          ) : mode === "review" ? (
+            <b className="reviewing">복기 중</b>
           ) : (
             <>
               둘 차례:{" "}
               <b className={position.turn}>
                 {position.turn === "cho" ? "초 楚" : "한 漢"}
               </b>
+              {mode === "play" && thinking && (
+                <span className="muted"> · 엔진이 생각 중…</span>
+              )}
             </>
           )}
         </span>
       </header>
+
+      <ModeTabs
+        mode={mode}
+        onMode={(next) => {
+          if (reviewRunning) return;
+          if (next !== "analyze" && editMode) leaveEdit();
+          setMode(next);
+          setSelected(null);
+        }}
+        canReview={history.length > 1}
+      />
 
       {notice && <div className="notice">{notice}</div>}
 
@@ -498,6 +724,12 @@ export default function App() {
             canUndo={cursor > 0 && !editMode}
             onUndo={() => goTo(cursor - 1)}
           />
+
+          {resigned && (
+            <div className="banner resign">
+              기권 — {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
+            </div>
+          )}
 
           <Board
             board={position.board}
@@ -527,7 +759,7 @@ export default function App() {
                 onClick={() => goTo(cursor - 1)}
                 title="← 키"
               >
-                ← 무르기
+                ← {mode === "play" ? "무르기" : "이전"}
               </button>
               <button
                 type="button"
@@ -535,7 +767,7 @@ export default function App() {
                 onClick={() => goTo(cursor + 1)}
                 title="→ 키"
               >
-                다시 →
+                {mode === "play" ? "다시" : "다음"} →
               </button>
               <button
                 type="button"
@@ -544,29 +776,17 @@ export default function App() {
               >
                 ⇥
               </button>
-              <button
-                type="button"
-                disabled={over}
-                title="궁을 제자리에 두는 것이 장기의 한수쉼입니다"
-                onClick={() => {
-                  const king = Object.entries(position.board).find(
-                    ([, p]) =>
-                      p.toLowerCase() === "k" && sideOf(p) === position.turn
-                  );
-                  if (king && legal.has(king[0] + king[0]))
-                    pushMove(king[0], king[0]);
-                }}
-              >
-                한수쉼
+              <button type="button" className="ghost" onClick={() => setFlipped((f) => !f)} title="F 키">
+                판 뒤집기
               </button>
-              {engineSide !== "none" && (
+              {mode !== "review" && (
                 <button
                   type="button"
-                  className="ghost stop"
-                  onClick={() => setEngineSide("none")}
-                  title="엔진이 두는 것을 멈춥니다"
+                  disabled={!canTouchBoard}
+                  title="궁을 제자리에 두는 것이 장기의 한수쉼입니다"
+                  onClick={passMove}
                 >
-                  ■ 엔진 멈춤
+                  한수쉼
                 </button>
               )}
             </div>
@@ -574,59 +794,130 @@ export default function App() {
         </section>
 
         <section className="side-col">
-          <PositionTools
-            position={position}
-            editMode={editMode}
-            onEditMode={(on) => (on ? enterEdit() : leaveEdit())}
-            onFen={handleFen}
-            onTurn={(turn) => startFrom({ ...position, turn }, "편집")}
-            onSetup={(side: Side, setup: Setup) =>
-              startFrom(
-                { ...position, board: applySetup(position.board, side, setup) },
-                "편집"
-              )
-            }
-            onClear={() => startFrom({ ...position, board: {} }, "편집")}
-            onReset={() => {
-              setDraft(null);
-              setHistory(initialHistory);
-              setCursor(0);
-              setSelected(null);
-            }}
-            onFlip={() => setFlipped((f) => !f)}
-            onSave={saveRecord}
-            onLoad={loadRecord}
-            canSave={history.length > 1}
-          />
+          {mode === "play" && (
+            <>
+              <PlayPanel
+                mySide={mySide}
+                levelId={levelId}
+                started={started}
+                status={gstatus}
+                resigned={resigned}
+                thinking={thinking}
+                analysisOn={hintOn}
+                onMySide={(s) => {
+                  setMySide(s);
+                  playedFor.current = null;
+                }}
+                onLevel={setLevelId}
+                onSetup={(side: Side, setup: Setup) =>
+                  startFrom(
+                    { ...position, board: applySetup(position.board, side, setup) },
+                    "시작"
+                  )
+                }
+                onNewGame={newGame}
+                onResign={resign}
+                onAnalysisOn={setHintOn}
+              />
 
-          <AnalysisPanel
-            snapshot={snapshot}
-            board={position.board}
-            enabled={analysisOn || engineTurn}
-            editing={editMode}
-            onHoverLine={setHover}
-            onPlayLine={(move) => {
-              if (editMode || over) return;
-              const { from, to } = splitMove(move);
-              if (from && to) pushMove(from, to);
-            }}
-          />
+              {hintOn && (
+                <AnalysisPanel
+                  snapshot={snapshot}
+                  board={position.board}
+                  enabled={analysisEnabled}
+                  onHoverLine={setHover}
+                  onPlayLine={(move) => {
+                    if (!canTouchBoard) return;
+                    const { from, to } = splitMove(move);
+                    if (from && to) pushMove(from, to);
+                  }}
+                />
+              )}
+            </>
+          )}
 
-          <EngineControls
-            options={options}
-            limits={limits}
-            analysisOn={analysisOn}
-            engineSide={engineSide}
-            onOptions={(patch) => setOptions((o) => ({ ...o, ...patch }))}
-            onLimits={(patch) => setLimits((l) => ({ ...l, ...patch }))}
-            onAnalysisOn={setAnalysisOn}
-            onEngineSide={setEngineSide}
-          />
+          {mode === "analyze" && (
+            <>
+              <PositionTools
+                position={position}
+                editMode={editMode}
+                onEditMode={(on) => (on ? enterEdit() : leaveEdit())}
+                onFen={handleFen}
+                onTurn={(turn) => startFrom({ ...position, turn }, "편집")}
+                onSetup={(side: Side, setup: Setup) =>
+                  startFrom(
+                    { ...position, board: applySetup(position.board, side, setup) },
+                    "편집"
+                  )
+                }
+                onClear={() => startFrom({ ...position, board: {} }, "편집")}
+                onReset={() => {
+                  setDraft(null);
+                  setHistory(initialHistory);
+                  setCursor(0);
+                  setSelected(null);
+                  setReviewed(null);
+                  setResigned(null);
+                }}
+                onFlip={() => setFlipped((f) => !f)}
+              />
+
+              <AnalysisPanel
+                snapshot={snapshot}
+                board={position.board}
+                enabled={analysisEnabled}
+                editing={editMode}
+                onHoverLine={setHover}
+                onPlayLine={(move) => {
+                  if (editMode || over) return;
+                  const { from, to } = splitMove(move);
+                  if (from && to) pushMove(from, to);
+                }}
+              />
+
+              <EngineControls
+                options={options}
+                limits={limits}
+                analysisOn={analysisOn}
+                onOptions={(patch) => setPrefs((o) => ({ ...o, ...patch }))}
+                onLimits={(patch) => setLimits((l) => ({ ...l, ...patch }))}
+                onAnalysisOn={setAnalysisOn}
+              />
+            </>
+          )}
+
+          {mode === "review" && (
+            <ReviewPanel
+              moveCount={history.length - 1}
+              depthId={reviewDepthId}
+              onDepth={setReviewDepthId}
+              running={reviewRunning}
+              progress={reviewProgress}
+              reviewed={reviewed}
+              cursor={cursor}
+              error={reviewError}
+              onStart={() => void startReview()}
+              onStop={stopReview}
+              onJump={goTo}
+            />
+          )}
 
           {!editMode && (
             <>
-              <EvalGraph history={history} cursor={cursor} onJump={goTo} />
-              <MoveList history={history} cursor={cursor} onJump={goTo} />
+              {/* 대국 중 형세 그래프는 엔진 평가를 그대로 흘리는 것이라
+                  훈수를 켰을 때만 띄운다. */}
+              {(mode !== "play" || hintOn) && (
+                <EvalGraph history={history} cursor={cursor} onJump={goTo} />
+              )}
+              <MoveList
+                history={history}
+                cursor={cursor}
+                reviewed={reviewed}
+                canSave={history.length > 1}
+                onJump={goTo}
+                onSave={saveRecord}
+                onLoad={loadRecord}
+              />
             </>
           )}
         </section>

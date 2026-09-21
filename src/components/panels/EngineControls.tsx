@@ -1,7 +1,10 @@
-// 엔진 설정
+// 엔진 설정 (분석 모드 전용)
 //
 // 스레드와 해시를 올리면 같은 시간에 더 깊이 본다. 브라우저에서는 코어 수만큼
 // 스레드를 쓰는 게 보통 가장 빠르지만, 화면이 버벅이면 하나 줄이는 편이 낫다.
+//
+// 여기는 '분석을 얼마나 깊게 할까' 만 다룬다. 상대를 몇 급으로 할지는
+// 대국 탭에 있다. 두 가지가 한 화면에 섞여 있으면 무엇을 만지는 건지 헷갈린다.
 
 import type { EngineOptions, SearchLimits } from "../../engine/types";
 
@@ -9,11 +12,9 @@ interface Props {
   options: EngineOptions;
   limits: SearchLimits;
   analysisOn: boolean;
-  engineSide: "none" | "cho" | "han" | "both";
   onOptions: (patch: Partial<EngineOptions>) => void;
   onLimits: (patch: Partial<SearchLimits>) => void;
   onAnalysisOn: (on: boolean) => void;
-  onEngineSide: (side: "none" | "cho" | "han" | "both") => void;
 }
 
 const VARIANTS: { id: EngineOptions["variant"]; label: string; desc: string }[] =
@@ -30,11 +31,9 @@ export function EngineControls(props: Props) {
     options,
     limits,
     analysisOn,
-    engineSide,
     onOptions,
     onLimits,
     onAnalysisOn,
-    onEngineSide,
   } = props;
 
   return (
@@ -49,29 +48,6 @@ export function EngineControls(props: Props) {
         />
         <span>실시간 분석</span>
       </label>
-
-      <div className="row">
-        <span className="label">대국 상대</span>
-        <div className="seg">
-          {(
-            [
-              ["none", "없음"],
-              ["cho", "초"],
-              ["han", "한"],
-              ["both", "양쪽"],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={engineSide === id ? "active" : ""}
-              onClick={() => onEngineSide(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <div className="row">
         <span className="label">규칙</span>
@@ -159,8 +135,8 @@ export function EngineControls(props: Props) {
       </div>
 
       <p className="muted small">
-        이 기기에서 쓸 수 있는 코어는 {maxThreads}개입니다. 무제한은 분석용이며,
-        대국 상대로 쓸 때는 생각 시간을 정해두세요.
+        이 기기에서 쓸 수 있는 코어는 {maxThreads}개입니다. 무제한으로 두면
+        코어를 계속 붙잡고 있으니, 오래 켜둘 때는 시간을 정해두세요.
       </p>
     </div>
   );

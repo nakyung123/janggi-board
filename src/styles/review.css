@@ -1,0 +1,382 @@
+/* 모드 탭 · 대국 · 복기.
+   panels.css 가 이미 길어서 이번에 붙은 세 화면은 여기 모아둔다. */
+
+/* --- 등급 색 ----------------------------------------------------------- */
+
+:root {
+  --g-best: var(--cho);
+  --g-good: #8b93a3;
+  --g-inaccuracy: #f5c451;
+  --g-mistake: #ff9f43;
+  --g-blunder: var(--han);
+}
+
+.g-best {
+  --grade: var(--g-best);
+}
+.g-good {
+  --grade: var(--g-good);
+}
+.g-inaccuracy {
+  --grade: var(--g-inaccuracy);
+}
+.g-mistake {
+  --grade: var(--g-mistake);
+}
+.g-blunder {
+  --grade: var(--g-blunder);
+}
+
+/* --- 모드 탭 ----------------------------------------------------------- */
+
+.mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.mode-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 13px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.mode-tab b {
+  font-size: 14px;
+}
+
+.mode-tab span {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.mode-tab.active {
+  background: rgba(79, 140, 255, 0.14);
+  border-color: var(--accent);
+}
+
+.mode-tab.active b {
+  color: #cbdcff;
+}
+
+@media (max-width: 560px) {
+  .mode-tab span {
+    display: none;
+  }
+}
+
+/* --- 대국 패널 --------------------------------------------------------- */
+
+.level-block {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 11px 0;
+  margin: 11px 0;
+}
+
+.level-now {
+  margin-left: auto;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.level-slider {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 2px 0;
+}
+
+.level-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.level-desc {
+  font-size: 13px;
+  color: #d3d9e6;
+  margin-bottom: 6px;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #3f7bee;
+  border-color: #3f7bee;
+}
+
+.play-result {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(79, 140, 255, 0.13);
+  border: 1px solid rgba(79, 140, 255, 0.45);
+  color: #cbdcff;
+  font-size: 12.5px;
+}
+
+.banner.resign {
+  margin-bottom: 10px;
+  padding: 9px 13px;
+  border-radius: var(--radius);
+  background: rgba(154, 163, 178, 0.12);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+b.reviewing {
+  color: var(--accent);
+}
+
+/* --- 복기 진행률 ------------------------------------------------------- */
+
+.review-bar {
+  height: 8px;
+  background: var(--panel-2);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 4px 0 10px;
+}
+
+.review-bar > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+/* --- 복기 성적표 ------------------------------------------------------- */
+
+.review-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.review-side {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.review-side-name {
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.review-side-name .muted {
+  font-weight: 400;
+  font-size: 11.5px;
+}
+
+.review-counts {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  margin-bottom: 6px;
+}
+
+.review-counts li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+}
+
+.review-counts b {
+  font-size: 15px;
+  color: var(--grade, var(--text));
+  font-variant-numeric: tabular-nums;
+}
+
+.review-counts span {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* "가장 큰 실수 5수 71卒61" 이 '큰 / 실수' 사이에서 잘리면 읽기 나쁘다. */
+.review-side > .small {
+  text-wrap: balance;
+}
+
+button.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+/* --- 고른 수의 설명 — 이 패널의 알맹이 --------------------------------- */
+
+.review-detail {
+  border: 1px solid var(--grade, var(--line));
+  border-left-width: 3px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 11px;
+  background: var(--panel-2);
+}
+
+.review-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.review-grade {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--grade, var(--text));
+}
+
+.review-played {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.review-played b {
+  font-family: var(--serif);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.review-loss {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--grade, var(--muted));
+}
+
+.review-comment {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #dde2ec;
+}
+
+.review-best {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.review-best .label {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.review-line {
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--cho);
+}
+
+/* --- 복기 수 목록 ------------------------------------------------------ */
+
+.review-list {
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.review-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 30px 1fr 26px 44px;
+  gap: 7px;
+  align-items: baseline;
+  background: transparent;
+  border-color: transparent;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.review-item:hover:not(:disabled) {
+  background: var(--panel-2);
+}
+
+.review-item.active {
+  background: var(--panel-2);
+  border-color: var(--accent);
+}
+
+.review-item-no {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.review-item-move {
+  font-family: var(--serif);
+  font-size: 13px;
+}
+
+.review-item-grade {
+  color: var(--grade, var(--muted));
+  font-weight: 700;
+  text-align: center;
+}
+
+.review-item-loss {
+  color: var(--grade, var(--muted));
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* --- 기보 칸에 붙는 등급 기호 ------------------------------------------ */
+
+.move-cell {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.move-grade {
+  margin-left: auto;
+  font-style: normal;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--grade, var(--muted));
+}
+
+.move-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  margin-top: 10px;
+}

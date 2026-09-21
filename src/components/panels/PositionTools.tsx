@@ -3,7 +3,7 @@
 // Yixin-Board 를 쓰는 이유와 같은 부분이다. 판을 마음대로 고쳐놓고
 // 그 국면을 그대로 엔진에 물릴 수 있어야 한다.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Position } from "../../janggi/board";
 import { toFen, validate } from "../../janggi/board";
 import type { Side } from "../../janggi/pieces";
@@ -23,9 +23,6 @@ interface Props {
   onClear: () => void;
   onReset: () => void;
   onFlip: () => void;
-  onSave: () => void;
-  onLoad: (file: File) => void;
-  canSave: boolean;
 }
 
 export function PositionTools(props: Props) {
@@ -39,16 +36,12 @@ export function PositionTools(props: Props) {
     onClear,
     onReset,
     onFlip,
-    onSave,
-    onLoad,
-    canSave,
   } = props;
 
   const fen = toFen(position);
   const [draft, setDraft] = useState(fen);
   const [fenError, setFenError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // 판이 바뀌면 입력칸도 따라간다.
   useEffect(() => setDraft(fen), [fen]);
@@ -83,14 +76,14 @@ export function PositionTools(props: Props) {
             className={!editMode ? "active" : ""}
             onClick={() => onEditMode(false)}
           >
-            대국
+            보기
           </button>
           <button
             type="button"
             className={editMode ? "active" : ""}
             onClick={() => onEditMode(true)}
           >
-            판 편집
+            편집
           </button>
         </div>
         <button type="button" className="ghost" onClick={onFlip} title="F 키">
@@ -100,7 +93,7 @@ export function PositionTools(props: Props) {
 
       {editMode && (
         <p className="edit-hint">
-          고치는 대로 엔진이 다시 분석합니다. <b>대국</b>을 누르면 편집을
+          고치는 대로 엔진이 다시 분석합니다. <b>보기</b>를 누르면 편집을
           마칩니다. 판을 그대로 두고 나가면 두던 기보가 그대로 남습니다.
         </p>
       )}
@@ -200,33 +193,6 @@ export function PositionTools(props: Props) {
         <button type="button" className="ghost" onClick={onClear}>
           판 비우기
         </button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={onSave}
-          disabled={!canSave}
-          title={canSave ? "기보를 파일로 저장합니다" : "저장할 수가 없습니다"}
-        >
-          기보 저장
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() => fileRef.current?.click()}
-        >
-          기보 불러오기
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onLoad(file);
-            e.target.value = ""; // 같은 파일을 다시 골라도 동작하게
-          }}
-        />
       </div>
 
       {problems.length > 0 && (
