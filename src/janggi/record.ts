@@ -4,7 +4,9 @@
 // 시작 국면과 둔 수를 함께 담는다. 평가치도 같이 저장해 두면 다시 열었을 때
 // 형세 그래프가 그대로 살아난다.
 
-export const RECORD_FORMAT = "janggi-board/1";
+export const RECORD_FORMAT = "janggi-board/2";
+/** 급수·대국 결과가 없던 첫 형식. 읽기만 지원한다. */
+const RECORD_FORMAT_V1 = "janggi-board/1";
 
 export interface RecordMove {
   /** 엔진 좌표. 예: a4b4 */
@@ -15,6 +17,17 @@ export interface RecordMove {
   score?: number;
 }
 
+/** 한 진영을 누가 잡았는지. 복기할 때 "내 수" 를 가려내는 데 쓴다. */
+export interface RecordPlayer {
+  kind: "human" | "engine";
+  /** 엔진이면 어느 급수였는지 (levels.ts 의 id) */
+  level?: string;
+  /** 화면에 띄울 이름. 예: "나", "6급" */
+  label: string;
+}
+
+export type RecordResult = "cho" | "han" | "draw" | "unfinished";
+
 export interface GameRecord {
   format: typeof RECORD_FORMAT;
   /** 저장한 날짜 */
@@ -24,13 +37,21 @@ export interface GameRecord {
   moves: RecordMove[];
   /** 어떤 규칙으로 뒀는지 */
   variant: string;
+  /** 누가 어느 쪽을 잡았는지 */
+  players: Record<"cho" | "han", RecordPlayer>;
+  /** 끝났으면 누가 이겼는지 */
+  result: RecordResult;
   note?: string;
 }
+
+const ANONYMOUS: RecordPlayer = { kind: "human", label: "사람" };
 
 export function buildRecord(input: {
   startFen: string;
   moves: RecordMove[];
   variant: string;
+  players: Record<"cho" | "han", RecordPlayer>;
+  result: RecordResult;
   note?: string;
 }): GameRecord {
   return {
@@ -39,6 +60,8 @@ export function buildRecord(input: {
     startFen: input.startFen,
     moves: input.moves,
     variant: input.variant,
+    players: input.players,
+    result: input.result,
     note: input.note,
   };
 }
@@ -53,7 +76,8 @@ export function parseRecord(text: string): GameRecord {
   }
 
   const r = raw as Partial<GameRecord>;
-  if (r.format !== RECORD_FORMAT) {
+  // 급수와 결과가 없던 첫 형식도 그대로 읽는다. 없는 항목만 채워 넣는다.
+  if (r.format !== RECORD_FORMAT && r.format !== RECORD_FORMAT_V1) {
     throw new Error(
       `모르는 기보 형식입니다. (${String(r.format ?? "표시 없음")})`
     );
@@ -76,8 +100,28 @@ export function parseRecord(text: string): GameRecord {
     startFen: r.startFen,
     moves: r.moves,
     variant: typeof r.variant === "string" ? r.variant : "janggi",
+    players: {
+      cho: readPlayer(r.players?.cho),
+      han: readPlayer(r.players?.han),
+    },
+    result: readResult(r.result),
     note: typeof r.note === "string" ? r.note : undefined,
   };
+}
+
+function readPlayer(p: unknown): RecordPlayer {
+  if (!p || typeof p !== "object") return ANONYMOUS;
+  const v = p as Partial<RecordPlayer>;
+  const kind = v.kind === "engine" ? "engine" : "human";
+  return {
+    kind,
+    level: typeof v.level === "string" ? v.level : undefined,
+    label: typeof v.label === "string" && v.label ? v.label : ANONYMOUS.label,
+  };
+}
+
+function readResult(v: unknown): RecordResult {
+  return v === "cho" || v === "han" || v === "draw" ? v : "unfinished";
 }
 
 /** 저장 파일 이름. 날짜를 넣어 여러 판을 구분한다. */
