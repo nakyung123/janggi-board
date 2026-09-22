@@ -13,7 +13,7 @@
   max-width: 100%;
   display: block;
   border-radius: 10px;
-  box-shadow: 0 6px 18px rgba(40, 30, 15, 0.16);
+  box-shadow: 0 8px 22px rgba(60, 42, 16, 0.2);
   touch-action: none;
   user-select: none;
 }
@@ -25,46 +25,78 @@
   }
 }
 
+/* 격자선. 예전에는 투명도 0.72 라 흐릿했다. 실물 장기판의 선은 또렷하다. */
 .board .grid line {
-  stroke: #6b4b28;
+  stroke: #4e3416;
+  stroke-width: 1.45;
+  stroke-linecap: square;
+  opacity: 0.92;
+}
+
+/* 판 가장자리 테. 나무 판이 끝나는 자리를 한 줄로 눌러준다. */
+.board .board-edge {
+  fill: none;
+  stroke: rgba(96, 64, 24, 0.5);
   stroke-width: 1.5;
-  stroke-linecap: round;
-  opacity: 0.72;
 }
 
 .board text.coord {
-  fill: #7d5a33;
-  font-size: 14px;
-  font-weight: 500;
+  fill: #8a6636;
+  font-size: 12px;
+  font-weight: 600;
   text-anchor: middle;
   dominant-baseline: middle;
 }
 
+/* --- 기물 -------------------------------------------------------------- */
+/*
+ * 세 겹으로 입체를 낸다. 옆면(두께) → 빗면 → 윗면 순으로 겹친다.
+ * 자세한 것은 PieceGlyph.tsx 의 주석에 적었다.
+ */
+
 .board .piece {
   cursor: grab;
+  filter: url(#pieceShadow);
 }
 
 .board .piece.dragging {
   cursor: grabbing;
-  filter: drop-shadow(0 6px 10px rgba(40, 30, 15, 0.42));
+  filter: drop-shadow(0 7px 11px rgba(40, 30, 15, 0.45));
 }
 
-.board .piece-base {
-  fill: #8a6033;
-  stroke: #5d3f1f;
-  stroke-width: 1.5;
+/* 옆면 — 나무토막의 두께 */
+.piece-side {
+  fill: #d8c9a4;
+  stroke: #9a8153;
+  stroke-width: 0.9;
 }
 
-.board .piece-inner {
-  fill: url(#pieceFace);
-  stroke: rgba(120, 82, 40, 0.5);
+/* 빗면 — 왼쪽 위에서 빛을 받는 테두리 */
+.piece-rim {
+  fill: url(#pieceRim);
+  stroke: #8d7444;
+  stroke-width: 1.15;
+}
+
+/* 아주 작게 그릴 때(잡은 기물). 그라디언트 없이 단색으로 때운다. */
+.piece-rim.flat {
+  fill: #f7f0de;
+  stroke: #8d7444;
   stroke-width: 1;
 }
 
+/* 윗면 — 글자를 새기는 면 */
+.piece-face {
+  fill: url(#pieceFace);
+  stroke: rgba(150, 124, 78, 0.45);
+  stroke-width: 0.9;
+}
+
+/* 직전 수. 판이 밝아지면서 예전 색(파랑 20%)은 회색 상자처럼 보였다. */
 .board .last-move {
-  fill: rgba(79, 140, 255, 0.2);
-  stroke: rgba(79, 140, 255, 0.55);
-  stroke-width: 1.5;
+  fill: rgba(59, 130, 246, 0.22);
+  stroke: rgba(29, 78, 216, 0.75);
+  stroke-width: 1.8;
 }
 
 .board .selected {
@@ -165,8 +197,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #f1e3c6;
-  border: 1px solid #8a6033;
+  background: #f7f0de;
+  border: 1px solid #8d7444;
   border-radius: 8px;
 }
 
@@ -287,8 +319,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
-  min-height: 42px;
+  padding: 5px 12px;
+  min-height: 37px;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: var(--panel-2);

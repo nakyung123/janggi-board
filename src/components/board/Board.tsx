@@ -8,10 +8,17 @@ import type { Board as BoardMap, Square } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
 import { pieceInfo } from "../../janggi/pieces";
 import { toJanggiCoord } from "../../janggi/notation";
-import { PieceGlyph } from "./PieceGlyph";
+import { PieceBody, PieceDefs } from "./PieceGlyph";
 
 const CELL = 62;
-const MARGIN = 56; // 기물 반지름(약 29)보다 커야 좌표 숫자와 겹치지 않는다
+/*
+ * 격자 바깥 여백. 좌표 숫자가 들어갈 만큼만 남긴다.
+ *
+ * 예전에는 56 이었는데, 그러면 격자가 판 넓이의 83% 밖에 안 돼서 가장자리에
+ * 맨 나무만 넓게 보였다. 46 이면 86% 다. 가장자리 기물의 끝(반지름 26.2 인
+ * 차 기준 21.8px 지점)과 좌표 숫자가 겨우 스치지 않는 선이기도 하다.
+ */
+const MARGIN = 46;
 const WIDTH = (FILES - 1) * CELL + MARGIN * 2;
 const HEIGHT = (RANKS - 1) * CELL + MARGIN * 2;
 
@@ -34,16 +41,6 @@ export interface BoardProps {
   onMove: (from: Square, to: Square) => void;
   /** 편집 모드에서 기물을 판 밖으로 끌어내면 지운다. */
   onRemove?: (square: Square) => void;
-}
-
-/** 팔각 기물 윤곽. 위아래가 평평하도록 22.5도 돌린 정팔각형이다. */
-function octagon(r: number): string {
-  const pts: string[] = [];
-  for (let i = 0; i < 8; i++) {
-    const a = (Math.PI / 8) * (2 * i + 1);
-    pts.push(`${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}`);
-  }
-  return pts.join(" ");
 }
 
 export function Board(props: BoardProps) {
@@ -187,7 +184,7 @@ export function Board(props: BoardProps) {
     const text = String(f + 1);
     const x = xOf(f);
     labels.push(
-      <text key={"lf" + f} x={x} y={HEIGHT - MARGIN + 34} className="coord">
+      <text key={"lf" + f} x={x} y={HEIGHT - MARGIN + 32} className="coord">
         {text}
       </text>
     );
@@ -196,7 +193,7 @@ export function Board(props: BoardProps) {
     const text = String((11 - r) % 10);
     const y = yOf(r);
     labels.push(
-      <text key={"lr" + r} x={MARGIN - 32} y={y + 5} className="coord">
+      <text key={"lr" + r} x={MARGIN - 30} y={y + 4} className="coord">
         {text}
       </text>
     );
@@ -218,9 +215,7 @@ export function Board(props: BoardProps) {
         onPointerDown={(e) => handlePointerDown(e, square)}
         style={{ opacity: drag && drag.from === square && !dragging ? 0.25 : 1 }}
       >
-        <polygon points={octagon(r)} className="piece-base" />
-        <polygon points={octagon(r * 0.86)} className="piece-inner" />
-        <PieceGlyph piece={piece} radius={r} />
+        <PieceBody piece={piece} radius={r} />
       </g>
     );
   };
@@ -251,15 +246,18 @@ export function Board(props: BoardProps) {
       onPointerCancel={() => setDrag(null)}
     >
       <defs>
-        <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#e8c896" />
-          <stop offset="55%" stopColor="#dfb87f" />
-          <stop offset="100%" stopColor="#d3a96e" />
+        <linearGradient id="wood" x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor="#f3dcac" />
+          <stop offset="52%" stopColor="#ecd19b" />
+          <stop offset="100%" stopColor="#e2c081" />
         </linearGradient>
-        <radialGradient id="pieceFace" cx="35%" cy="30%">
-          <stop offset="0%" stopColor="#fffdf7" />
-          <stop offset="100%" stopColor="#f0e2c4" />
-        </radialGradient>
+        {/* 세로 나무결. 아주 옅게 깔아야 격자선을 방해하지 않는다. */}
+        <pattern id="grain" width="31" height="4" patternUnits="userSpaceOnUse">
+          <path d="M5 0 V4" stroke="#7a5420" strokeWidth="0.8" opacity="0.028" />
+          <path d="M14 0 V4" stroke="#fffaf0" strokeWidth="1.4" opacity="0.13" />
+          <path d="M23 0 V4" stroke="#7a5420" strokeWidth="0.6" opacity="0.02" />
+        </pattern>
+        <PieceDefs />
         <marker id="arrowBest" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 z" fill="#1d4ed8" />
         </marker>
@@ -268,7 +266,16 @@ export function Board(props: BoardProps) {
         </marker>
       </defs>
 
-      <rect width={WIDTH} height={HEIGHT} rx="10" fill="url(#wood)" />
+      <rect width={WIDTH} height={HEIGHT} rx="9" fill="url(#wood)" />
+      <rect width={WIDTH} height={HEIGHT} rx="9" fill="url(#grain)" />
+      <rect
+        x="0.75"
+        y="0.75"
+        width={WIDTH - 1.5}
+        height={HEIGHT - 1.5}
+        rx="8.5"
+        className="board-edge"
+      />
 
       <g className="grid">{lines}</g>
       <g className="grid">{palaceDiagonals}</g>

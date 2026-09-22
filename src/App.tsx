@@ -804,6 +804,17 @@ export default function App() {
         <span className="badge" title={evalMode ?? ""}>
           {evalMode?.includes("NNUE") ? "신경망 적용됨" : (evalMode ?? "")}
         </span>
+        <ModeTabs
+          mode={mode}
+          onMode={(next) => {
+            if (reviewRunning) return;
+            if (next !== "analyze" && editMode) leaveEdit();
+            setMode(next);
+            setSelected(null);
+          }}
+          canReview={history.length > 1}
+        />
+
         <span className="turn-tag">
           {editMode ? (
             <b className="editing">판 편집 중</b>
@@ -822,17 +833,6 @@ export default function App() {
           )}
         </span>
       </header>
-
-      <ModeTabs
-        mode={mode}
-        onMode={(next) => {
-          if (reviewRunning) return;
-          if (next !== "analyze" && editMode) leaveEdit();
-          setMode(next);
-          setSelected(null);
-        }}
-        canReview={history.length > 1}
-      />
 
       {notice && <div className="notice">{notice}</div>}
 

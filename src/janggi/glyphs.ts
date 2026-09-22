@@ -168,10 +168,13 @@ export const GLYPHS: Record<PieceChar, Glyph> = {
 
 /**
  * 글자를 기물 한가운데에 반지름 radius 에 맞춰 앉히는 변환.
- * 0.58 은 팔각형 안에서 글자가 답답하지도 넘치지도 않는 비율이다.
+ *
+ * 1.28 은 지름의 0.64 다. 실물 장기알은 글자가 면을 거의 채우는데, 예전 값
+ * (지름의 0.58)으로는 글자가 작아 멀리서 보면 무슨 기물인지 잘 안 보였다.
+ * 윗면 팔각형의 내접 반지름이 0.77r 이라 0.64r 까지는 넉넉히 들어간다.
  */
 export function glyphTransform(glyph: Glyph, radius: number): string {
   const [x, y, w, h] = glyph.box;
-  const scale = (radius * 1.16) / Math.max(w, h);
+  const scale = (radius * 1.28) / Math.max(w, h);
   return `scale(${scale.toFixed(4)}) translate(${(-(x + w / 2)).toFixed(2)} ${(-(y + h / 2)).toFixed(2)})`;
 }

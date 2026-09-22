@@ -9,7 +9,7 @@ import { clockView } from "../../janggi/clock";
 import type { PieceChar, Side } from "../../janggi/pieces";
 import { SIDE_LABEL, charOf } from "../../janggi/pieces";
 import type { PieceType } from "../../janggi/pieces";
-import { PieceGlyph } from "./PieceGlyph";
+import { PieceBody } from "./PieceGlyph";
 
 interface Props {
   side: Side;
@@ -51,7 +51,7 @@ export function PlayerBar(props: Props) {
       <span className="player-captured" title="잡아낸 기물">
         {captured.map((type, i) => (
           <svg key={type + i} viewBox="-11 -11 22 22" className="captured-piece">
-            <PieceGlyph piece={charOf(type, opponent) as PieceChar} radius={10} />
+            <PieceBody piece={charOf(type, opponent) as PieceChar} radius={10} flat />
           </svg>
         ))}
       </span>

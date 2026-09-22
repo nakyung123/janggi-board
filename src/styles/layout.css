@@ -50,7 +50,7 @@
 
 .app {
   height: 100dvh;
-  padding: 10px 16px 12px;
+  padding: 8px 14px 10px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -59,8 +59,8 @@
 .top {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: 11px;
+  margin-bottom: 7px;
   flex-wrap: wrap;
 }
 
@@ -87,8 +87,8 @@
 .layout {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
+  gap: 14px;
   align-items: stretch;
   /* 이게 없으면 자식이 넘쳐도 칸이 늘어나 페이지가 스크롤된다. */
   min-height: 0;
@@ -129,7 +129,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 /*
@@ -187,20 +187,16 @@
 /* 세로가 짧으면 탭 설명부터 접는다. 판에 줄 높이를 한 줄이라도 더 만든다. */
 
 @media (max-height: 780px) {
-  .mode-tab {
-    padding: 6px 12px;
-  }
-
-  .mode-tab span {
-    display: none;
-  }
-
   .app {
-    padding-top: 8px;
+    padding-top: 6px;
   }
 
   .top {
-    margin-bottom: 6px;
+    margin-bottom: 5px;
+  }
+
+  .table {
+    gap: 4px;
   }
 }
 
