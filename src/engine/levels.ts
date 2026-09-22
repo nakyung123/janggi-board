@@ -1,24 +1,32 @@
 // 급수 — 엔진 실력 단계
 //
-// 왜 이렇게 만들었는지 (엔진에 직접 물어보고 정한 것이다)
+// 한 급수는 (Skill Level, 노드 수) 한 쌍이다. 어떻게 이 표가 나왔는지 적어둔다.
 //
 // 1. UCI_Elo 는 쓰지 않는다.
 //    엔진에 UCI_LimitStrength / UCI_Elo(500~2850) 옵션이 있긴 하다. 그런데
 //    장기 변형에서 Elo 500 과 2850 을 각각 돌려보면 둘 다 depth 15~16 으로
-//    멀쩡한 수를 낸다. 이 환산표는 체스용으로 맞춰진 것이라 장기에는 눈금이
-//    붙지 않는다. 숫자만 그럴듯하고 실제로 약해지지 않는다.
+//    멀쩡한 수를 낸다. 이 환산표는 체스용이라 장기에는 눈금이 붙지 않는다.
 //
 // 2. Skill Level(-20~20) 은 제대로 먹힌다.
-//    초기 국면에서 여섯 번씩 돌려보면 Skill 20 은 여섯 번 다 같은 최선수를
-//    고르고, Skill -20 은 최선수를 아예 고르지 않는다. 종반 국면에서는
-//    Skill -20~-5 가 여덟 번 중 여덟 번 궁만 제자리에서 꼬물거렸다.
+//    Skill 20 은 같은 국면에서 여섯 번 다 최선수를 고르고, Skill -20 은
+//    최선수를 아예 고르지 않는다.
 //
 // 3. 시간이 아니라 노드로 자른다.
-//    go nodes N 은 정확히 N 노드에서 끊긴다(요청 1000 → 실제 1000).
-//    시간으로 자르면 빠른 PC 의 3급이 느린 PC 에서는 5급이 된다. 노드로
-//    자르면 어느 기기에서나 같은 급수다.
+//    go nodes N 은 정확히 N 노드에서 끊긴다. 시간으로 자르면 빠른 PC 의
+//    3급이 느린 PC 에서는 5급이 된다. 노드로 자르면 어느 기기에서나 같다.
 //
-// 그래서 한 급수 = (Skill Level, 노드 수) 한 쌍이다.
+// 4. 27칸의 간격은 자가대국으로 쟀다.
+//    두 손잡이를 하나의 강도 곡선으로 묶고(t=0 이 가장 약함, t=1 이 가장 셈),
+//    그 위의 기준점 13개끼리 수백 판을 붙여 Bradley-Terry 레이팅을 냈다.
+//    그 레이팅 곡선 위에서 칸 사이가 고르게 벌어지도록 27개를 앉혔다.
+//    스크립트와 결과는 scripts/ladder-selfplay.mjs 와 README 에 있다.
+//
+//    급(18급~1급)은 사람이 이길 수 있는 아래쪽(한 수 15만 노드까지)에 몰아
+//    촘촘히 나눴고, 단(1단~9단)이 그 위를 훑는다. 엔진끼리의 레이팅은 약한
+//    쪽에서 납작해지지만(둘 다 실수하니 승패가 뒤집힌다) 사람 눈에는 전혀
+//    다른 상대라서, 아래쪽에 칸을 더 줬다.
+//
+// 아래 한 줄 설명은 그 급수의 '느낌' 을 적은 것이지 측정한 값이 아니다.
 
 import type { SearchLimits } from "./types";
 
@@ -34,31 +42,44 @@ export interface Level {
   nodes: number;
 }
 
-/**
- * 아래에서 위로 갈수록 세진다.
- *
- * 이름은 장기 급수를 빌려 썼을 뿐 공인 급수가 아니다. 이 앱 안에서만 쓰는
- * 눈금이고, 화면에도 그렇게 적어둔다.
- */
+/** 아래에서 위로 갈수록 세진다. */
 export const LEVELS: Level[] = [
-  { id: "k18", name: "18급", desc: "규칙만 아는 수준. 기물을 그냥 둔다.", skill: -20, nodes: 2_000 },
-  { id: "k15", name: "15급", desc: "한 수 앞만 본다.", skill: -17, nodes: 4_000 },
-  { id: "k12", name: "12급", desc: "공짜 기물은 챙긴다.", skill: -14, nodes: 8_000 },
-  { id: "k9", name: "9급", desc: "두 수짜리 수는 놓치지 않는다.", skill: -11, nodes: 16_000 },
-  { id: "k6", name: "6급", desc: "포진을 갖추고 둔다.", skill: -8, nodes: 32_000 },
-  { id: "k3", name: "3급", desc: "웬만한 동네 고수.", skill: -5, nodes: 70_000 },
-  { id: "k1", name: "1급", desc: "실수가 드물다.", skill: -1, nodes: 150_000 },
-  { id: "d1", name: "1단", desc: "빈틈을 내주면 바로 파고든다.", skill: 4, nodes: 350_000 },
-  { id: "d3", name: "3단", desc: "종반이 정확하다.", skill: 9, nodes: 800_000 },
-  { id: "d5", name: "5단", desc: "사람이 이기기 어렵다.", skill: 14, nodes: 2_000_000 },
-  { id: "top", name: "아마최강", desc: "봐주지 않는다. 프로보다 강하다.", skill: 20, nodes: 5_000_000 },
+  { id: "k18", name: "18급", desc: "최선수를 거의 고르지 않는다. 기물을 그냥 내준다.", skill: -20, nodes: 1_500 },
+  { id: "k17", name: "17급", desc: "눈앞의 공짜 기물도 자주 놓친다.", skill: -14, nodes: 4_600 },
+  { id: "k16", name: "16급", desc: "잡을 수 있는 기물은 대개 잡는다.", skill: -12, nodes: 7_300 },
+  { id: "k15", name: "15급", desc: "한 수 앞만 본다.", skill: -10, nodes: 10_000 },
+  { id: "k14", name: "14급", desc: "맞바꿈을 손해 보며 한다.", skill: -9, nodes: 14_000 },
+  { id: "k13", name: "13급", desc: "공짜로 기물을 주지는 않는다.", skill: -8, nodes: 18_000 },
+  { id: "k12", name: "12급", desc: "포진 비슷한 것을 갖춘다.", skill: -7, nodes: 23_000 },
+  { id: "k11", name: "11급", desc: "두 수짜리 수는 놓치지 않는다.", skill: -5, nodes: 29_000 },
+  { id: "k10", name: "10급", desc: "단순한 맞바꿈은 계산한다.", skill: -4, nodes: 35_000 },
+  { id: "k9", name: "9급", desc: "중반까지는 무난하게 끌고 간다.", skill: -3, nodes: 43_000 },
+  { id: "k8", name: "8급", desc: "약점을 보면 파고든다.", skill: -3, nodes: 51_000 },
+  { id: "k7", name: "7급", desc: "기물 손해를 거의 보지 않는다.", skill: -2, nodes: 61_000 },
+  { id: "k6", name: "6급", desc: "포진을 갖추고 둔다.", skill: -1, nodes: 72_000 },
+  { id: "k5", name: "5급", desc: "잡은 우세를 잘 놓지 않는다.", skill: 0, nodes: 84_000 },
+  { id: "k4", name: "4급", desc: "종반 계산이 붙는다.", skill: 1, nodes: 98_000 },
+  { id: "k3", name: "3급", desc: "실수가 드물다.", skill: 1, nodes: 110_000 },
+  { id: "k2", name: "2급", desc: "빈틈을 오래 두면 파고든다.", skill: 2, nodes: 130_000 },
+  { id: "k1", name: "1급", desc: "사람의 실수는 대부분 잡아낸다.", skill: 3, nodes: 150_000 },
+  { id: "d1", name: "1단", desc: "수를 읽지 않으면 이기기 어렵다.", skill: 5, nodes: 220_000 },
+  { id: "d2", name: "2단", desc: "느슨한 수 하나로 판이 기운다.", skill: 7, nodes: 360_000 },
+  { id: "d3", name: "3단", desc: "종반이 정확하다.", skill: 9, nodes: 560_000 },
+  { id: "d4", name: "4단", desc: "중반 싸움에서 밀리기 시작한다.", skill: 11, nodes: 860_000 },
+  { id: "d5", name: "5단", desc: "사람이 이기기 어렵다.", skill: 13, nodes: 1_300_000 },
+  { id: "d6", name: "6단", desc: "실수를 기다려서는 못 이긴다.", skill: 15, nodes: 1_800_000 },
+  { id: "d7", name: "7단", desc: "거의 봐주지 않는다.", skill: 17, nodes: 2_600_000 },
+  { id: "d8", name: "8단", desc: "빈틈이 없다.", skill: 18, nodes: 3_600_000 },
+  { id: "d9", name: "9단", desc: "손잡이를 끝까지 올린 상태. 프로보다 강하다.", skill: 20, nodes: 5_000_000 },
 ];
 
 /** 처음 켰을 때의 상대. 너무 세면 한 판도 못 이기고 접는다. */
-export const DEFAULT_LEVEL_ID = "k6";
+export const DEFAULT_LEVEL_ID = "k12";
 
 export const levelById = (id: string): Level =>
-  LEVELS.find((l) => l.id === id) ?? LEVELS[4];
+  LEVELS.find((l) => l.id === id) ??
+  LEVELS.find((l) => l.id === DEFAULT_LEVEL_ID) ??
+  LEVELS[0];
 
 /**
  * 노드로만 자르면 약한 급수가 눈 깜짝할 새에 둬서 대국 같지가 않다.
@@ -69,6 +90,16 @@ export const levelById = (id: string): Level =>
 export const MIN_THINK_MS = 450;
 
 export const limitsOf = (level: Level): SearchLimits => ({ nodes: level.nodes });
+
+/**
+ * 한 수에 걸리는 대략의 시간(초).
+ *
+ * 이 기기의 실제 속도가 아니라 보통 PC 기준(초당 25만 노드)의 어림값이다.
+ * 급수를 고를 때 "이건 한 수에 20초 걸리는구나" 를 알려주려는 것뿐이다.
+ */
+export function thinkSeconds(level: Level): number {
+  return Math.max(MIN_THINK_MS / 1000, level.nodes / 250_000);
+}
 
 // --- 복기 깊이 -----------------------------------------------------------
 

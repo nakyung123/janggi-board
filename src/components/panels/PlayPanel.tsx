@@ -3,7 +3,7 @@
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
-import { LEVELS, levelById } from "../../engine/levels";
+import { LEVELS, levelById, thinkSeconds } from "../../engine/levels";
 import { CLOCK_PRESETS, clockPresetById } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
@@ -39,6 +39,13 @@ interface Props {
   onNewGame: () => void;
   onResign: () => void;
   onAnalysisOn: (on: boolean) => void;
+}
+
+/** "약 12초" 처럼 읽기 좋게. 1초 아래는 굳이 소수점을 보여주지 않는다. */
+function 어림초(sec: number): string {
+  if (sec < 1) return "1초 안";
+  if (sec < 10) return `약 ${sec.toFixed(1)}초`;
+  return `약 ${Math.round(sec)}초`;
 }
 
 export function PlayPanel(props: Props) {
@@ -115,7 +122,8 @@ export function PlayPanel(props: Props) {
         </div>
         <p className="level-desc">{level.desc}</p>
         <p className="muted small">
-          한 수에 {level.nodes.toLocaleString()}노드까지 봅니다. 시간이 아니라
+          한 수에 {level.nodes.toLocaleString()}노드까지 봅니다
+          {" — 보통 PC 에서 " + 어림초(thinkSeconds(level))}. 시간이 아니라
           탐색량으로 끊기 때문에 느린 기기에서도 같은 실력입니다.
         </p>
         <p className="muted small">
