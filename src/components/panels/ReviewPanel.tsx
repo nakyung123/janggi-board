@@ -139,7 +139,7 @@ export function ReviewPanel(props: Props) {
                 한 수당 평균 {s.avgLoss.toFixed(2)}점 손해
                 {s.worst && (
                   <>
-                    {" · 가장 큰 실수 "}
+                    {" · 가장 아쉬운 수 "}
                     <button
                       type="button"
                       className="linkish"

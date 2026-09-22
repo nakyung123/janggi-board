@@ -262,7 +262,7 @@ export interface SideSummary {
   moves: number;
   /** 한 수당 평균 손해 */
   avgLoss: number;
-  /** 가장 크게 어긋난 수 */
+  /** 가장 크게 어긋난 수. 짚을 만한 게 없으면 null */
   worst: ReviewedMove | null;
 }
 
@@ -284,7 +284,9 @@ export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
     counts,
     moves: mine.length,
     avgLoss: mine.length ? total / mine.length : 0,
-    worst: worst && worst.loss > 0 ? worst : null,
+    // 손해가 거의 없는 수를 "가장 아쉬운 수" 라고 짚으면 복기가 우스워진다.
+    // 부정확 이상일 때만 내놓는다.
+    worst: worst && worst.loss >= INACCURACY ? worst : null,
   };
 }
 
