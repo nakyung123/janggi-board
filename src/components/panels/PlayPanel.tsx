@@ -4,6 +4,7 @@
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
 import { LEVELS, levelById } from "../../engine/levels";
+import { CLOCK_PRESETS, clockPresetById } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import { SETUPS } from "../../janggi/setups";
@@ -22,6 +23,10 @@ interface Props {
   status: GameStatus;
   /** 기권했으면 기권한 쪽 */
   resigned: Side | null;
+  /** 시간패한 쪽 */
+  flagged: Side | null;
+  clockId: string;
+  onClock: (id: string) => void;
   /** 엔진이 지금 생각하고 있는지 */
   thinking: boolean;
   analysisOn: boolean;
@@ -35,9 +40,10 @@ interface Props {
 
 export function PlayPanel(props: Props) {
   const {
-    mySide, levelId, started, status, resigned, thinking, analysisOn,
-    onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
+    mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
+    clockId, onClock, onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
   } = props;
+  const clock = clockPresetById(clockId);
 
   const level = levelById(levelId);
   const engineSideLabel =
@@ -114,6 +120,23 @@ export function PlayPanel(props: Props) {
         </p>
       </div>
 
+      <div className="row">
+        <span className="label">시계</span>
+        <select value={clockId} onChange={(e) => onClock(e.target.value)}>
+          {CLOCK_PRESETS.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="muted small">
+        {clock.enabled
+          ? `첫 수가 놓이면 시계가 돕니다. 제한시간을 다 쓰면 ${clock.byoyomiSeconds}초 초읽기 ` +
+            `${clock.byoyomiCount}회로 넘어가고, 회 안에 두면 회수가 줄지 않습니다.`
+          : "시간에 쫓기지 않고 천천히 둡니다. 기보를 되짚는 동안에도 멈춰 있습니다."}
+      </p>
+
       <div className="setup-block">
         <span className="label">상차림</span>
         {(["cho", "han"] as Side[]).map((side) => (
@@ -147,7 +170,12 @@ export function PlayPanel(props: Props) {
         <button
           type="button"
           className="ghost"
-          disabled={!started || status.kind === "checkmate" || resigned !== null}
+          disabled={
+            !started ||
+            status.kind === "checkmate" ||
+            resigned !== null ||
+            flagged !== null
+          }
           onClick={onResign}
         >
           기권
@@ -166,14 +194,17 @@ export function PlayPanel(props: Props) {
         </span>
       </label>
 
-      {(status.kind === "checkmate" || resigned) && (
+      {(status.kind === "checkmate" || resigned || flagged) && (
         <p className="play-result">
-          {resigned
-            ? `기권 — ${이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.`
-            : status.kind === "checkmate"
-              ? `외통 — ${이가(SIDE_LABEL[status.winner])} 이겼습니다.`
-              : ""}
+          {flagged
+            ? `시간패 — ${이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.`
+            : resigned
+              ? `기권 — ${이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.`
+              : status.kind === "checkmate"
+                ? `외통 — ${이가(SIDE_LABEL[status.winner])} 이겼습니다.`
+                : ""}
           {!resigned &&
+            !flagged &&
             status.kind === "checkmate" &&
             mySide !== "watch" &&
             (status.winner === mySide ? " 축하합니다." : ` ${level.name} 상대였습니다.`)}

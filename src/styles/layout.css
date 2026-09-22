@@ -1,4 +1,9 @@
-/* 앱 껍데기: 로딩 화면, 헤더, 2단 레이아웃. */
+/* 앱 껍데기: 로딩 화면, 헤더, 풀스크린 2단 배치.
+
+   페이지는 스크롤되지 않는다(base.css 의 body overflow:hidden).
+   .app 이 화면 높이를 그대로 받아 세 줄로 쪼개고,
+   넘치는 것은 오른쪽 패널 칸이 자기 안에서 스크롤한다.
+   장기판은 남은 높이에 맞춰 줄었다 늘었다 한다. */
 
 /* --- 로딩 화면 --------------------------------------------------------- */
 
@@ -41,25 +46,27 @@
   color: var(--han);
 }
 
-/* --- 레이아웃 ---------------------------------------------------------- */
+/* --- 풀스크린 뼈대 ------------------------------------------------------ */
 
 .app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 18px 20px 40px;
+  height: 100dvh;
+  padding: 10px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .top {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
 .top h1 {
   font-family: var(--serif);
-  font-size: 21px;
+  font-size: 19px;
   letter-spacing: -0.01em;
 }
 
@@ -78,25 +85,172 @@
 }
 
 .layout {
+  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(340px, 1fr) minmax(360px, 460px);
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  gap: 16px;
+  align-items: stretch;
+  /* 이게 없으면 자식이 넘쳐도 칸이 늘어나 페이지가 스크롤된다. */
+  min-height: 0;
 }
 
-@media (max-width: 940px) {
-  .layout {
-    grid-template-columns: 1fr;
+/* --- 판 쪽 -------------------------------------------------------------- */
+
+.board-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /*
+   * 세로가 아주 짧은 화면(노트북을 반으로 접은 듯한 창)에서는 카드·버튼만으로도
+   * 높이가 찬다. 그때는 판을 더 줄이는 대신 이 칸 안에서 스크롤하게 둔다.
+   * 페이지 전체는 여전히 움직이지 않는다.
+   */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/*
+ * 판과 대국자 카드를 한 덩어리로 묶는다.
+ *
+ * 카드를 판과 같은 너비로 맞추는 게 생각보다 까다롭다. 판의 너비는 '남은 높이'
+ * 에서 나오는데, 카드 너비를 CSS 로 판에 맞추려 하면(width:fit-content) 이번에는
+ * 카드가 판의 너비를 정해버려서 서로 물고 돈다. 실제로 그렇게 짰더니 판이
+ * 남은 높이를 절반도 안 쓰고 멈췄다.
+ *
+ * 그래서 고리를 끊었다. 판은 칸 전체 너비 안에서 높이에 맞춰 자유롭게 크고,
+ * 다 그려진 뒤의 너비를 재서 --board-w 로 알려준다(App.tsx 의 ResizeObserver).
+ * 카드는 그 값을 받아 쓰기만 한다.
+ */
+.table {
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+/*
+ * 판이 차지할 자리. 남는 높이를 전부 받아간다.
+ * min-height 가 없으면 자리가 모자랄 때 판이 0까지 찌그러진다. 실제로
+ * 세로 620px 창에서 판 높이가 0이 되고 팔레트만 화면 밖으로 밀려났다.
+ */
+.board-stage {
+  flex: 1 1 auto;
+  min-height: 280px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* 판과 나란히 서야 하는 것들 */
+.table > .player-bar,
+.table > .board-actions,
+.table > .status-banner,
+.table > .banner,
+.table > .palette {
+  width: var(--board-w, 100%);
+  max-width: 100%;
+  flex: none;
+}
+
+/* --- 패널 쪽 ------------------------------------------------------------ */
+
+.side-col {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+/* 스크롤 막대를 얇고 옅게 — 패널마다 막대가 굵으면 화면이 소란스럽다. */
+.side-col::-webkit-scrollbar {
+  width: 9px;
+}
+
+.side-col::-webkit-scrollbar-thumb {
+  background: #cfd6e2;
+  border-radius: 99px;
+  border: 2px solid var(--bg);
+}
+
+.side-col::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* --- 낮은 화면 ---------------------------------------------------------- */
+/* 세로가 짧으면 탭 설명부터 접는다. 판에 줄 높이를 한 줄이라도 더 만든다. */
+
+@media (max-height: 780px) {
+  .mode-tab {
+    padding: 6px 12px;
+  }
+
+  .mode-tab span {
+    display: none;
+  }
+
+  .app {
+    padding-top: 8px;
+  }
+
+  .top {
+    margin-bottom: 6px;
   }
 }
 
-.board-col {
-  position: sticky;
-  top: 18px;
-}
+/* --- 좁은 화면 ---------------------------------------------------------- */
+/*
+ * 폭이 좁으면 두 칸이 들어가지 않는다. 이때는 풀스크린을 고집하지 않고
+ * 위아래로 쌓아 스크롤되게 둔다. 판을 억지로 줄이면 기물이 안 눌린다.
+ */
+@media (max-width: 900px) {
+  body {
+    overflow: auto;
+  }
 
-.side-col {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .layout {
+    flex: none;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .table {
+    height: auto;
+  }
+
+  .board-col {
+    overflow: visible;
+  }
+
+  .board-stage {
+    flex: none;
+    min-height: 0;
+  }
+
+  /* 좁은 화면에서는 판이 폭을 꽉 채우므로 잰 값을 쓰지 않는다. */
+  .table > .player-bar,
+  .table > .board-actions,
+  .table > .status-banner,
+  .table > .banner,
+  .table > .palette {
+    width: 100%;
+  }
+
+  .side-col {
+    overflow: visible;
+  }
 }

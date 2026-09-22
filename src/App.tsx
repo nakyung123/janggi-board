@@ -12,6 +12,7 @@ import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
 import { PlayPanel } from "./components/panels/PlayPanel";
 import type { MySide } from "./components/panels/PlayPanel";
+import { PlayerBar } from "./components/board/PlayerBar";
 import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
 import { StatusBanner } from "./components/StatusBanner";
@@ -32,11 +33,20 @@ import { useKeyboard } from "./hooks/useKeyboard";
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen } from "./janggi/board";
 import { describeMove, splitMove } from "./janggi/notation";
-import type { Side } from "./janggi/pieces";
+import type { PieceType, Side } from "./janggi/pieces";
 import { SIDE_LABEL, sideOf } from "./janggi/pieces";
 import { applySetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
-import { gameStatus, isGameOver } from "./janggi/status";
+import { gameStatus, isGameOver, capturedPieces, scoreBoard } from "./janggi/status";
+import {
+  DEFAULT_CLOCK_ID,
+  clockPresetById,
+  commitMove,
+  flaggedSide,
+  initialClocks,
+  tickClock,
+} from "./janggi/clock";
+import type { ClockState } from "./janggi/clock";
 import { buildRecord, downloadRecord, parseRecord } from "./janggi/record";
 import type { RecordPlayer, RecordResult } from "./janggi/record";
 import { bestArrowOf, runReview } from "./janggi/review";
@@ -78,6 +88,13 @@ export default function App() {
   const [mySide, setMySide] = useState<MySide>("cho");
   const [levelId, setLevelId] = useState(DEFAULT_LEVEL_ID);
   const [resigned, setResigned] = useState<Side | null>(null);
+  /** 시간패한 쪽 */
+  const [flagged, setFlagged] = useState<Side | null>(null);
+  const [clockId, setClockId] = useState(DEFAULT_CLOCK_ID);
+  const clockSettings = clockPresetById(clockId);
+  const [clocks, setClocks] = useState<ClockState>(() =>
+    initialClocks(clockPresetById(DEFAULT_CLOCK_ID))
+  );
   /** 두는 동안 훈수를 볼지. 기본은 꺼둔다 — 켜두면 대국이 아니라 받아쓰기가 된다. */
   const [hintOn, setHintOn] = useState(false);
   const level = levelById(levelId);
@@ -207,9 +224,12 @@ export default function App() {
     () => gameStatus({ position, legal, checkers, ready: probed }),
     [position, legal, checkers, probed]
   );
-  const over = isGameOver(gstatus) || resigned !== null;
+  const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
 
   // --- 수 두기 ----------------------------------------------------------
+
+  /** 지금 둘 차례. 시계에서 "누구 시간을 깎을지" 를 정하는 값이기도 하다. */
+  const mover = position.turn;
 
   const pushMove = useCallback(
     (from: Square, to: Square) => {
@@ -231,10 +251,13 @@ export default function App() {
       });
       setCursor((c) => c + 1);
       setSelected(null);
+      // 초읽기는 "회 안에만 두면 회수가 줄지 않는" 규칙이라, 둘 때마다 되채운다.
+      const s = clockPresetById(clockId);
+      if (s.enabled) setClocks((prev) => commitMove(prev, mover, s));
       // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
       setReviewed(null);
     },
-    [cursor]
+    [cursor, mover, clockId]
   );
 
   /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
@@ -252,6 +275,49 @@ export default function App() {
       return next;
     });
   }, [snapshot, cursor, editMode, reviewRunning, mode, engineTurn]);
+
+  // --- 시계 ------------------------------------------------------------
+
+  const resetClocks = useCallback(() => {
+    setClocks(initialClocks(clockPresetById(clockId)));
+    setFlagged(null);
+  }, [clockId]);
+
+  // 설정을 바꾸면 양쪽 시계를 새로 채운다.
+  useEffect(() => {
+    setClocks(initialClocks(clockPresetById(clockId)));
+    setFlagged(null);
+  }, [clockId]);
+
+  /**
+   * 시계는 첫 수가 놓여야 돈다.
+   * 급수를 고르고 상차림을 맞추는 동안 시간이 깎이면 곤란하기 때문이다.
+   * 기보를 되짚는 중(기보 끝이 아님)이나 대국이 끝난 뒤에는 멈춘다.
+   */
+  const clockRunning =
+    clockSettings.enabled && mode === "play" && started && atTip && !over && !editMode;
+
+  useEffect(() => {
+    if (!clockRunning) return;
+    const s = clockPresetById(clockId);
+    let last = performance.now();
+    const id = window.setInterval(() => {
+      const now = performance.now();
+      const dt = now - last;
+      last = now;
+      setClocks((prev) => tickClock(prev, mover, dt, s));
+    }, 200);
+    return () => window.clearInterval(id);
+    // mover 가 바뀌면 타이머를 다시 건다. 그 순간 last 도 새로 잡혀 시간이 새지 않는다.
+  }, [clockRunning, clockId, mover]);
+
+  useEffect(() => {
+    const out = flaggedSide(clocks);
+    if (out && !flagged) {
+      setFlagged(out);
+      setNotice(`${SIDE_LABEL[out]} 시간패입니다.`);
+    }
+  }, [clocks, flagged]);
 
   // 엔진 차례가 되면 탐색이 끝나는 대로 그 수를 둔다.
   const playedFor = useRef<string | null>(null);
@@ -322,6 +388,7 @@ export default function App() {
       setCursor(0);
       setReviewed(null);
       setResigned(null);
+      resetClocks();
       setNotice("편집한 국면을 새 시작 국면으로 삼았습니다.");
     }
     setDraft(null);
@@ -431,6 +498,7 @@ export default function App() {
     setSelected(null);
     setReviewed(null);
     setResigned(null);
+    resetClocks();
   };
 
   const handleFen = (value: string) => {
@@ -453,6 +521,7 @@ export default function App() {
     setSelected(null);
     setReviewed(null);
     setResigned(null);
+    resetClocks();
     playedFor.current = null;
     setNotice(`새 대국을 시작합니다. 상대는 ${level.name} 입니다.`);
   };
@@ -529,6 +598,7 @@ export default function App() {
       setSelected(null);
       setReviewed(null);
       setResigned(null);
+      resetClocks();
       setNotice(`기보를 불러왔습니다. ${record.moves.length}수.`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : String(err));
@@ -622,6 +692,55 @@ export default function App() {
     const { from, to } = splitMove(entry.move);
     return from && to && from !== to ? { from, to } : null;
   }, [editMode, entry.move]);
+
+  // --- 판 너비 재기 ------------------------------------------------------
+  //
+  // 판은 남은 높이에 맞춰 크기가 정해지므로 너비를 CSS 만으로는 알 수 없다.
+  // 다 그려진 뒤에 재서 --board-w 로 넘기면, 대국자 카드와 버튼 줄이 판과
+  // 정확히 같은 너비로 선다. (layout.css 의 .table 주석 참고)
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const table = tableRef.current;
+    const svg = table?.querySelector("svg.board");
+    if (!table || !svg) return;
+    const ro = new ResizeObserver(() => {
+      table.style.setProperty(
+        "--board-w",
+        `${Math.round(svg.getBoundingClientRect().width)}px`
+      );
+    });
+    ro.observe(svg);
+    return () => ro.disconnect();
+    // 엔진을 내려받는 동안에는 로딩 화면이라 판이 아직 없다. 준비가 끝나고
+    // 판이 붙은 뒤에 다시 걸어야 한다.
+  }, [status]);
+
+  // --- 대국자 카드 ------------------------------------------------------
+
+  // 판은 초를 아래에 놓고 그린다. 뒤집으면 위아래가 바뀐다.
+  const bottomSide: Side = flipped ? "han" : "cho";
+  const topSide: Side = flipped ? "cho" : "han";
+
+  const scores = useMemo(() => scoreBoard(position), [position]);
+
+  const playerOf = useCallback(
+    (side: Side) => ({
+      side,
+      name: mySide === side ? "나" : level.name,
+      kind: (mySide === side ? "human" : "engine") as "human" | "engine",
+      score: side === "cho" ? scores.cho : scores.han,
+      // 이 진영이 '잡아낸' 기물 = 상대가 잃은 기물
+      captured: capturedPieces(
+        position,
+        side === "cho" ? "han" : "cho"
+      ) as PieceType[],
+      active: !over && position.turn === side,
+      thinking: engineTurn && position.turn === side,
+      clock: clockSettings.enabled ? clocks[side] : null,
+    }),
+    [mySide, level.name, scores, position, over, engineTurn, clockSettings.enabled, clocks]
+  );
 
   // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
   const checkedKing = useMemo(() => {
@@ -719,37 +838,50 @@ export default function App() {
 
       <main className="layout">
         <section className="board-col">
-          <StatusBanner
-            status={gstatus}
-            canUndo={cursor > 0 && !editMode}
-            onUndo={() => goTo(cursor - 1)}
-          />
+          <div className="table" ref={tableRef}>
+            <StatusBanner
+              status={gstatus}
+              canUndo={cursor > 0 && !editMode}
+              onUndo={() => goTo(cursor - 1)}
+            />
 
-          {resigned && (
-            <div className="banner resign">
-              기권 — {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
+            {resigned && (
+              <div className="banner resign">
+                기권 — {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
+              </div>
+            )}
+            {flagged && (
+              <div className="banner resign">
+                시간패 — {이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.
+              </div>
+            )}
+
+            {/* 대국자 카드는 대국 모드에만. 편집 중에는 팔레트에 자리를 내준다. */}
+            {mode === "play" && !editMode && <PlayerBar {...playerOf(topSide)} />}
+
+            <div className="board-stage">
+              <Board
+                board={position.board}
+                flipped={flipped}
+                editMode={editMode}
+                selected={selected}
+                targets={targets}
+                lastMove={lastMove}
+                bestMove={bestArrow}
+                hoverMove={hoverArrow}
+                checkedKing={checkedKing}
+                onSquareClick={handleSquareClick}
+                onMove={handleMove}
+                onRemove={handleRemove}
+              />
             </div>
-          )}
 
-          <Board
-            board={position.board}
-            flipped={flipped}
-            editMode={editMode}
-            selected={selected}
-            targets={targets}
-            lastMove={lastMove}
-            bestMove={bestArrow}
-            hoverMove={hoverArrow}
-            checkedKing={checkedKing}
-            onSquareClick={handleSquareClick}
-            onMove={handleMove}
-            onRemove={handleRemove}
-          />
+            {mode === "play" && !editMode && <PlayerBar {...playerOf(bottomSide)} />}
 
-          {editMode ? (
-            <PiecePalette brush={brush} onPick={setBrush} />
-          ) : (
-            <div className="board-actions">
+            {editMode ? (
+              <PiecePalette brush={brush} onPick={setBrush} />
+            ) : (
+              <div className="board-actions">
               <button type="button" disabled={cursor === 0} onClick={() => goTo(0)}>
                 ⇤
               </button>
@@ -789,8 +921,9 @@ export default function App() {
                   한수쉼
                 </button>
               )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="side-col">
@@ -802,6 +935,9 @@ export default function App() {
                 started={started}
                 status={gstatus}
                 resigned={resigned}
+                flagged={flagged}
+                clockId={clockId}
+                onClock={setClockId}
                 thinking={thinking}
                 analysisOn={hintOn}
                 onMySide={(s) => {
@@ -858,6 +994,7 @@ export default function App() {
                   setSelected(null);
                   setReviewed(null);
                   setResigned(null);
+                  resetClocks();
                 }}
                 onFlip={() => setFlipped((f) => !f)}
               />
