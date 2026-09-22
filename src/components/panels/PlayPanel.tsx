@@ -30,6 +30,9 @@ interface Props {
   /** 엔진이 지금 생각하고 있는지 */
   thinking: boolean;
   analysisOn: boolean;
+  /** 착수 소리 */
+  soundOn: boolean;
+  onSoundOn: (on: boolean) => void;
   onMySide: (side: MySide) => void;
   onLevel: (id: string) => void;
   onSetup: (side: Side, setup: Setup) => void;
@@ -42,6 +45,7 @@ export function PlayPanel(props: Props) {
   const {
     mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
     clockId, onClock, onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
+    soundOn, onSoundOn,
   } = props;
   const clock = clockPresetById(clockId);
 
@@ -191,6 +195,18 @@ export function PlayPanel(props: Props) {
         <span>
           두는 동안 훈수 보기
           <span className="muted small"> — 엔진의 추천수가 그대로 보입니다</span>
+        </span>
+      </label>
+
+      <label className="row toggle">
+        <input
+          type="checkbox"
+          checked={soundOn}
+          onChange={(e) => onSoundOn(e.target.checked)}
+        />
+        <span>
+          착수 소리
+          <span className="muted small"> — 기물을 놓을 때 소리가 납니다</span>
         </span>
       </label>
 

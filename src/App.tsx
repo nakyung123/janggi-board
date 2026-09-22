@@ -29,6 +29,7 @@ import {
   reviewDepthById,
 } from "./engine/levels";
 import { useKeyboard } from "./hooks/useKeyboard";
+import { playMoveSound } from "./audio/sound";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen } from "./janggi/board";
@@ -106,6 +107,9 @@ export default function App() {
   const [draft, setDraft] = useState<Position | null>(null);
   const editMode = draft !== null;
   const [brush, setBrush] = useState<Brush>(null);
+
+  /** 착수 소리. 브라우저는 새로고침하면 설정을 잊으므로 켠 채로 시작한다. */
+  const [soundOn, setSoundOn] = useState(true);
 
   // --- 분석 설정 --------------------------------------------------------
   const [analysisOn, setAnalysisOn] = useState(true);
@@ -233,6 +237,13 @@ export default function App() {
 
   const pushMove = useCallback(
     (from: Square, to: Square) => {
+      // 소리는 판을 고치기 전에 낸다. 여기를 사람도 엔진도 다 지나가므로
+      // 한 군데만 손보면 된다. 한수쉼(제자리 수)은 잡는 게 아니다.
+      if (soundOn) {
+        const capture = from !== to && Boolean(position.board[to]);
+        playMoveSound(capture ? "capture" : "move");
+      }
+
       setHistory((prev) => {
         const base = prev.slice(0, cursor + 1);
         const current = parseFen(base[base.length - 1].fen);
@@ -257,7 +268,7 @@ export default function App() {
       // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
       setReviewed(null);
     },
-    [cursor, mover, clockId]
+    [cursor, mover, clockId, soundOn, position.board]
   );
 
   /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
@@ -951,6 +962,8 @@ export default function App() {
                     "시작"
                   )
                 }
+                soundOn={soundOn}
+                onSoundOn={setSoundOn}
                 onNewGame={newGame}
                 onResign={resign}
                 onAnalysisOn={setHintOn}
