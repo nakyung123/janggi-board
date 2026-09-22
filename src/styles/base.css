@@ -1,22 +1,29 @@
 /* 전역 토큰과 기본 요소.
-   색·글꼴 같은 밑바탕과 button/input 기본 모양을 여기서 정한다. */
+   색·글꼴 같은 밑바탕과 button/input 기본 모양을 여기서 정한다.
+
+   화이트 한 가지로만 간다. 장기판 자체가 밝은 나무색이라, 판 둘레가 어두우면
+   판만 떠 보이고 눈이 아프다. 실물 장기판을 밝은 데 놓고 보는 쪽에 가깝다. */
 
 :root {
-  --bg: #14161a;
-  --panel: #1c1f26;
-  --panel-2: #232733;
-  --line: #2f3542;
-  --text: #e6e8ee;
-  --muted: #9aa3b2;
-  --cho: #35d07f;
-  --han: #ff6b6b;
-  --accent: #4f8cff;
+  --bg: #eceff4;
+  --panel: #ffffff;
+  --panel-2: #f2f5f9;
+  --line: #dde3ec;
+  /* 패널 안에서 한 겹 더 눌러야 할 때 (표 머리, 비활성 칸) */
+  --line-soft: #eaeef4;
+  --text: #1a1e27;
+  --muted: #6b7382;
+  /* 초록·빨강은 흰 바탕에서 읽히도록 실물 장기알보다 조금 어둡게 잡았다.
+     기물에 새기는 글자 색(PieceGlyph)과 같은 계열이다. */
+  --cho: #15653c;
+  --han: #c02626;
+  --accent: #2563eb;
   --radius: 10px;
   /* 외부 폰트를 받지 않는다. COEP require-corp 아래에서 막힐 수 있고,
      이 도구는 인터넷 없이도 돌아가야 한다. 장기 한자는 명조 계열이 어울린다. */
   --sans: "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
   --serif: "Batang", "바탕", "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -25,12 +32,21 @@
   padding: 0;
 }
 
+/* 풀스크린 배치의 밑바탕. 페이지 자체는 절대 스크롤되지 않고,
+   넘치는 것은 각 칸이 자기 안에서 스크롤한다. */
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.55;
+  overflow: hidden;
 }
 
 button,
@@ -50,12 +66,12 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: #2c3140;
-  border-color: #3d4557;
+  background: #e4e9f1;
+  border-color: #c6cfdd;
 }
 
 button:disabled {
-  opacity: 0.38;
+  opacity: 0.42;
   cursor: default;
 }
 

@@ -6,8 +6,8 @@
 :root {
   --g-best: var(--cho);
   --g-good: #8b93a3;
-  --g-inaccuracy: #f5c451;
-  --g-mistake: #ff9f43;
+  --g-inaccuracy: #b47600;
+  --g-mistake: #d9600c;
   --g-blunder: var(--han);
 }
 
@@ -59,12 +59,12 @@
 }
 
 .mode-tab.active {
-  background: rgba(79, 140, 255, 0.14);
+  background: #e9f0ff;
   border-color: var(--accent);
 }
 
 .mode-tab.active b {
-  color: #cbdcff;
+  color: #1c3f9e;
 }
 
 @media (max-width: 560px) {
@@ -105,7 +105,7 @@
 
 .level-desc {
   font-size: 13px;
-  color: #d3d9e6;
+  color: #333a47;
   margin-bottom: 6px;
 }
 
@@ -125,9 +125,9 @@ button.primary:hover:not(:disabled) {
   margin-top: 10px;
   padding: 9px 12px;
   border-radius: 8px;
-  background: rgba(79, 140, 255, 0.13);
-  border: 1px solid rgba(79, 140, 255, 0.45);
-  color: #cbdcff;
+  background: #eaf0ff;
+  border: 1px solid #b9cbf5;
+  color: #1c3f9e;
   font-size: 12.5px;
 }
 
@@ -135,7 +135,7 @@ button.primary:hover:not(:disabled) {
   margin-bottom: 10px;
   padding: 9px 13px;
   border-radius: var(--radius);
-  background: rgba(154, 163, 178, 0.12);
+  background: var(--panel-2);
   border: 1px solid var(--line);
   font-size: 13px;
   font-weight: 700;
@@ -275,7 +275,7 @@ button.linkish {
 .review-comment {
   font-size: 13px;
   line-height: 1.6;
-  color: #dde2ec;
+  color: #2a3140;
 }
 
 .review-best {

@@ -16,7 +16,7 @@
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.02em;
-  color: #c8cfdd;
+  color: #3d4657;
   padding-bottom: 9px;
   margin-bottom: 9px;
   border-bottom: 1px solid var(--line);
@@ -124,12 +124,12 @@
 
 .seg button.active.cho {
   background: var(--cho);
-  color: #06281a;
+  color: #fff;
 }
 
 .seg button.active.han {
   background: var(--han);
-  color: #3a0d0d;
+  color: #fff;
 }
 
 /* --- 국면 도구 --------------------------------------------------------- */
@@ -165,7 +165,7 @@
 .fen-input {
   flex: 1;
   min-width: 180px;
-  background: #12141a;
+  background: #f7f9fc;
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 6px 9px;
@@ -177,11 +177,11 @@
   list-style: none;
   margin-top: 10px;
   padding: 8px 10px;
-  background: rgba(255, 107, 107, 0.08);
-  border: 1px solid rgba(255, 107, 107, 0.3);
+  background: #fdeeee;
+  border: 1px solid #f2bcbc;
   border-radius: 8px;
   font-size: 12.5px;
-  color: #ffb0b0;
+  color: #9c2020;
 }
 
 .warnings li + li {
@@ -226,7 +226,7 @@
 .pv-moves {
   font-family: var(--serif);
   font-size: 12.5px;
-  color: #d3d9e6;
+  color: #333a47;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -311,14 +311,14 @@
   height: 62px;
   display: block;
   cursor: pointer;
-  background: #12141a;
+  background: #f7f9fc;
   border: 1px solid var(--line);
   border-radius: 8px;
 }
 
 /* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다. */
 .eval-area {
-  fill: rgba(79, 140, 255, 0.16);
+  fill: rgba(37, 99, 235, 0.12);
 }
 
 .eval-zero {
@@ -336,12 +336,12 @@
 }
 
 .eval-cursor {
-  stroke: #f5c451;
+  stroke: #d97706;
   stroke-width: 0.6;
 }
 
 .eval-dot {
-  fill: #f5c451;
+  fill: #d97706;
 }
 
 .graph .muted.small {
@@ -352,9 +352,9 @@
 
 .edit-hint {
   font-size: 12.5px;
-  color: #cbdcff;
-  background: rgba(79, 140, 255, 0.1);
-  border: 1px solid rgba(79, 140, 255, 0.28);
+  color: #1c3f9e;
+  background: #eaf0ff;
+  border: 1px solid #c2d3f7;
   border-radius: 8px;
   padding: 8px 10px;
   margin-bottom: 10px;
@@ -393,7 +393,7 @@
 
 textarea.fen-input {
   width: 100%;
-  background: #12141a;
+  background: #f7f9fc;
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 7px 9px;
@@ -417,9 +417,9 @@ textarea.fen-input:focus {
   background: var(--panel);
   border: 1px solid var(--line);
   font-size: 13px;
-  color: #cbdcff;
+  color: #1c3f9e;
 }
 
 .turn-tag .editing {
-  color: #f5c451;
+  color: #b45309;
 }
