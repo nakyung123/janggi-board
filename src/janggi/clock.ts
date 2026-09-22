@@ -137,6 +137,25 @@ export function commitMove(
   return { ...state, [side]: { ...cur, byoyomiMs: s.byoyomiSeconds * 1000 } };
 }
 
+/**
+ * 엔진이 한 수에 쓸 시간(ms).
+ *
+ * 높은 급수는 한 수에 500만 노드까지 본다. 보통 PC 에서 20초쯤 걸리는 양이라,
+ * 10분 시계로 두면 엔진이 서른 수쯤에서 제 시간을 다 쓰고 시간패한다.
+ * 사람이 그러듯 엔진도 남은 시간을 보고 생각을 끊어야 한다.
+ *
+ *   제한시간 중 — 앞으로 몇 수가 남았는지 알 수 없으니 25수로 나눠 쓴다.
+ *   초읽기 중  — 그 회의 8할까지만 쓴다. 회가 넘어가면 횟수가 깎인다.
+ *
+ * 초읽기는 회 안에만 두면 횟수가 줄지 않으므로, 8할씩만 쓰는 한 엔진이
+ * 시간패하는 일은 없다.
+ */
+export function moveBudgetMs(c: SideClock, s: ClockSettings): number {
+  if (c.flagged) return 300;
+  if (c.inByoyomi) return Math.max(300, s.byoyomiSeconds * 800);
+  return Math.max(300, c.mainMs / 25);
+}
+
 export const flaggedSide = (state: ClockState): Side | null =>
   state.cho.flagged ? "cho" : state.han.flagged ? "han" : null;
 

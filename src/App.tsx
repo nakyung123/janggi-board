@@ -45,6 +45,7 @@ import {
   commitMove,
   flaggedSide,
   initialClocks,
+  moveBudgetMs,
   tickClock,
 } from "./janggi/clock";
 import type { ClockState } from "./janggi/clock";
@@ -173,10 +174,35 @@ export default function App() {
    * 엔진이 둘 차례면 급수대로 약하게, 사람이 둘 차례(=훈수)면 전력으로 본다.
    * 훈수까지 약한 엔진이 내놓으면 도움이 안 된다.
    */
+  /**
+   * 엔진이 이번 수에 쓸 수 있는 시간.
+   *
+   * 시계는 100ms 마다 줄어드는데, 그 값을 탐색 한계에 그대로 물리면 한계가
+   * 계속 바뀌어 탐색이 처음부터 다시 시작된다. 그래서 차례가 바뀔 때 한 번만
+   * 정하고, 그 수를 두는 동안은 붙잡아 둔다.
+   */
+  const clocksRef = useRef(clocks);
+  useEffect(() => {
+    clocksRef.current = clocks;
+  }, [clocks]);
+
+  const [moveBudget, setMoveBudget] = useState(0);
+  useEffect(() => {
+    if (!clockSettings.enabled || !engineTurn) {
+      setMoveBudget(0);
+      return;
+    }
+    setMoveBudget(Math.round(moveBudgetMs(clocksRef.current[position.turn], clockSettings)));
+  }, [engineTurn, position.turn, entry.fen, clockSettings]);
+
   const searchLimits: SearchLimits = useMemo(() => {
     if (mode !== "play") return limits;
-    return engineTurn ? limitsOf(level) : { movetimeMs: 2000 };
-  }, [mode, engineTurn, level, limits]);
+    if (!engineTurn) return { movetimeMs: 2000 };
+    const byNodes = limitsOf(level);
+    // 시계를 쓰면 남은 시간도 함께 건다. 엔진은 둘 중 먼저 닿는 쪽에서 멈추므로,
+    // 시간이 넉넉하면 급수대로 노드를 다 쓰고 쫓기면 일찍 끊는다.
+    return moveBudget > 0 ? { ...byNodes, movetimeMs: moveBudget } : byNodes;
+  }, [mode, engineTurn, level, limits, moveBudget]);
 
   const options: EngineOptions = useMemo(
     () => ({
