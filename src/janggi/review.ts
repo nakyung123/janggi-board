@@ -26,7 +26,7 @@ import { parseFen } from "./board";
 import { describeLine, describeMove, splitMove } from "./notation";
 import type { Side } from "./pieces";
 import { SIDE_LABEL } from "./pieces";
-import { 을를, 이가 } from "./korean";
+import { 을를, 이가, 이었였 } from "./korean";
 
 export type MoveGrade =
   /** 엔진과 같은 수 */
@@ -218,7 +218,7 @@ function buildComment(c: CommentInput): string {
     parts.push(
       does.length > 0
         ? `최선은 ${bestMove.short}. ${does.join("고 ")}는 자리였습니다.`
-        : `최선은 ${bestMove.short} 였습니다.`
+        : `최선은 ${이었였(bestMove.short)}습니다.`
     );
   }
 

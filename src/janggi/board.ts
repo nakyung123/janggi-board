@@ -5,6 +5,7 @@
 // FEN 의 첫 구획이 10단(맨 위, 한 진영), 마지막 구획이 1단(맨 아래, 초 진영)이다.
 
 import type { PieceChar, Side } from "./pieces";
+import { 은는 } from "./korean";
 import { sideOf } from "./pieces";
 
 export const FILES = 9;
@@ -119,7 +120,10 @@ export function validate(pos: Position): string[] {
       if (owner !== sideOf(piece)) {
         const label = sideOf(piece) === "cho" ? "초" : "한";
         const name = t === "k" ? "궁" : "사";
-        problems.push(`${square}: ${label}의 ${name}은 자기 궁성 안에만 놓을 수 있습니다.`);
+        // "사은" 이 아니라 "사는" 이어야 한다. 받침에 따라 갈리므로 조사 함수를 쓴다.
+        problems.push(
+          `${square}: ${label}의 ${은는(name)} 자기 궁성 안에만 놓을 수 있습니다.`
+        );
       }
     }
   }
