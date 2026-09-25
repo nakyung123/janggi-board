@@ -12,8 +12,8 @@
   width: auto;
   max-width: 100%;
   display: block;
-  border-radius: 10px;
-  box-shadow: 0 8px 22px rgba(60, 42, 16, 0.2);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-board);
   touch-action: none;
   user-select: none;
 }
@@ -42,7 +42,7 @@
 
 .board text.coord {
   fill: #8a6636;
-  font-size: 12px;
+  font-size: var(--fs-base);
   font-weight: 600;
   text-anchor: middle;
   dominant-baseline: middle;
@@ -146,7 +146,7 @@
    그만큼 판이 깎인다. */
 .board-actions button {
   padding: 5px 9px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 /* --- 팔레트 ------------------------------------------------------------ */
@@ -172,7 +172,7 @@
 .palette-side {
   width: 22px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .palette-side.cho {
@@ -214,20 +214,20 @@
   width: auto;
   padding: 0 12px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   background: var(--panel-2);
   color: var(--text);
-  border-color: var(--line);
+  border-color: var(--line-strong);
 }
 
 .palette-piece.active {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
 .palette-hint {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-base);
   margin-left: 4px;
 }
 
@@ -266,10 +266,11 @@
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 10px;
-  padding: 9px 13px;
+  padding: 10px 14px;
   border-radius: var(--radius);
   border: 1px solid;
-  font-size: 13px;
+  box-shadow: var(--shadow-card);
+  font-size: var(--fs-base);
 }
 
 .status-text {
@@ -278,25 +279,26 @@
 
 .status-detail {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .status-banner.check {
-  background: #fdecec;
-  border-color: #f3b4b4;
-  color: #a01c1c;
+  background: #fef2f2;
+  border-color: #f5cccc;
+  color: #9c2020;
 }
 
+/* 대국이 끝났다는 알림은 어느 편 이야기도 아니라 무채색으로 둔다. */
 .status-banner.over {
-  background: #e8efff;
-  border-color: #b3c8f5;
-  color: #1c3f9e;
+  background: var(--panel);
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
 .status-banner.invalid {
-  background: #fdf4e0;
-  border-color: #ecd196;
-  color: #8a6512;
+  background: #fefaf0;
+  border-color: #eedfb8;
+  color: #85610f;
 }
 
 .status-banner button {
@@ -306,7 +308,7 @@
 .board-actions .stop {
   margin-left: auto;
   color: var(--han);
-  border-color: rgba(255, 107, 107, 0.4);
+  border-color: #f0c4c4;
 }
 
 /* --- 대국자 카드 -------------------------------------------------------- */
@@ -318,11 +320,11 @@
 .player-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
-  min-height: 37px;
+  gap: 12px;
+  padding: 7px 14px;
+  min-height: 44px;
   border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--panel-2);
   color: var(--muted);
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
@@ -331,7 +333,7 @@
 .player-bar.active {
   background: var(--panel);
   color: var(--text);
-  box-shadow: 0 1px 6px rgba(30, 40, 60, 0.09);
+  box-shadow: var(--shadow-card);
 }
 
 .player-bar.active.cho {
@@ -345,7 +347,7 @@
 /* 진영 표시. 차례가 아닐 때는 색을 빼서 카드 전체가 가라앉게 둔다. */
 .player-mark {
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: var(--fs-base);
   font-weight: 700;
   white-space: nowrap;
   opacity: 0.5;
@@ -365,7 +367,7 @@
 
 .player-name {
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   white-space: nowrap;
   display: flex;
   align-items: baseline;
@@ -396,14 +398,14 @@
 .player-score {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   white-space: nowrap;
 }
 
 .player-score em {
   font-style: normal;
   font-weight: 400;
-  font-size: 11px;
+  font-size: var(--fs-base);
   color: var(--muted);
   margin-left: 1px;
 }
@@ -414,20 +416,20 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 1px 9px;
-  border-radius: 7px;
+  padding: 2px 10px;
+  border-radius: var(--radius-xs);
   background: var(--line-soft);
   white-space: nowrap;
 }
 
 .player-clock b {
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: var(--fs-base);
   letter-spacing: -0.01em;
 }
 
 .player-bar.active .player-clock {
-  background: #e7edf8;
+  background: var(--panel-2);
 }
 
 /* 초읽기에 들어가면 숫자를 키우고 붉게. 남은 회수는 점으로 센다. */
@@ -437,13 +439,13 @@
 }
 
 .byoyomi-dots {
-  font-size: 8px;
+  font-size: var(--fs-base);
   color: var(--han);
   letter-spacing: 1px;
 }
 
 .player-clock.urgent {
-  background: #fdecec;
+  background: #fef2f2;
 }
 
 .player-clock.urgent b {
@@ -451,7 +453,7 @@
 }
 
 .player-clock.flagged b {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--han);
 }
 

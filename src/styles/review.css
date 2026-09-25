@@ -40,19 +40,19 @@
   gap: 3px;
   padding: 3px;
   background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 
 .mode-tab {
-  padding: 3px 14px;
+  padding: 5px 17px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
 }
 
 .mode-tab b {
-  font-size: 13.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
 }
 
@@ -67,17 +67,18 @@
 
 .mode-tab.active {
   background: var(--panel);
-  border-color: var(--line);
-  box-shadow: 0 1px 3px rgba(30, 40, 60, 0.1);
+  border-color: transparent;
+  box-shadow: var(--shadow-raise);
 }
 
 .mode-tab.active b {
-  color: #1c3f9e;
+  color: var(--ink);
+  font-weight: 700;
 }
 
 @media (max-width: 560px) {
   .mode-tab {
-    padding: 3px 10px;
+    padding: 5px 11px;
   }
 }
 
@@ -95,13 +96,13 @@
   font-family: var(--serif);
   font-size: 22px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ink);
   line-height: 1.1;
 }
 
 .level-slider {
   width: 100%;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
   margin: 2px 0;
 }
 
@@ -112,31 +113,31 @@
 }
 
 .level-desc {
-  font-size: 13px;
-  color: #333a47;
+  font-size: var(--fs-base);
+  color: var(--text);
   margin-bottom: 6px;
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--ink);
+  border-color: var(--ink);
   color: #fff;
   font-weight: 700;
 }
 
 button.primary:hover:not(:disabled) {
-  background: #3f7bee;
-  border-color: #3f7bee;
+  background: #3f3f46;
+  border-color: #3f3f46;
 }
 
 .play-result {
   margin-top: 10px;
   padding: 9px 12px;
-  border-radius: 8px;
-  background: #eaf0ff;
-  border: 1px solid #b9cbf5;
-  color: #1c3f9e;
-  font-size: 12.5px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  font-size: var(--fs-base);
 }
 
 .banner.resign {
@@ -145,12 +146,12 @@ button.primary:hover:not(:disabled) {
   border-radius: var(--radius);
   background: var(--panel-2);
   border: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
 }
 
 b.reviewing {
-  color: var(--accent);
+  color: var(--ink);
 }
 
 /* --- 복기 진행률 ------------------------------------------------------- */
@@ -165,7 +166,7 @@ b.reviewing {
 
 .review-bar > div {
   height: 100%;
-  background: var(--accent);
+  background: var(--ink);
   transition: width 0.2s;
 }
 
@@ -181,19 +182,19 @@ b.reviewing {
 .review-side {
   background: var(--panel-2);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
 }
 
 .review-side-name {
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-base);
   margin-bottom: 6px;
 }
 
 .review-side-name .muted {
   font-weight: 400;
-  font-size: 11.5px;
+  font-size: var(--fs-base);
 }
 
 .review-counts {
@@ -212,13 +213,13 @@ b.reviewing {
 }
 
 .review-counts b {
-  font-size: 15px;
+  font-size: var(--fs-base);
   color: var(--grade, var(--text));
   font-variant-numeric: tabular-nums;
 }
 
 .review-counts span {
-  font-size: 10.5px;
+  font-size: var(--fs-base);
   color: var(--muted);
   white-space: nowrap;
 }
@@ -232,7 +233,7 @@ button.linkish {
   background: none;
   border: 0;
   padding: 0;
-  color: var(--accent);
+  color: var(--ink);
   text-decoration: underline;
   font-size: inherit;
 }
@@ -242,8 +243,8 @@ button.linkish {
 .review-detail {
   border: 1px solid var(--grade, var(--line));
   border-left-width: 3px;
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
   margin-bottom: 11px;
   background: var(--panel-2);
 }
@@ -258,18 +259,18 @@ button.linkish {
 
 .review-grade {
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--grade, var(--text));
 }
 
 .review-played {
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--muted);
 }
 
 .review-played b {
   font-family: var(--serif);
-  font-size: 14px;
+  font-size: var(--fs-base);
   color: var(--text);
 }
 
@@ -281,9 +282,9 @@ button.linkish {
 }
 
 .review-comment {
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.6;
-  color: #2a3140;
+  color: var(--text);
 }
 
 .review-best {
@@ -298,13 +299,13 @@ button.linkish {
 
 .review-best .label {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-base);
   white-space: nowrap;
 }
 
 .review-line {
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--cho);
 }
 
@@ -343,14 +344,14 @@ button.linkish {
 
 .review-item-no {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .review-item-move {
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .review-item-grade {
@@ -361,7 +362,7 @@ button.linkish {
 
 .review-item-loss {
   color: var(--grade, var(--muted));
-  font-size: 11.5px;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -378,7 +379,7 @@ button.linkish {
   margin-left: auto;
   font-style: normal;
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--grade, var(--muted));
 }

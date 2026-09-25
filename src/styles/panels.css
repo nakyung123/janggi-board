@@ -2,30 +2,36 @@
 
 /* --- 패널 공통 --------------------------------------------------------- */
 
+/*
+ * 패널은 흰 카드 한 장이다. 테두리는 거의 안 보일 만큼 옅게 두고, 대신 아주
+ * 얕은 그림자로 바탕에서 한 겹 띄운다. 선으로 가두는 대신 그림자로 띄우는
+ * 쪽이 화면이 조용하다.
+ */
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px 14px 14px;
+  padding: var(--pad-panel);
+  box-shadow: var(--shadow-card);
 }
 
+/* 제목 아래 줄은 뺐다. 카드가 이미 경계를 말하고 있어서 한 겹 더 그으면
+   칸이 잘게 쪼개져 보인다. 사이는 여백으로만 벌린다. */
 .panel-title {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  color: #3d4657;
-  padding-bottom: 9px;
-  margin-bottom: 9px;
-  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-panel-title);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 12px;
 }
 
 .panel-meta {
   margin-left: auto;
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--fs-base);
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -53,8 +59,8 @@
 .row {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 9px;
+  gap: 10px;
+  margin-bottom: 10px;
   flex-wrap: wrap;
 }
 
@@ -64,22 +70,22 @@
 
 .row .label {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   min-width: 62px;
 }
 
 .row input[type="range"] {
   flex: 1;
   min-width: 110px;
-  accent-color: var(--accent);
+  accent-color: var(--ink);
 }
 
 .row select {
   flex: 1;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 5px 8px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
 }
 
 .toggle {
@@ -87,16 +93,26 @@
 }
 
 .toggle input {
-  accent-color: var(--accent);
+  accent-color: var(--ink);
   width: 15px;
   height: 15px;
 }
 
+/*
+ * 분절 버튼.
+ *
+ * 예전에는 고른 칸을 색으로 칠했다. 초를 고르면 초록, 한을 고르면 빨강,
+ * 나머지는 파랑. 그러다 보니 설정 몇 줄에 색이 서너 개 떠서 정작 판 위의
+ * 초·한 색이 묻혔다. 이제는 반대로 간다. 홈이 옅은 회색이고 고른 칸만 흰
+ * 알약으로 떠오른다. 색은 글자에만 남기니, 화면에서 초록과 빨강이 보이면
+ * 그건 늘 진영을 뜻한다.
+ */
 .seg {
   display: flex;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  overflow: hidden;
+  gap: 3px;
+  padding: 3px;
+  background: var(--panel-2);
+  border-radius: var(--radius-sm);
 }
 
 .seg.wide {
@@ -104,32 +120,34 @@
 }
 
 .seg button {
-  border: 0;
-  border-radius: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
   background: transparent;
-  padding: 5px 10px;
-  font-size: 12.5px;
+  color: var(--muted);
+  padding: 5px 11px;
+  font-size: var(--fs-base);
   flex: 1;
   white-space: nowrap;
 }
 
-.seg button + button {
-  border-left: 1px solid var(--line);
+.seg button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: transparent;
 }
 
 .seg button.active {
-  background: var(--accent);
-  color: #fff;
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--shadow-raise);
 }
 
 .seg button.active.cho {
-  background: var(--cho);
-  color: #fff;
+  color: var(--cho);
 }
 
 .seg button.active.han {
-  background: var(--han);
-  color: #fff;
+  color: var(--han);
 }
 
 /* --- 국면 도구 --------------------------------------------------------- */
@@ -137,14 +155,14 @@
 .setup-block {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  padding: 10px 0;
-  margin: 10px 0;
+  padding: 11px 0;
+  margin: 11px 0;
 }
 
 .setup-block > .label {
   display: block;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   margin-bottom: 8px;
 }
 
@@ -154,7 +172,7 @@
 
 .score-tag {
   margin-left: auto;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--muted);
 }
 
@@ -165,22 +183,22 @@
 .fen-input {
   flex: 1;
   min-width: 180px;
-  background: #f7f9fc;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 6px 9px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
   font-family: ui-monospace, "Cascadia Mono", monospace;
-  font-size: 11.5px;
+  font-size: var(--fs-base);
 }
 
 .warnings {
   list-style: none;
   margin-top: 10px;
-  padding: 8px 10px;
-  background: #fdeeee;
-  border: 1px solid #f2bcbc;
-  border-radius: 8px;
-  font-size: 12.5px;
+  padding: 9px 11px;
+  background: #fef2f2;
+  border: 1px solid #f5cccc;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-base);
   color: #9c2020;
 }
 
@@ -202,8 +220,8 @@
   grid-template-columns: 58px 30px 1fr;
   gap: 8px;
   align-items: baseline;
-  padding: 6px 7px;
-  border-radius: 7px;
+  padding: 7px 9px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 
@@ -219,14 +237,14 @@
 
 .pv-depth {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
 }
 
 .pv-moves {
   font-family: var(--serif);
-  font-size: 12.5px;
-  color: #333a47;
+  font-size: var(--fs-base);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -234,7 +252,7 @@
 
 .pv-legend {
   margin-top: 9px;
-  font-size: 11.5px;
+  font-size: var(--fs-base);
 }
 
 /* --- 기보 -------------------------------------------------------------- */
@@ -247,11 +265,11 @@
 .move-start {
   width: 100%;
   margin-bottom: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .move-start.active {
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 .move-table {
@@ -275,7 +293,7 @@
 .move-no {
   width: 30px;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
   text-align: right;
   padding-right: 7px !important;
@@ -285,10 +303,11 @@
   width: 100%;
   background: transparent;
   border-color: transparent;
+  border-radius: var(--radius-xs);
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-align: left;
-  padding: 3px 8px;
+  padding: 5px 9px;
 }
 
 .move-cell.cho {
@@ -299,42 +318,46 @@
   color: var(--han);
 }
 
+/* 지금 보고 있는 수. 색을 얹으면 초·한 글자색과 싸우므로 바탕과 굵기로만
+   짚는다. */
 .move-cell.active {
   background: var(--panel-2);
-  border-color: var(--accent);
+  border-color: var(--line-strong);
+  font-weight: 700;
 }
 
 /* --- 형세 그래프 -------------------------------------------------------- */
 
+/* 그래프를 감싸던 상자를 뺐다. 카드 안에 또 상자가 있으면 테두리가 두 겹이
+   된다. 0선 하나로 충분히 읽힌다. */
 .eval-graph {
   width: 100%;
-  height: 62px;
+  height: 66px;
   display: block;
   cursor: pointer;
-  background: #f7f9fc;
-  border: 1px solid var(--line);
-  border-radius: 8px;
 }
 
-/* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다. */
+/* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다.
+   초 기준이라 초록이다. 아래로 처진 구간은 그만큼 채움이 얇아진다. */
 .eval-area {
-  fill: rgba(37, 99, 235, 0.12);
+  fill: rgba(21, 101, 60, 0.1);
 }
 
 .eval-zero {
-  stroke: var(--line);
+  stroke: var(--line-strong);
   stroke-width: 0.5;
-  stroke-dasharray: 2 2;
 }
 
 .eval-line {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.2;
+  stroke: var(--cho);
+  stroke-width: 1.4;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
 
+/* 지금 보고 있는 수를 짚는 선. 초·한 어느 쪽도 아닌 '내가 보는 자리'라
+   진영 색을 피해 호박색을 쓴다. */
 .eval-cursor {
   stroke: #d97706;
   stroke-width: 0.6;
@@ -345,18 +368,18 @@
 }
 
 .graph .muted.small {
-  margin-top: 7px;
+  margin-top: 9px;
 }
 
 /* --- 국면 도구 추가분 --------------------------------------------------- */
 
 .edit-hint {
-  font-size: 12.5px;
-  color: #1c3f9e;
-  background: #eaf0ff;
-  border: 1px solid #c2d3f7;
-  border-radius: 8px;
-  padding: 8px 10px;
+  font-size: var(--fs-base);
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 9px 11px;
   margin-bottom: 10px;
 }
 
@@ -364,13 +387,13 @@
   display: flex;
   align-items: baseline;
   gap: 4px;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .score-lead {
   margin-left: 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-base);
 }
 
 .score-note {
@@ -387,37 +410,42 @@
 .fen-block .label {
   display: block;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   margin-bottom: 5px;
 }
 
 textarea.fen-input {
   width: 100%;
-  background: #f7f9fc;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  padding: 7px 9px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
   font-family: ui-monospace, "Cascadia Mono", monospace;
-  font-size: 11.5px;
+  font-size: var(--fs-base);
   line-height: 1.5;
   resize: vertical;
 }
 
+/*
+ * 예전에는 여기서 outline:none 으로 초점 테를 지웠다. 마우스로 쓸 때는
+ * 깔끔했지만 Tab 으로 다니면 이 칸에 들어온 줄을 알 길이 없었다. 이제
+ * 테두리 색만 바꾸고 초점 테는 base.css 의 :focus-visible 에 맡긴다.
+ */
 textarea.fen-input:focus {
-  outline: none;
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 /* --- 알림 --------------------------------------------------------------- */
 
 .notice {
   margin-bottom: 12px;
-  padding: 9px 13px;
+  padding: 10px 14px;
   border-radius: var(--radius);
   background: var(--panel);
   border: 1px solid var(--line);
-  font-size: 13px;
-  color: #1c3f9e;
+  box-shadow: var(--shadow-card);
+  font-size: var(--fs-base);
+  color: var(--text);
 }
 
 .turn-tag .editing {
