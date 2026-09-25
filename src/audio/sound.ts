@@ -14,6 +14,8 @@
 //   · 부딪는 순간  — 아주 짧은 잡음 한 방 (20ms). 이게 "딱" 의 앞부분이다.
 //   · 울림        — 감쇠하는 사인파 넷. 낮은 쪽은 판이, 높은 쪽은 알이 낸다.
 //
+// 소리는 셋이다. 집을 때(얕은 "톡"), 놓을 때("딱"), 잡을 때(두 번 닿는다).
+//
 // 브라우저는 사람이 무언가를 누르기 전에는 소리를 내주지 않는다(자동재생 차단).
 // 그래서 첫 수를 둘 때 깨우고, 그래도 막히면 소리 없이 넘어간다.
 
@@ -55,6 +57,24 @@ const CAPTURE: Hit = {
     [2700, 0.1, 0.03],
   ],
   gain: 0.75,
+};
+
+/**
+ * 알을 집어 드는 소리 — 얕고 짧다.
+ *
+ * 판에 내려놓는 것이 아니라 손가락으로 집어 올리는 것이라, 울림이 거의 없고
+ * 착수음보다 높고 작다. 이게 착수음과 비슷하면 집을 때마다 둔 것처럼 들린다.
+ */
+const PICK: Hit = {
+  noiseHz: 3600,
+  noiseGain: 0.36,
+  noiseDecay: 0.012,
+  partials: [
+    [430, 0.1, 0.045],
+    [1150, 0.12, 0.03],
+    [2400, 0.07, 0.018],
+  ],
+  gain: 0.34,
 };
 
 export type MoveSound = "move" | "capture";
@@ -129,6 +149,17 @@ function strike(ac: AudioContext, hit: Hit, at: number, level: number) {
     osc.connect(env).connect(out);
     osc.start(at);
     osc.stop(at + decay + 0.02);
+  }
+}
+
+/** 기물을 집어 들 때. 고른 것이 손에 잡혔다는 것을 귀로 알려준다. */
+export function playPickSound(): void {
+  const ac = open();
+  if (!ac) return;
+  try {
+    strike(ac, PICK, ac.currentTime + 0.001, 1);
+  } catch {
+    /* 소리는 없어도 되는 것이다 */
   }
 }
 

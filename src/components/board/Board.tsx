@@ -12,13 +12,14 @@ import { PieceBody, PieceDefs } from "./PieceGlyph";
 
 const CELL = 62;
 /*
- * 격자 바깥 여백. 좌표 숫자가 들어갈 만큼만 남긴다.
+ * 격자 바깥 여백.
  *
- * 예전에는 56 이었는데, 그러면 격자가 판 넓이의 83% 밖에 안 돼서 가장자리에
- * 맨 나무만 넓게 보였다. 46 이면 86% 다. 가장자리 기물의 끝(반지름 26.2 인
- * 차 기준 21.8px 지점)과 좌표 숫자가 겨우 스치지 않는 선이기도 하다.
+ * 좌표 숫자를 걷어낸 뒤로는 가장자리 기물이 판 밖으로 비어져 나오지 않을
+ * 만큼만 있으면 된다. 가장 큰 가장자리 기물인 차의 반지름이 26.2 이고 팔각형의
+ * 가로 반폭이 24.2 라, 30 이면 5.8px 이 남는다. 격자가 판 넓이의 89% 를
+ * 차지한다(46 일 때는 86%).
  */
-const MARGIN = 46;
+const MARGIN = 30;
 const WIDTH = (FILES - 1) * CELL + MARGIN * 2;
 const HEIGHT = (RANKS - 1) * CELL + MARGIN * 2;
 
@@ -178,26 +179,8 @@ export function Board(props: BoardProps) {
     return <line key={"d" + i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} />;
   });
 
-  // 좌표 눈금. 장기 기보 방식(가로줄 1~0 위에서부터, 세로줄 1~9 왼쪽부터) --
-  const labels: React.ReactNode[] = [];
-  for (let f = 0; f < FILES; f++) {
-    const text = String(f + 1);
-    const x = xOf(f);
-    labels.push(
-      <text key={"lf" + f} x={x} y={HEIGHT - MARGIN + 32} className="coord">
-        {text}
-      </text>
-    );
-  }
-  for (let r = 1; r <= RANKS; r++) {
-    const text = String((11 - r) % 10);
-    const y = yOf(r);
-    labels.push(
-      <text key={"lr" + r} x={MARGIN - 30} y={y + 4} className="coord">
-        {text}
-      </text>
-    );
-  }
+  // 좌표 숫자는 판에 그리지 않는다. 판이 그만큼 커지고, 실물 장기판에도 없다.
+  // 칸 이름이 필요하면 교차점에 마우스를 올렸을 때 뜨는 이름표(<title>)가 있다.
 
   const renderPiece = (square: Square, dragging: boolean) => {
     const piece = board[square];
@@ -279,7 +262,6 @@ export function Board(props: BoardProps) {
 
       <g className="grid">{lines}</g>
       <g className="grid">{palaceDiagonals}</g>
-      <g>{labels}</g>
 
       {/* 직전 수 표시 */}
       {lastMove &&
