@@ -5,7 +5,12 @@
 
 import type { AnalysisSnapshot } from "../../engine/types";
 import type { Board } from "../../janggi/board";
-import { describeLine, formatScore, splitMove } from "../../janggi/notation";
+import {
+  describeLine,
+  formatScore,
+  formatWinProbability,
+  splitMove,
+} from "../../janggi/notation";
 
 interface Props {
   snapshot: AnalysisSnapshot | null;
@@ -83,6 +88,9 @@ export function AnalysisPanel({
               >
                 <span className={"pv-score " + (good ? "cho" : "han")}>
                   {formatScore(line.score, line.mate)}
+                </span>
+                <span className="pv-winprob" title="초(楚)가 이길 확률 (어림값)">
+                  {formatWinProbability(line.score, line.mate)}
                 </span>
                 <span className="pv-depth">{line.depth}</span>
                 <span className="pv-moves">{notated.join("  ")}</span>

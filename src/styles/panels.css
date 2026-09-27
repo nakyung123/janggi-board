@@ -217,7 +217,8 @@
 
 .pv-row {
   display: grid;
-  grid-template-columns: 58px 30px 1fr;
+  /* 점수 · 이길 확률 · 깊이 · 수순 */
+  grid-template-columns: 58px 44px 30px 1fr;
   gap: 8px;
   align-items: baseline;
   padding: 7px 9px;
@@ -233,6 +234,13 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* 이길 확률. 점수 옆에 붙지만 어림값이라 점수보다 조용하게 둔다. */
+.pv-winprob {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--muted);
 }
 
 .pv-depth {

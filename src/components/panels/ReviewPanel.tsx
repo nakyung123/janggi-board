@@ -136,7 +136,11 @@ export function ReviewPanel(props: Props) {
                 ))}
               </ul>
               <p className="muted small">
-                한 수당 평균 {s.avgLoss.toFixed(2)}점 손해
+                <b title="엔진이 고른 수와 같은 수를 둔 비율">
+                  일치율 {Math.round(s.accuracy * 100)}%
+                </b>
+                {" · 한 수당 평균 "}
+                {s.avgLoss.toFixed(2)}점 손해
                 {s.worst && (
                   <>
                     {" · 가장 아쉬운 수 "}

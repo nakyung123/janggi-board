@@ -177,6 +177,35 @@ describe("성적표", () => {
   it("수가 없으면 평균도 0", () => {
     expect(summarize([], "cho").avgLoss).toBe(0);
   });
+
+  // 일치율 — 한국장기가 돈 받고 파는 값이다. 0으로 나누는 자리가 있어서
+  // 빈 기보에서 NaN 이 새어 나가지 않는지가 핵심이다.
+  it("최선수를 둔 비율이 일치율이다", () => {
+    const s = summarize(
+      [만든수({ grade: "best" }), 만든수({ grade: "best" }), 만든수({ grade: "mistake" }), 만든수({ grade: "good" })],
+      "cho"
+    );
+    expect(s.accuracy).toBeCloseTo(0.5, 5);
+  });
+
+  it("전부 최선수면 100%", () => {
+    const s = summarize([만든수({ grade: "best" }), 만든수({ grade: "best" })], "cho");
+    expect(s.accuracy).toBe(1);
+  });
+
+  it("수가 없으면 일치율은 0 이다 (NaN 이 아니다)", () => {
+    const s = summarize([], "cho");
+    expect(s.accuracy).toBe(0);
+    expect(Number.isNaN(s.accuracy)).toBe(false);
+  });
+
+  it("상대가 둔 수는 내 일치율에 안 들어간다", () => {
+    const s = summarize(
+      [만든수({ mover: "cho", grade: "best" }), 만든수({ mover: "han", grade: "blunder" })],
+      "cho"
+    );
+    expect(s.accuracy).toBe(1);
+  });
 });
 
 describe("복기 화살표", () => {

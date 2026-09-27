@@ -262,6 +262,13 @@ export interface SideSummary {
   moves: number;
   /** 한 수당 평균 손해 */
   avgLoss: number;
+  /**
+   * 엔진의 최선수와 같은 수를 둔 비율 (0~1).
+   *
+   * 둔 수가 없으면 0이다. 급수를 재는 값이 아니라 "이 한 판에서 엔진과 얼마나
+   * 같이 봤는가" 일 뿐이다. 판이 짧으면 크게 흔들린다.
+   */
+  accuracy: number;
   /** 가장 크게 어긋난 수. 짚을 만한 게 없으면 null */
   worst: ReviewedMove | null;
 }
@@ -284,6 +291,7 @@ export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
     counts,
     moves: mine.length,
     avgLoss: mine.length ? total / mine.length : 0,
+    accuracy: mine.length ? counts.best / mine.length : 0,
     // 손해가 거의 없는 수를 "가장 아쉬운 수" 라고 짚으면 복기가 우스워진다.
     // 부정확 이상일 때만 내놓는다.
     worst: worst && worst.loss >= INACCURACY ? worst : null,
