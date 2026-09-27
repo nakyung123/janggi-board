@@ -19,6 +19,7 @@ import {
   initialClocks,
   moveBudgetMs,
   tickClock,
+  withFlagged,
 } from "./clock";
 
 /** 1분 + 10초 3회. 손으로 셈하기 좋은 값으로 줄여 쓴다. */
@@ -309,5 +310,28 @@ describe("시계 해석", () => {
     });
     expect(c.mainSeconds).toBe(1200);
     expect(c.byoyomiSeconds).toBe(300);
+  });
+});
+
+describe("되살린 판의 시간패", () => {
+  it("시간패한 쪽만 다 쓴 모습이 된다", () => {
+    const out = withFlagged(initialClocks(S), "cho");
+    expect(out.cho.flagged).toBe(true);
+    expect(out.cho.mainMs).toBe(0);
+    expect(out.cho.periods).toBe(0);
+    // 상대 시계는 건드리지 않는다.
+    expect(out.han.flagged).toBe(false);
+    expect(out.han.mainMs).toBe(60_000);
+  });
+
+  it("시간패가 없으면 그대로 둔다", () => {
+    const before = initialClocks(S);
+    expect(withFlagged(before, null)).toBe(before);
+  });
+
+  it("flaggedSide 가 되살린 시간패를 그대로 읽는다", () => {
+    // 시계는 저장하지 않으므로, 되살릴 때 이 둘이 어긋나면 시계는 가득 찬 채
+    // "시간패" 배너만 뜬다.
+    expect(flaggedSide(withFlagged(initialClocks(S), "han"))).toBe("han");
   });
 });

@@ -20,7 +20,7 @@ import { StatusBanner } from "./components/StatusBanner";
 import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
 import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
-import { positionKey } from "./engine/types";
+import { forgetIfMoved, positionKey } from "./engine/types";
 import {
   DEFAULT_LEVEL_ID,
   DEFAULT_REVIEW_DEPTH_ID,
@@ -48,8 +48,8 @@ import {
   CLOCK_PRESETS,
   CUSTOM_CLOCK_ID,
   DEFAULT_CLOCK_ID,
-  clockPresetById,
   resolveClock,
+  withFlagged,
   clampCustomClock,
   DEFAULT_CUSTOM_CLOCK,
   commitMove,
@@ -208,8 +208,15 @@ export default function App() {
   const [resigned, setResigned] = useState<Side | null>(
     savedGame && savedGame.history.length > 1 ? savedGame.resigned : null
   );
-  /** 시간패한 쪽 */
-  const [flagged, setFlagged] = useState<Side | null>(null);
+  /**
+   * 시간패한 쪽.
+   *
+   * 기권과 마찬가지로 되살린다. 되살리지 않았을 때는 시간패로 진 판을
+   * 새로고침하면 패배가 사라지고 그대로 이어서 둘 수 있었다.
+   */
+  const [flagged, setFlagged] = useState<Side | null>(
+    savedGame && savedGame.history.length > 1 ? savedGame.flagged : null
+  );
   const [clockId, setClockId] = usePersisted(
     "clockId",
     DEFAULT_CLOCK_ID,
@@ -223,9 +230,23 @@ export default function App() {
     DEFAULT_CUSTOM_CLOCK,
     isClockSettings
   );
-  const clockSettings = resolveClock(clockId, customClock);
+  /*
+   * 반드시 메모해야 한다.
+   *
+   * 직접 입력일 때 resolveClock 은 clampCustomClock 으로 매번 새 객체를 만든다.
+   * 그 값이 아래 '엔진이 쓸 시간' effect 의 의존성에 들어 있어서, 메모하지
+   * 않으면 렌더마다 effect 가 돈다. 시계는 200ms 마다 깎이므로 예산이 계속
+   * 바뀌고 → searchLimits → optionsKey → 탐색이 멈췄다 다시 시작한다.
+   * 그래서 직접 입력 시계를 고르면 엔진이 한 수도 두지 못했다.
+   */
+  const clockSettings = useMemo(
+    () => resolveClock(clockId, customClock),
+    [clockId, customClock]
+  );
+  // 되살린 판이 시간패로 끝난 것이면 그 쪽 시계를 다 쓴 모습으로 채운다.
+  // 시계만 가득 찬 채 "시간패" 배너가 뜨면 앞뒤가 맞지 않는다.
   const [clocks, setClocks] = useState<ClockState>(() =>
-    initialClocks(clockPresetById(DEFAULT_CLOCK_ID))
+    withFlagged(initialClocks(clockSettings), flagged)
   );
   /** 두는 동안 훈수를 볼지. 기본은 꺼둔다 — 켜두면 대국이 아니라 받아쓰기가 된다. */
   const [hintOn, setHintOn] = usePersisted("hintOn", false, (v) => typeof v === "boolean");
@@ -417,11 +438,15 @@ export default function App() {
    *
    * 편집 중(draft)에는 남기지 않는다. 고치다 만 판이 다음에 대국판으로
    * 떠 있으면 곤란하다.
+   *
+   * 대국 탭에서 둔 것만 남긴다. 기보는 세 탭이 함께 쓰는 하나뿐이라, 이걸
+   * 가려내지 않으면 분석에서 수순을 짚어본 것까지 '내 대국' 으로 저장된다.
+   * 다음에 열었을 때 둔 적 없는 수가 대국 기보에 들어 있으면 영문을 모른다.
    */
   useEffect(() => {
-    if (draft !== null) return;
+    if (draft !== null || mode !== "play") return;
     writeStored("game", { history, cursor, resigned, flagged } satisfies SavedGame);
-  }, [history, cursor, resigned, flagged, draft]);
+  }, [history, cursor, resigned, flagged, draft, mode]);
 
   /*
    * 대국이 끝나면 골라둔 기물을 놓는다.
@@ -466,12 +491,13 @@ export default function App() {
       setCursor((c) => c + 1);
       setSelected(null);
       // 초읽기는 "회 안에만 두면 회수가 줄지 않는" 규칙이라, 둘 때마다 되채운다.
-      const s = resolveClock(clockId, customClock);
-      if (s.enabled) setClocks((prev) => commitMove(prev, mover, s));
+      if (clockSettings.enabled) {
+        setClocks((prev) => commitMove(prev, mover, clockSettings));
+      }
       // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
       setReviewed(null);
     },
-    [cursor, mover, clockId, customClock, position.board]
+    [cursor, mover, clockSettings, position.board]
   );
 
   /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
@@ -493,15 +519,25 @@ export default function App() {
   // --- 시계 ------------------------------------------------------------
 
   const resetClocks = useCallback(() => {
-    setClocks(initialClocks(resolveClock(clockId, customClock)));
+    setClocks(initialClocks(clockSettings));
     setFlagged(null);
-  }, [clockId, customClock]);
+  }, [clockSettings]);
 
-  // 설정을 바꾸면 양쪽 시계를 새로 채운다.
+  /*
+   * 설정을 바꾸면 양쪽 시계를 새로 채운다.
+   *
+   * 처음 뜰 때는 아무것도 하지 않아야 한다. 시계는 이미 고른 설정으로 차 있고,
+   * 여기서 한 번 더 채우면 되살린 시간패가 지워진다. 그래서 '처음인가' 대신
+   * '설정이 실제로 달라졌는가' 를 본다 — StrictMode 가 effect 를 두 번 돌려도
+   * 두 번째는 값이 같으니 그냥 지나간다.
+   */
+  const lastClockSetup = useRef(clockSettings);
   useEffect(() => {
-    setClocks(initialClocks(resolveClock(clockId, customClock)));
+    if (lastClockSetup.current === clockSettings) return;
+    lastClockSetup.current = clockSettings;
+    setClocks(initialClocks(clockSettings));
     setFlagged(null);
-  }, [clockId, customClock]);
+  }, [clockSettings]);
 
   /**
    * 시계는 첫 수가 놓여야 돈다.
@@ -513,17 +549,16 @@ export default function App() {
 
   useEffect(() => {
     if (!clockRunning) return;
-    const s = resolveClock(clockId, customClock);
     let last = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
       const dt = now - last;
       last = now;
-      setClocks((prev) => tickClock(prev, mover, dt, s));
+      setClocks((prev) => tickClock(prev, mover, dt, clockSettings));
     }, 200);
     return () => window.clearInterval(id);
     // mover 가 바뀌면 타이머를 다시 건다. 그 순간 last 도 새로 잡혀 시간이 새지 않는다.
-  }, [clockRunning, clockId, mover]);
+  }, [clockRunning, clockSettings, mover]);
 
   useEffect(() => {
     const out = flaggedSide(clocks);
@@ -536,9 +571,13 @@ export default function App() {
   // 엔진 차례가 되면 탐색이 끝나는 대로 그 수를 둔다.
   const playedFor = useRef<string | null>(null);
   useEffect(() => {
+    const key = positionKey(positionRef);
+    // 국면을 벗어났으면 '이미 둔 자리' 기억을 버린다. 이 한 줄이 없으면
+    // 무르고 같은 수를 다시 뒀을 때 엔진이 영영 두지 않는다 (forgetIfMoved 주석 참고).
+    playedFor.current = forgetIfMoved(playedFor.current, key);
+
     if (!engineTurn || over) return;
     if (!snapshot || snapshot.running || !snapshot.bestmove) return;
-    const key = positionKey(positionRef);
     if (playedFor.current === key) return;
     const { from, to } = splitMove(snapshot.bestmove);
     if (!from || !to) return;
@@ -780,10 +819,25 @@ export default function App() {
     return { cho: make("cho"), han: make("han") };
   };
 
+  /**
+   * 기보에 적을 승부.
+   *
+   * 기권과 시간패를 먼저 본다. 둘은 상태로 들고 있어서 기보를 되짚는 중에
+   * 저장해도 그대로다. 외통·수몰·점수는 엔진이 '지금 보고 있는 국면' 을
+   * 판정한 값이라 기보 끝에 있을 때만 믿을 수 있다.
+   *
+   * 시간패와 200수 점수제가 빠져 있어서, 그렇게 끝난 판을 저장하면 승부가
+   * 통째로 'unfinished' 로 적혔다.
+   */
   const recordResult = (): RecordResult => {
-    if (gstatus.kind === "checkmate") return gstatus.winner;
-    if (gstatus.kind === "stalemate") return gstatus.winner;
     if (resigned) return resigned === "cho" ? "han" : "cho";
+    if (flagged) return flagged === "cho" ? "han" : "cho";
+    if (atTip) {
+      if (gstatus.kind === "checkmate") return gstatus.winner;
+      if (gstatus.kind === "stalemate") return gstatus.winner;
+      // 점수가 같으면 비긴 것이다. RecordResult 의 "draw" 를 여기서만 쓴다.
+      if (gstatus.kind === "points") return gstatus.winner ?? "draw";
+    }
     return "unfinished";
   };
 

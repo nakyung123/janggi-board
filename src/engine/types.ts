@@ -91,3 +91,20 @@ export function positionCommand(ref: PositionRef): string {
 export function positionKey(ref: PositionRef): string {
   return ref.startFen + "|" + ref.moves.join(" ");
 }
+
+/**
+ * "엔진이 방금 이 국면에서 뒀다" 는 기억을 언제까지 들고 있을지.
+ *
+ * 이 기억이 필요한 이유: 착수를 예약해 둔 사이에 effect 가 다시 돌면 같은
+ * 국면에서 두 번 두게 된다. 그래서 한 번 둔 국면을 적어 두고 건너뛴다.
+ *
+ * 이 기억을 버려야 하는 이유: 무르면 그 국면이 되돌아온다. 기억이 남아 있으면
+ * 엔진은 "이미 뒀다" 고 보고 영영 두지 않는다. 실제로 무르고 같은 수를 다시
+ * 두면 판이 멈췄고, 새로고침 말고는 빠져나올 길이 없었다.
+ *
+ * 그래서 기억은 '그 국면에 머무는 동안' 만 유효하다. 국면이 달라지는 순간
+ * 버린다. 무르기뿐 아니라 기보 이동·기보 불러오기·편집까지 한 번에 덮인다.
+ */
+export function forgetIfMoved(remembered: string | null, key: string): string | null {
+  return remembered === key ? remembered : null;
+}

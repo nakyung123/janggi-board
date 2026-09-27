@@ -113,6 +113,22 @@ export const initialClocks = (s: ClockSettings): ClockState => ({
 });
 
 /**
+ * 한쪽을 시간 다 쓴 모습으로 만든다.
+ *
+ * 되살린 판에 쓴다. 시계 자체는 저장하지 않는다 — 새로고침한 동안 시간이
+ * 얼마나 흘렀는지 알 길이 없어서 되살린 값을 믿을 수 없기 때문이다. 다만
+ * '시간패로 끝났다' 는 사실은 남겨두므로, 그 쪽 시계도 0 으로 맞춰준다.
+ * 안 그러면 시계가 가득 찬 채로 "시간패" 배너가 떠서 앞뒤가 맞지 않는다.
+ */
+export function withFlagged(state: ClockState, side: Side | null): ClockState {
+  if (!side) return state;
+  return {
+    ...state,
+    [side]: { ...state[side], mainMs: 0, byoyomiMs: 0, periods: 0, flagged: true },
+  };
+}
+
+/**
  * 시간을 흘려보낸다. 둘 차례인 쪽의 시계만 준다.
  * 제한시간이 바닥나면 남은 시간은 초읽기에서 이어 깎는다.
  */

@@ -3,13 +3,14 @@
 // 기보를 한 수씩 되짚어 "어디다 두는 게 좋았는지" 를 보여준다.
 // 수를 고르면 판이 그 국면으로 가고, 최선수가 판에 화살표로 뜬다.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   REVIEW_DEPTHS,
   reviewDepthById,
   reviewSeconds,
   어림시간,
 } from "../../engine/levels";
+import { rowNumbers } from "../../janggi/notation";
 import type { ReviewProgress, ReviewedMove } from "../../janggi/review";
 import { GRADE_LABEL, GRADE_MARK, summarize } from "../../janggi/review";
 import type { MoveGrade } from "../../janggi/review";
@@ -35,8 +36,14 @@ interface Props {
   onJump: (historyIndex: number) => void;
 }
 
-/** 요약 줄에 세어서 보여줄 등급. '좋은 수' 는 굳이 세지 않는다. */
-const COUNTED: MoveGrade[] = ["best", "inaccuracy", "mistake", "blunder"];
+/**
+ * 요약 줄에 세어서 보여줄 등급.
+ *
+ * 다섯 가지를 다 센다. '좋은 수' 를 빼놨더니 합이 둔 수와 맞지 않았다 —
+ * "한 3수 / 1최선수 0부정확 0실수 0악수" 를 보면 나머지 두 수가 어디로 갔는지
+ * 알 수가 없다. 바로 옆에 총 수를 적어두고 있으니 더 맞춰보게 된다.
+ */
+const COUNTED: MoveGrade[] = ["best", "good", "inaccuracy", "mistake", "blunder"];
 
 export function ReviewPanel(props: Props) {
   const {
@@ -46,6 +53,19 @@ export function ReviewPanel(props: Props) {
 
   const [onlyProblems, setOnlyProblems] = useState(false);
   const depth = reviewDepthById(depthId);
+
+  /*
+   * 기보와 같은 번호로 말하기 위한 표.
+   *
+   * 복기는 한 수가 한 줄이고 기보는 초·한 두 수가 한 줄이라, 각자 세면 번호가
+   * 어긋난다. 실제로 복기가 "3수" 라고 짚어준 수가 기보에서는 2번 줄에 있었다.
+   * 복기 결과에 모든 수가 순서대로 들어 있으므로 여기서 바로 만들 수 있다.
+   */
+  const rowOf = useMemo(
+    () => rowNumbers([null, ...(reviewed ?? []).map((r) => r.mover)]),
+    [reviewed]
+  );
+  const rowNo = (index: number) => rowOf.get(index) ?? index;
 
   // 아직 복기를 돌리지 않았을 때
   if (!reviewed && !running) {
@@ -165,7 +185,7 @@ export function ReviewPanel(props: Props) {
                       className="linkish"
                       onClick={() => onJump(s.worst!.index)}
                     >
-                      {s.worst.index}수 {s.worst.playedNotation}
+                      {rowNo(s.worst.index)}수 {s.worst.playedNotation}
                     </button>
                   </>
                 )}
@@ -228,7 +248,7 @@ export function ReviewPanel(props: Props) {
                 }
                 onClick={() => onJump(r.index)}
               >
-                <span className="review-item-no">{r.index}</span>
+                <span className="review-item-no">{rowNo(r.index)}</span>
                 <span className={"review-item-move " + r.mover}>
                   {r.playedNotation}
                 </span>

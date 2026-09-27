@@ -9,6 +9,7 @@
 
 import type { Board } from "./board";
 import { fileIdxOf, rankOf } from "./board";
+import type { Side } from "./pieces";
 import { pieceInfo, sideOf } from "./pieces";
 
 /** 엔진 좌표(a1~i10) → 장기 좌표 두 자리 문자열 */
@@ -137,4 +138,54 @@ export function formatWinProbability(
   const p = winProbability(score, mate);
   const mine = side === "cho" ? p : 1 - p;
   return `${Math.round(mine * 100)}%`;
+}
+
+/**
+ * 기보 한 줄 — 초·한 한 수씩 짝지은 것.
+ * cho·han 은 기보(history) 에서의 자리. 비어 있으면 null.
+ */
+export interface MoveRow {
+  no: number;
+  cho: number | null;
+  han: number | null;
+}
+
+/**
+ * 기보를 줄로 나눈다. movers[i] 는 i 번째 자리를 둔 쪽이다(0 번은 시작 국면이라 null).
+ *
+ * 기보와 복기가 같은 번호로 말하게 하려고 한곳에 뒀다. 예전에는 기보가 줄 번호
+ * (1, 2, 3…)를, 복기가 수 번호(1, 2, 3, 4…)를 따로 셌다. 그래서 복기가
+ * "가장 아쉬운 수 3수" 라고 짚어준 수가 기보에서는 2번 줄에 있었다. 두 패널이
+ * 위아래로 붙어 있어 바로 눈에 띄는 어긋남이었다.
+ *
+ * 한이 먼저 두는 국면(편집해서 만든 판)도 있으므로 순서를 가정하지 않고
+ * 실제로 둔 쪽을 보고 나눈다.
+ */
+export function moveRows(movers: (Side | null)[]): MoveRow[] {
+  const rows: MoveRow[] = [];
+  for (let i = 1; i < movers.length; i += 1) {
+    const mover = movers[i];
+    if (!mover) continue;
+    const last = rows[rows.length - 1];
+    if (mover === "han" && last && last.han === null) {
+      last.han = i;
+    } else {
+      rows.push({
+        no: rows.length + 1,
+        cho: mover === "cho" ? i : null,
+        han: mover === "han" ? i : null,
+      });
+    }
+  }
+  return rows;
+}
+
+/** 기보에서 이 수가 놓인 줄 번호. 복기가 기보와 같은 번호로 말하게 한다. */
+export function rowNumbers(movers: (Side | null)[]): Map<number, number> {
+  const map = new Map<number, number>();
+  for (const row of moveRows(movers)) {
+    if (row.cho !== null) map.set(row.cho, row.no);
+    if (row.han !== null) map.set(row.han, row.no);
+  }
+  return map;
 }

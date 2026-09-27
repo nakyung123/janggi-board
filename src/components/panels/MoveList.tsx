@@ -7,7 +7,8 @@
 // 기보를 보다가 저장하고 싶어지는 것이 자연스러운 순서라, 국면 패널에 있던
 // 것을 이리로 옮겼다.
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { moveRows } from "../../janggi/notation";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import type { Side } from "../../janggi/pieces";
 import { GRADE_LABEL, GRADE_MARK } from "../../janggi/review";
@@ -50,22 +51,14 @@ export function MoveList(props: Props) {
     reviewed?.find((r) => r.index === index) ?? null;
 
   // 한 줄에 초·한 한 수씩 짝지어 보여준다.
-  const rows: {
-    no: number;
-    cho?: HistoryEntry & { i: number };
-    han?: HistoryEntry & { i: number };
-  }[] = [];
-  history.forEach((entry, i) => {
-    if (i === 0) return;
-    const withIndex = { ...entry, i };
-    if (entry.mover === "cho") {
-      rows.push({ no: rows.length + 1, cho: withIndex });
-    } else if (rows.length && !rows[rows.length - 1].han) {
-      rows[rows.length - 1].han = withIndex;
-    } else {
-      rows.push({ no: rows.length + 1, han: withIndex });
-    }
-  });
+  // 줄을 나누는 규칙은 복기 패널과 함께 쓴다 — 두 곳이 따로 세면 같은 수를
+  // 서로 다른 번호로 부르게 된다 (notation.ts 의 moveRows 주석 참고).
+  const rows = useMemo(
+    () => moveRows(history.map((h) => h.mover)),
+    [history]
+  );
+  const cellAt = (i: number | null) =>
+    i === null ? null : { ...history[i], i };
 
   return (
     <div className="panel moves">
@@ -92,7 +85,7 @@ export function MoveList(props: Props) {
                 <tr key={row.no}>
                   <td className="move-no">{row.no}</td>
                   {(["cho", "han"] as Side[]).map((side) => {
-                    const cell = row[side];
+                    const cell = cellAt(row[side]);
                     if (!cell) return <td key={side} />;
                     const graded = gradeOf(cell.i);
                     return (
