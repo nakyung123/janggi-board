@@ -178,11 +178,29 @@ export interface ClockView {
   /** 얼마 안 남아서 눈에 띄게 해야 하는지 */
   urgent: boolean;
   flagged: boolean;
+  /**
+   * 마지막 몇 초를 세는 중인지 (5,4,3,2,1). 아니면 null.
+   *
+   * "남은 시간이 얼마인지 잘 알려주지 않아 시간패한다" 는 불만이 장기 앱마다
+   * 반복된다. 숫자가 작아질 때 따로 표시해서 눈에 걸리게 한다.
+   */
+  countdown: number | null;
+}
+
+/** 이 시간부터 초를 센다. */
+const COUNTDOWN_FROM_MS = 5_000;
+
+function countdownOf(ms: number): number | null {
+  if (ms > COUNTDOWN_FROM_MS) return null;
+  return Math.max(1, Math.ceil(Math.max(0, ms) / 1000));
 }
 
 export function clockView(c: SideClock): ClockView {
   if (c.flagged) {
-    return { text: "시간패", inByoyomi: false, periods: 0, urgent: true, flagged: true };
+    return {
+      text: "시간패", inByoyomi: false, periods: 0,
+      urgent: true, flagged: true, countdown: null,
+    };
   }
   if (c.inByoyomi) {
     return {
@@ -191,6 +209,7 @@ export function clockView(c: SideClock): ClockView {
       periods: c.periods,
       urgent: true,
       flagged: false,
+      countdown: countdownOf(c.byoyomiMs),
     };
   }
   return {
@@ -199,5 +218,7 @@ export function clockView(c: SideClock): ClockView {
     periods: c.periods,
     urgent: c.mainMs < 30_000,
     flagged: false,
+    // 초읽기가 없는 설정이면 제한시간 끝이 곧 시간패라 여기서도 센다.
+    countdown: c.periods === 0 ? countdownOf(c.mainMs) : null,
   };
 }

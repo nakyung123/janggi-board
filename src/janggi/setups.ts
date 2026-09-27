@@ -109,3 +109,13 @@ export function detectSetup(board: Board, side: Side): Setup | null {
   if (!left || !right) return null;
   return SETUPS.find((x) => x.left === left && x.right === right) ?? null;
 }
+
+/**
+ * 넷 중 하나를 무작위로.
+ *
+ * 매번 같은 차림으로 두면 초반이 똑같이 반복된다. 상대 앱들에서도 꾸준히
+ * 요청받는 기능이라 골라 두는 자리 옆에 붙였다.
+ */
+export function randomSetup(): Setup {
+  return SETUPS[Math.floor(Math.random() * SETUPS.length)];
+}

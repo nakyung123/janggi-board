@@ -196,6 +196,7 @@ b.han,
 
   .dot-live,
   .player-thinking,
+  .player-clock.counting b,
   .board .checked-king {
     opacity: 1;
   }

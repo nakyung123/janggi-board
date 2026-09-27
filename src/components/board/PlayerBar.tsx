@@ -56,9 +56,17 @@ export function PlayerBar(props: Props) {
         ))}
       </span>
 
-      <span className="player-score" title="기물 점수">
+      <span
+        className="player-score"
+        title={
+          side === "han"
+            ? "기물 점수 — 한(漢)은 후수라 1.5점 덤을 미리 받습니다"
+            : "기물 점수"
+        }
+      >
         {score.toFixed(1)}
         <em>점</em>
+        {side === "han" && <em className="player-komi">덤 1.5</em>}
       </span>
 
       {view && (
@@ -67,10 +75,15 @@ export function PlayerBar(props: Props) {
             "player-clock" +
             (view.inByoyomi ? " byoyomi" : "") +
             (view.urgent && active ? " urgent" : "") +
-            (view.flagged ? " flagged" : "")
+            (view.flagged ? " flagged" : "") +
+            // 마지막 몇 초. 숫자를 하나 더 띄우면 초읽기 표시와 겹쳐 두 번
+            // 나오므로, 있던 숫자를 크고 붉게 바꾸기만 한다.
+            (view.countdown !== null && active && !view.flagged ? " counting" : "")
           }
         >
-          <b>{view.text}</b>
+          <b aria-live={view.countdown !== null ? "assertive" : "off"}>
+            {view.text}
+          </b>
           {view.inByoyomi && !view.flagged && (
             <span className="byoyomi-dots" title={`초읽기 ${view.periods}회 남음`}>
               {"●".repeat(Math.max(0, view.periods))}

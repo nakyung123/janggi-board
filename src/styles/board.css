@@ -410,6 +410,19 @@
   margin-left: 1px;
 }
 
+/* 한(漢)이 후수라서 미리 받는 덤. 점수를 볼 때 "왜 내가 앞서지?" 하지 않도록
+   숫자 옆에 이유를 붙여 둔다. */
+.player-komi {
+  font-style: normal;
+  font-weight: 400;
+  font-size: var(--fs-base);
+  color: var(--muted);
+  margin-left: 6px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+}
+
 /* --- 시계 --------------------------------------------------------------- */
 
 .player-clock {
@@ -478,4 +491,21 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* 마지막 5초.
+   "남은 시간을 잘 알려주지 않아 시간패한다" 는 불만이 장기 앱마다 나온다.
+   숫자를 하나 더 띄우면 초읽기 표시와 겹쳐 두 번 나오므로, 있던 숫자를 키우고
+   붉게 바꾼다. 자리는 그대로라 카드 높이가 흔들리지 않는다.
+   맥박은 동작 줄이기에서 멈춘다 (base.css 의 prefers-reduced-motion 참고). */
+.player-clock.counting b {
+  font-size: var(--fs-xl, 22px);
+  line-height: 1;
+  color: var(--han);
+  animation: countdown-beat 1s steps(1, end) infinite;
+}
+
+@keyframes countdown-beat {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.45; }
 }

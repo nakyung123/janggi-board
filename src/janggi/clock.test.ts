@@ -4,7 +4,7 @@
 // "회 안에 두면 회수가 줄지 않는다" 가 핵심이고, 그게 여기 걸려 있다.
 
 import { describe, expect, it } from "vitest";
-import type { ClockSettings } from "./clock";
+import type { ClockSettings, SideClock } from "./clock";
 import {
   clockPresetById,
   clockView,
@@ -170,5 +170,51 @@ describe("시계 설정 목록", () => {
 
   it("시계 없음 설정은 꺼져 있다", () => {
     expect(clockPresetById("off").enabled).toBe(false);
+  });
+});
+
+// 마지막 5초 카운트다운
+//
+// "남은 시간을 잘 알려주지 않아 시간패한다" 는 불만이 장기 앱마다 반복된다.
+// 숫자가 0 이 되기 전에 눈에 걸리게 하는 값이라, 너무 일찍 떠도 너무 늦게
+// 떠도 쓸모가 없다.
+describe("초읽기 카운트다운", () => {
+  const 초읽기 = (ms: number, periods = 3): SideClock => ({
+    mainMs: 0, inByoyomi: true, byoyomiMs: ms, periods, flagged: false,
+  });
+
+  it("여유가 있으면 세지 않는다", () => {
+    expect(clockView(초읽기(30_000)).countdown).toBeNull();
+    expect(clockView(초읽기(5_001)).countdown).toBeNull();
+  });
+
+  it("5초부터 센다", () => {
+    expect(clockView(초읽기(5_000)).countdown).toBe(5);
+    expect(clockView(초읽기(4_200)).countdown).toBe(5);
+    expect(clockView(초읽기(3_000)).countdown).toBe(3);
+    expect(clockView(초읽기(1_100)).countdown).toBe(2);
+  });
+
+  it("0 은 보여주지 않는다", () => {
+    // "0" 이 뜨면 아직 둘 수 있는데 끝난 줄 안다
+    expect(clockView(초읽기(0)).countdown).toBe(1);
+    expect(clockView(초읽기(200)).countdown).toBe(1);
+  });
+
+  it("시간패한 뒤에는 세지 않는다", () => {
+    const c: SideClock = { mainMs: 0, inByoyomi: true, byoyomiMs: 0, periods: 0, flagged: true };
+    expect(clockView(c).countdown).toBeNull();
+  });
+
+  it("초읽기가 없는 설정이면 제한시간 끝을 센다", () => {
+    // 초읽기 0회면 제한시간이 다하는 순간이 곧 시간패다
+    const c: SideClock = { mainMs: 3_000, inByoyomi: false, byoyomiMs: 0, periods: 0, flagged: false };
+    expect(clockView(c).countdown).toBe(3);
+  });
+
+  it("초읽기가 남아 있으면 제한시간 끝은 세지 않는다", () => {
+    // 아직 초읽기로 넘어갈 여지가 있어서 급한 상황이 아니다
+    const c: SideClock = { mainMs: 3_000, inByoyomi: false, byoyomiMs: 0, periods: 3, flagged: false };
+    expect(clockView(c).countdown).toBeNull();
   });
 });

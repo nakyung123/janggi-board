@@ -3,11 +3,11 @@
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
-import { LEVELS, levelById } from "../../engine/levels";
+import { LEVELS, levelById, thinkSeconds } from "../../engine/levels";
 import { CLOCK_PRESETS } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
-import { SETUPS } from "../../janggi/setups";
+import { SETUPS, randomSetup } from "../../janggi/setups";
 import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
 import { 을를, 이가 } from "../../janggi/korean";
@@ -36,6 +36,13 @@ interface Props {
   onNewGame: () => void;
   onResign: () => void;
   onAnalysisOn: (on: boolean) => void;
+}
+
+/** "약 12초" 처럼 읽기 좋게. 1초 아래는 굳이 소수점을 보여주지 않는다. */
+function 어림초(sec: number): string {
+  if (sec < 1) return "1초 안";
+  if (sec < 10) return `약 ${sec.toFixed(1)}초`;
+  return `약 ${Math.round(sec)}초`;
 }
 
 export function PlayPanel(props: Props) {
@@ -90,7 +97,7 @@ export function PlayPanel(props: Props) {
         >
           {LEVELS.map((l) => (
             <option key={l.id} value={l.id} title={l.desc}>
-              {l.name}
+              {l.name} — {어림초(thinkSeconds(l))}
             </option>
           ))}
         </select>
@@ -127,6 +134,18 @@ export function PlayPanel(props: Props) {
                   {s.name}
                 </button>
               ))}
+              <button
+                type="button"
+                disabled={started}
+                title={
+                  started
+                    ? "대국을 시작하면 바꿀 수 없습니다"
+                    : "넷 중 하나를 무작위로 고릅니다"
+                }
+                onClick={() => onSetup(side, randomSetup())}
+              >
+                랜덤
+              </button>
             </div>
           </div>
         ))}
