@@ -3,7 +3,8 @@
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
-import { LEVELS, levelById, thinkSeconds } from "../../engine/levels";
+import { useEffect, useState } from "react";
+import { LEVELS, levelById, thinkSeconds, 어림시간 } from "../../engine/levels";
 import type { EngineOptions } from "../../engine/types";
 import { CLOCK_PRESETS, CUSTOM_CLOCK_ID, describeClock } from "../../janggi/clock";
 import type { ClockSettings } from "../../janggi/clock";
@@ -58,13 +59,6 @@ interface Props {
   onAnalysisOn: (on: boolean) => void;
 }
 
-/** "약 12초" 처럼 읽기 좋게. 1초 아래는 굳이 소수점을 보여주지 않는다. */
-function 어림초(sec: number): string {
-  if (sec < 1) return "1초 안";
-  if (sec < 10) return `약 ${sec.toFixed(1)}초`;
-  return `약 ${Math.round(sec)}초`;
-}
-
 export function PlayPanel(props: Props) {
   const {
     mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
@@ -73,6 +67,20 @@ export function PlayPanel(props: Props) {
   } = props;
 
   const level = levelById(levelId);
+
+  /*
+   * '새 대국' 은 되돌릴 수 없다. 두던 기보가 그대로 사라지고, 복기할 수 있었던
+   * 판도 같이 날아간다. 그래서 두던 판이 있을 때만 한 번 더 묻는다.
+   *
+   * 확인 창(modal)을 띄우지 않고 버튼이 그 자리에서 바뀐다. 창은 흐름을 끊고,
+   * 습관이 붙으면 읽지 않고 누르게 된다.
+   */
+  const [confirmNew, setConfirmNew] = useState(false);
+
+  // 판이 바뀌면(새 대국을 눌렀거나 무르기로 처음에 왔거나) 묻던 것을 접는다.
+  useEffect(() => {
+    if (!started) setConfirmNew(false);
+  }, [started]);
 
   return (
     <div className="panel play">
@@ -118,7 +126,7 @@ export function PlayPanel(props: Props) {
         >
           {LEVELS.map((l) => (
             <option key={l.id} value={l.id} title={l.desc}>
-              {l.name} — {어림초(thinkSeconds(l))}
+              {l.name} — {어림시간(thinkSeconds(l))}
             </option>
           ))}
         </select>
@@ -243,9 +251,31 @@ export function PlayPanel(props: Props) {
       </div>
 
       <div className="row">
-        <button type="button" className="primary" onClick={onNewGame}>
-          새 대국
-        </button>
+        {confirmNew ? (
+          <>
+            <button
+              type="button"
+              className="primary danger"
+              onClick={() => {
+                setConfirmNew(false);
+                onNewGame();
+              }}
+            >
+              기보를 지우고 시작
+            </button>
+            <button type="button" className="ghost" onClick={() => setConfirmNew(false)}>
+              취소
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="primary"
+            onClick={() => (started ? setConfirmNew(true) : onNewGame())}
+          >
+            새 대국
+          </button>
+        )}
         <button
           type="button"
           className="ghost"

@@ -4,7 +4,12 @@
 // 수를 고르면 판이 그 국면으로 가고, 최선수가 판에 화살표로 뜬다.
 
 import { useState } from "react";
-import { REVIEW_DEPTHS, reviewDepthById } from "../../engine/levels";
+import {
+  REVIEW_DEPTHS,
+  reviewDepthById,
+  reviewSeconds,
+  어림시간,
+} from "../../engine/levels";
 import type { ReviewProgress, ReviewedMove } from "../../janggi/review";
 import { GRADE_LABEL, GRADE_MARK, summarize } from "../../janggi/review";
 import type { MoveGrade } from "../../janggi/review";
@@ -13,6 +18,10 @@ import type { Side } from "../../janggi/pieces";
 
 interface Props {
   moveCount: number;
+  /**
+   * 등급을 어느 급수 눈높이로 매겼는지. 화면에 적어서 절대 평가인 척하지 않는다.
+   */
+  levelName: string;
   depthId: string;
   onDepth: (id: string) => void;
   running: boolean;
@@ -31,7 +40,7 @@ const COUNTED: MoveGrade[] = ["best", "inaccuracy", "mistake", "blunder"];
 
 export function ReviewPanel(props: Props) {
   const {
-    moveCount, depthId, onDepth, running, progress, reviewed,
+    moveCount, levelName, depthId, onDepth, running, progress, reviewed,
     cursor, error, onStart, onStop, onJump,
   } = props;
 
@@ -45,7 +54,8 @@ export function ReviewPanel(props: Props) {
         <div className="panel-title">복기</div>
         <p className="muted pad">
           {moveCount}수를 한 수씩 엔진에게 물어봅니다. 실제로 둔 수와 엔진이
-          고른 수를 견줘서, 어디서 얼마나 손해를 봤는지 짚어줍니다.
+          고른 수를 견줘서, 어디서 얼마나 손해를 봤는지 짚어줍니다. 등급은{" "}
+          <b>{levelName} 눈높이</b>로 매깁니다.
         </p>
 
         <div className="row">
@@ -65,7 +75,8 @@ export function ReviewPanel(props: Props) {
           </div>
         </div>
         <p className="muted small">
-          {depth.desc} · 한 국면에 {depth.nodes.toLocaleString()}노드
+          {moveCount}수에 {어림시간(reviewSeconds(depth, moveCount))} ·{" "}
+          {depth.desc}
         </p>
 
         <div className="row">
@@ -117,6 +128,11 @@ export function ReviewPanel(props: Props) {
         복기
         <span className="panel-meta">{all.length}수</span>
       </div>
+
+      <p className="muted small review-basis">
+        등급은 <b>{levelName} 눈높이</b>로 매겼습니다. 같은 판이라도 높은 급수로
+        보면 더 엄해집니다.
+      </p>
 
       {/* 양쪽 성적표 */}
       <div className="review-summary">

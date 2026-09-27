@@ -129,12 +129,59 @@ export interface ReviewDepth {
  * 25만 노드/초 기준이다.
  */
 export const REVIEW_DEPTHS: ReviewDepth[] = [
-  { id: "quick", name: "빠름", desc: "100수에 약 40초", nodes: 100_000 },
-  { id: "normal", name: "보통", desc: "100수에 약 3분", nodes: 500_000 },
-  { id: "deep", name: "정밀", desc: "100수에 약 12분", nodes: 2_000_000 },
+  { id: "quick", name: "빠름", desc: "한 국면에 10만 노드", nodes: 100_000 },
+  { id: "normal", name: "보통", desc: "한 국면에 50만 노드", nodes: 500_000 },
+  { id: "deep", name: "정밀", desc: "한 국면에 200만 노드", nodes: 2_000_000 },
 ];
+
+/**
+ * 이 기보를 이 깊이로 복기하면 얼마나 걸릴지(초).
+ *
+ * 예전에는 "100수에 약 3분" 이라고 붙박이로 적어 뒀는데, 4수짜리 기보에도
+ * 그렇게 나와서 기다릴 각오를 잘못 하게 만들었다. 실제 수를 넣어 잰다.
+ * 급수와 같은 기준(보통 PC 초당 25만 노드)을 쓴다.
+ */
+export function reviewSeconds(depth: ReviewDepth, moves: number): number {
+  return (Math.max(0, moves) * depth.nodes) / 250_000;
+}
+
+/**
+ * "약 12초" · "약 3분 20초" 처럼 읽기 좋게.
+ *
+ * 1초 아래는 소수점을 보여주지 않는다. 분을 넘으면 분·초로 끊는다 —
+ * "약 200초" 는 얼마나 긴지 감이 안 온다.
+ */
+export function 어림시간(sec: number): string {
+  if (sec < 1) return "1초 안";
+  if (sec < 10) return `약 ${sec.toFixed(1)}초`;
+  if (sec < 60) return `약 ${Math.round(sec)}초`;
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  if (s === 0) return `약 ${m}분`;
+  return `약 ${m}분 ${s}초`;
+}
 
 export const DEFAULT_REVIEW_DEPTH_ID = "normal";
 
 export const reviewDepthById = (id: string): ReviewDepth =>
   REVIEW_DEPTHS.find((d) => d.id === id) ?? REVIEW_DEPTHS[1];
+
+/**
+ * 복기 등급을 얼마나 너그럽게 매길지. 1이면 절대 기준 그대로다.
+ *
+ * 왜 필요한가. 복기는 언제나 전력(수십만 노드)으로 평가한다. 그래서 12급과
+ * 두면서 첫 수로 졸을 밀었더니 곧바로 "부정확 −0.7" 이 붙고 '가장 아쉬운 수'
+ * 로 뽑혔다. 사실이긴 한데, 12급과 두는 사람에게 프로 잣대를 들이대는 셈이다.
+ * 0.3점 손해는 그 자리에서 알아볼 수 있는 크기가 아니다.
+ *
+ * 그래서 고른 급수에 맞춰 경계를 늘린다. 18급이면 3배, 9단이면 그대로다.
+ * 상대 급수를 쓰는 것은 사람이 대체로 제 실력 근처를 고르기 때문이고,
+ * 정확한 값이 아니라 대략의 눈높이다. 화면에는 "18급 기준" 이라고 적어서
+ * 절대 평가인 척하지 않는다.
+ */
+export function gradeToleranceOf(level: Level): number {
+  const i = LEVELS.findIndex((l) => l.id === level.id);
+  if (i < 0) return 1;
+  const t = i / (LEVELS.length - 1); // 18급 0 → 9단 1
+  return 3 - 2 * t;
+}

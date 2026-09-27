@@ -79,11 +79,20 @@ export const clampScore = (score: number, mate: number | null): number =>
       : -CAP
     : Math.max(-CAP, Math.min(CAP, score));
 
-export function gradeOf(loss: number, playedBest: boolean): MoveGrade {
+/**
+ * @param tolerance 경계를 늘리는 배수. 1이면 절대 기준 그대로다.
+ *   고른 급수에 맞춰 눈높이를 낮출 때 쓴다 (engine/levels 의 gradeToleranceOf).
+ */
+export function gradeOf(
+  loss: number,
+  playedBest: boolean,
+  tolerance = 1
+): MoveGrade {
   if (playedBest) return "best";
-  if (loss < INACCURACY) return "good";
-  if (loss < MISTAKE) return "inaccuracy";
-  if (loss < BLUNDER) return "mistake";
+  const k = Math.max(1, tolerance);
+  if (loss < INACCURACY * k) return "good";
+  if (loss < MISTAKE * k) return "inaccuracy";
+  if (loss < BLUNDER * k) return "mistake";
   return "blunder";
 }
 
@@ -117,6 +126,11 @@ export interface ReviewInput {
   scoreAfter: number;
   /** 최선수를 두면 장군이 되는지. 엔진에 따로 물어본 값. */
   bestGivesCheck: boolean;
+  /**
+   * 등급 경계를 늘리는 배수. 없으면 1(절대 기준)이다.
+   * 고른 급수에 맞춰 눈높이를 낮출 때 쓴다.
+   */
+  tolerance?: number;
 }
 
 export interface ReviewedMove {
@@ -151,7 +165,7 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
   // 같은 수인데도 잔값이 남는데, 그건 깊이 차이지 손해가 아니다.
   // 그대로 두면 "최선수 -0.29" 같은 말이 안 되는 줄이 뜨고 평균까지 흐려진다.
   const loss = playedBest ? 0 : Math.max(0, raw);
-  const grade = gradeOf(loss, playedBest);
+  const grade = gradeOf(loss, playedBest, input.tolerance);
 
   const playedNotation = describeMove(played, before).short;
   const bestNotation = best ? describeMove(best, before).short : null;
@@ -292,9 +306,16 @@ export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
     moves: mine.length,
     avgLoss: mine.length ? total / mine.length : 0,
     accuracy: mine.length ? counts.best / mine.length : 0,
-    // 손해가 거의 없는 수를 "가장 아쉬운 수" 라고 짚으면 복기가 우스워진다.
-    // 부정확 이상일 때만 내놓는다.
-    worst: worst && worst.loss >= INACCURACY ? worst : null,
+    /*
+     * 손해가 거의 없는 수를 "가장 아쉬운 수" 라고 짚으면 복기가 우스워진다.
+     * 부정확 이상일 때만 내놓는다.
+     *
+     * 기준을 숫자(INACCURACY)로 다시 재지 않고 이미 매겨진 등급을 본다.
+     * 등급 경계는 급수에 따라 늘어나는데 여기만 절대 기준으로 재면,
+     * 등급은 "좋은 수" 라면서 같은 수를 "가장 아쉬운 수" 로 짚는 일이 생긴다.
+     * 실제로 그랬다.
+     */
+    worst: worst && worst.grade !== "good" && worst.grade !== "best" ? worst : null,
   };
 }
 
@@ -331,6 +352,8 @@ export interface RunReviewOptions {
   moves: string[];
   /** 한 국면에 쓸 탐색량 */
   nodes: number;
+  /** 등급 경계를 늘리는 배수. 고른 급수에 맞춰 눈높이를 낮출 때 쓴다. */
+  tolerance?: number;
   onProgress: (p: ReviewProgress) => void;
   /** true 를 돌려주면 그 자리에서 그만둔다 */
   shouldStop: () => boolean;
@@ -356,7 +379,7 @@ function advance(board: Board, move: string): Board {
  * 국면당 한 번이면 충분하다.
  */
 export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]> {
-  const { engine, startFen, moves, nodes, onProgress, shouldStop } = opts;
+  const { engine, startFen, moves, nodes, tolerance, onProgress, shouldStop } = opts;
 
   const positions = moves.length + 1;
   const scores: number[] = [];
@@ -426,6 +449,7 @@ export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]>
         scoreBefore: scores[m],
         scoreAfter: scores[m + 1] ?? scores[m],
         bestGivesCheck,
+        tolerance,
       })
     );
 

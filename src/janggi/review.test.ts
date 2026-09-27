@@ -165,13 +165,32 @@ describe("성적표", () => {
 
   it("실수가 없는 기보에서는 '가장 아쉬운 수' 를 짚지 않는다", () => {
     // 0.1 짜리 수를 가장 아쉬운 수라고 내놓으면 복기가 우스워진다
-    const s = summarize([만든수({ loss: 0.1 }), 만든수({ loss: 0.05 })], "cho");
+    const s = summarize(
+      [만든수({ loss: 0.1, grade: "good" }), 만든수({ loss: 0.05, grade: "good" })],
+      "cho"
+    );
     expect(s.worst).toBeNull();
   });
 
   it("부정확 이상이면 짚는다", () => {
-    const s = summarize([만든수({ loss: 0.1 }), 만든수({ loss: 0.4, index: 7 })], "cho");
+    const s = summarize(
+      [만든수({ loss: 0.1, grade: "good" }), 만든수({ loss: 0.4, grade: "inaccuracy", index: 7 })],
+      "cho"
+    );
     expect(s.worst?.index).toBe(7);
+  });
+
+  it("등급이 '좋은 수' 면 손해가 커도 짚지 않는다", () => {
+    // 급수 눈높이를 낮추면 경계가 늘어난다. 그때 여기만 절대 기준으로 재면
+    // 등급은 "좋은 수" 라면서 같은 수를 "가장 아쉬운 수" 로 짚게 된다.
+    // 12급과 둔 4수짜리 판에서 실제로 그랬다.
+    const s = summarize([만든수({ loss: 0.59, grade: "good" })], "cho");
+    expect(s.worst).toBeNull();
+  });
+
+  it("최선수는 아무리 많아도 짚지 않는다", () => {
+    const s = summarize([만든수({ loss: 0, grade: "best" })], "cho");
+    expect(s.worst).toBeNull();
   });
 
   it("수가 없으면 평균도 0", () => {

@@ -17,7 +17,7 @@ import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
 import { StatusBanner } from "./components/StatusBanner";
 
-import { usePersisted } from "./hooks/usePersisted";
+import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
 import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
 import { positionKey } from "./engine/types";
@@ -26,6 +26,7 @@ import {
   DEFAULT_REVIEW_DEPTH_ID,
   LEVELS,
   MIN_THINK_MS,
+  gradeToleranceOf,
   ENGINE_MOVE_CAP_MS,
   REVIEW_DEPTHS,
   levelById,
@@ -113,12 +114,82 @@ function isEnginePrefs(v: unknown): boolean {
   );
 }
 
+/** 저장해 둔 기보가 지금도 읽을 수 있는 모양인지. */
+function isHistory(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 1000) return false;
+  return v.every((e) => {
+    if (typeof e !== "object" || e === null) return false;
+    const h = e as Record<string, unknown>;
+    if (typeof h.fen !== "string" || h.fen.length > 200) return false;
+    if (typeof h.notation !== "string") return false;
+    if (h.move !== null && typeof h.move !== "string") return false;
+    if (h.mover !== null && h.mover !== "cho" && h.mover !== "han") return false;
+    if (h.score !== null && typeof h.score !== "number") return false;
+    // FEN 이 실제로 읽히는지까지 본다. 모양만 맞고 내용이 깨진 것을 거른다.
+    try {
+      return Object.keys(parseFen(h.fen).board).length > 0;
+    } catch {
+      return false;
+    }
+  });
+}
+
+function isSide(v: unknown): boolean {
+  return v === null || v === "cho" || v === "han";
+}
+
+/**
+ * 두던 판을 저장해 둔 모양.
+ *
+ * 시계는 넣지 않는다. 새로고침한 동안 시간이 흘렀는지 알 길이 없어서 되살린
+ * 값이 맞다고 할 수 없고, 시계는 100ms 마다 바뀌어서 저장이 폭주한다.
+ * 이어서 열면 시계는 새로 찬다.
+ */
+interface SavedGame {
+  history: HistoryEntry[];
+  cursor: number;
+  resigned: Side | null;
+  flagged: Side | null;
+}
+
+function isSavedGame(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const g = v as Record<string, unknown>;
+  return (
+    isHistory(g.history) &&
+    typeof g.cursor === "number" &&
+    g.cursor >= 0 &&
+    g.cursor < (g.history as unknown[]).length &&
+    isSide(g.resigned) &&
+    isSide(g.flagged)
+  );
+}
+
 export default function App() {
   const { engine, status, progress, error, evalMode } = useEngine();
 
   const [mode, setMode] = useState<Mode>("play");
-  const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
-  const [cursor, setCursor] = useState(0);
+
+  /*
+   * 두던 판을 되살린다.
+   *
+   * 새로고침하거나 폰에서 앱을 잠깐 나갔다 오면 기보가 통째로 사라졌다.
+   * 한 판 두던 중이면 그게 제일 아깝다.
+   *
+   * 다만 '실제로 두던 판' 일 때만 되살린다(한 수라도 둔 것). 분석에서 국면만
+   * 만지다 나갔는데 다음에 열었을 때 그 이상한 판이 대국판으로 떠 있으면
+   * 영문을 모른다.
+   */
+  const savedGame = useMemo(
+    () => readStored<SavedGame | null>("game", null, isSavedGame),
+    []
+  );
+  const [history, setHistory] = useState<HistoryEntry[]>(
+    savedGame && savedGame.history.length > 1 ? savedGame.history : initialHistory
+  );
+  const [cursor, setCursor] = useState(
+    savedGame && savedGame.history.length > 1 ? savedGame.cursor : 0
+  );
   const [flipped, setFlipped] = usePersisted("flipped", false, (v) => typeof v === "boolean");
   const [selected, setSelected] = useState<Square | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -134,7 +205,9 @@ export default function App() {
     DEFAULT_LEVEL_ID,
     (v) => typeof v === "string" && LEVELS.some((l) => l.id === v)
   );
-  const [resigned, setResigned] = useState<Side | null>(null);
+  const [resigned, setResigned] = useState<Side | null>(
+    savedGame && savedGame.history.length > 1 ? savedGame.resigned : null
+  );
   /** 시간패한 쪽 */
   const [flagged, setFlagged] = useState<Side | null>(null);
   const [clockId, setClockId] = usePersisted(
@@ -335,6 +408,20 @@ export default function App() {
     [position, legal, checkers, probed, cursor, pointsRule]
   );
   const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
+
+  /*
+   * 두던 판을 남긴다.
+   *
+   * 수를 둘 때마다 한 번씩이라 잦지 않다. 시계는 넣지 않는다 — 100ms 마다
+   * 바뀌어서 저장이 폭주하고, 새로고침한 동안 시간이 흘렀는지도 알 수 없다.
+   *
+   * 편집 중(draft)에는 남기지 않는다. 고치다 만 판이 다음에 대국판으로
+   * 떠 있으면 곤란하다.
+   */
+  useEffect(() => {
+    if (draft !== null) return;
+    writeStored("game", { history, cursor, resigned, flagged } satisfies SavedGame);
+  }, [history, cursor, resigned, flagged, draft]);
 
   /*
    * 대국이 끝나면 골라둔 기물을 놓는다.
@@ -782,6 +869,9 @@ export default function App() {
         startFen: history[0].fen,
         moves,
         nodes: reviewDepthById(reviewDepthId).nodes,
+        // 고른 급수에 맞춰 등급 눈높이를 낮춘다. 12급과 둔 판을 9단 잣대로
+        // 재면 평범한 첫 수부터 '부정확' 이 붙는다.
+        tolerance: gradeToleranceOf(level),
         onProgress: setReviewProgress,
         shouldStop: () => cancelReview.current,
       });
@@ -887,10 +977,12 @@ export default function App() {
         side === "cho" ? "han" : "cho"
       ) as PieceType[],
       active: !over && position.turn === side,
-      thinking: engineTurn && position.turn === side,
-      clock: clockSettings.enabled ? clocks[side] : null,
+      thinking: mode === "play" && engineTurn && position.turn === side,
+      // 시계는 대국에서만 돈다. 복기·분석에서 남은 시간을 보여주면 아직
+      // 대국 중인 것처럼 읽힌다.
+      clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
     }),
-    [mySide, level.name, scores, position, over, engineTurn, clockSettings.enabled, clocks]
+    [mySide, level.name, scores, position, over, engineTurn, mode, clockSettings.enabled, clocks]
   );
 
   // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
@@ -1007,8 +1099,14 @@ export default function App() {
               </div>
             )}
 
-            {/* 대국자 카드는 대국 모드에만. 편집 중에는 팔레트에 자리를 내준다. */}
-            {mode === "play" && !editMode && <PlayerBar {...playerOf(topSide)} />}
+            {/*
+              대국자 카드는 편집 중을 빼고 어디서나 그린다.
+              대국 탭에만 두었더니 탭을 옮길 때마다 판이 596↔695 로 출렁였다.
+              카드가 차지하는 높이가 빠지고 더해지기 때문이다. 어차피 누가 어느
+              쪽인지·기물 점수·잡은 기물은 복기와 분석에서도 볼 값이라 같이 둔다.
+              편집 중에는 팔레트에 자리를 내준다.
+            */}
+            {!editMode && <PlayerBar {...playerOf(topSide)} />}
 
             <div className="board-stage">
               <Board
@@ -1027,7 +1125,7 @@ export default function App() {
               />
             </div>
 
-            {mode === "play" && !editMode && <PlayerBar {...playerOf(bottomSide)} />}
+            {!editMode && <PlayerBar {...playerOf(bottomSide)} />}
 
             {editMode ? (
               <PiecePalette brush={brush} onPick={setBrush} />
@@ -1183,6 +1281,7 @@ export default function App() {
           {mode === "review" && (
             <ReviewPanel
               moveCount={history.length - 1}
+              levelName={level.name}
               depthId={reviewDepthId}
               onDepth={setReviewDepthId}
               running={reviewRunning}
