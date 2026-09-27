@@ -12,6 +12,7 @@ import {
   MIN_THINK_MS,
   gradeToleranceOf,
   levelById,
+  levelWaitLabel,
   limitsOf,
   REVIEW_DEPTHS,
   reviewDepthById,
@@ -144,5 +145,32 @@ describe("등급 눈높이", () => {
   it("1 아래로는 내려가지 않는다", () => {
     // 절대 기준보다 엄해지면 그건 눈높이가 아니라 다른 기준이다
     for (const l of LEVELS) expect(gradeToleranceOf(l)).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("급수 옆에 붙는 기다림", () => {
+  it("기다릴 일이 없는 급수에는 아무것도 붙지 않는다", () => {
+    // 27개 중 19개가 1초를 넘지 않아 전부 "1초 안" 으로 똑같이 적혔었다.
+    expect(levelWaitLabel(levelById("k18"))).toBe("");
+    expect(levelWaitLabel(levelById("k1"))).toBe("");
+    expect(levelWaitLabel(levelById("d1"))).toBe("");
+  });
+
+  it("정말로 기다리는 급수에만 붙는다", () => {
+    expect(levelWaitLabel(levelById("d2"))).not.toBe("");
+    expect(levelWaitLabel(levelById("d9"))).toContain("20초");
+  });
+
+  it("같은 글자가 여러 급수에 겹쳐 붙지 않는다", () => {
+    // 겹치면 읽을 이유가 없어진다. 그게 원래 문제였다.
+    const labels = LEVELS.map(levelWaitLabel).filter((s) => s !== "");
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it("사다리를 올라갈수록 기다림이 길어진다", () => {
+    const secs = LEVELS.map(thinkSeconds);
+    for (let i = 1; i < secs.length; i += 1) {
+      expect(secs[i]).toBeGreaterThanOrEqual(secs[i - 1]);
+    }
   });
 });

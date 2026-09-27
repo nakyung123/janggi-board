@@ -4,7 +4,7 @@
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
 import { useEffect, useState } from "react";
-import { LEVELS, levelById, thinkSeconds, 어림시간 } from "../../engine/levels";
+import { LEVELS, levelById, levelWaitLabel } from "../../engine/levels";
 import type { EngineOptions } from "../../engine/types";
 import { CLOCK_PRESETS, CUSTOM_CLOCK_ID, describeClock } from "../../janggi/clock";
 import type { ClockSettings } from "../../janggi/clock";
@@ -124,13 +124,22 @@ export function PlayPanel(props: Props) {
           onChange={(e) => onLevel(e.target.value)}
           aria-label="상대 급수"
         >
-          {LEVELS.map((l) => (
-            <option key={l.id} value={l.id} title={l.desc}>
-              {l.name} — {어림시간(thinkSeconds(l))}
-            </option>
-          ))}
+          {LEVELS.map((l) => {
+            const wait = levelWaitLabel(l);
+            return (
+              <option key={l.id} value={l.id} title={l.desc}>
+                {l.name}
+                {wait && ` — 한 수 ${wait}`}
+              </option>
+            );
+          })}
         </select>
       </div>
+      {/*
+        고른 급수가 어떤 상대인지 적는다. 예전에는 option 의 title 에만 있어서
+        마우스를 올려야 보였다 — 폰에서는 볼 방법이 아예 없었다.
+      */}
+      <p className="muted small level-desc">{level.desc}</p>
 
       <div className="row">
         <span className="label">시계</span>

@@ -114,6 +114,19 @@ export function thinkSeconds(level: Level): number {
   return Math.max(MIN_THINK_MS / 1000, level.nodes / 250_000);
 }
 
+/**
+ * 급수 이름 옆에 붙일 기다림. 기다릴 일이 없으면 빈 문자열.
+ *
+ * 27개 급수 중 19개(18급~1단)가 한 수에 1초를 넘지 않아서, 목록이 전부
+ * "1초 안" 으로 똑같이 적혔다. 같은 말이 열아홉 번 반복되면 읽지 않게 되고,
+ * 정작 20초를 기다려야 하는 9단도 같은 자리에 적혀 눈에 띄지 않는다.
+ * 그래서 시간은 정말로 기다리게 되는 급수에만 적는다.
+ */
+export function levelWaitLabel(level: Level): string {
+  const sec = thinkSeconds(level);
+  return sec < 1 ? "" : 어림시간(sec);
+}
+
 // --- 복기 깊이 -----------------------------------------------------------
 
 export interface ReviewDepth {

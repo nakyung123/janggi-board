@@ -429,6 +429,14 @@ export default function App() {
     [position, legal, checkers, probed, cursor, pointsRule]
   );
   const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
+  /**
+   * 대국이 끝난 것으로 '보여줄지'.
+   *
+   * 분석은 국면을 보는 곳이라 대국 결과가 해당되지 않는다. 거기서는 끝난 판도
+   * 둘 수 있으므로(canTouchBoard 주석 참고), 둘 수 있는 판 위에 "기권 — 한이
+   * 이겼습니다" 가 떠 있으면 앞뒤가 맞지 않는다.
+   */
+  const showOver = over && mode !== "analyze";
 
   /*
    * 두던 판을 남긴다.
@@ -459,8 +467,8 @@ export default function App() {
    * '끝났는가' 하나만 보고 지운다.
    */
   useEffect(() => {
-    if (over) setSelected(null);
-  }, [over]);
+    if (showOver) setSelected(null);
+  }, [showOver]);
 
   // --- 수 두기 ----------------------------------------------------------
 
@@ -690,11 +698,21 @@ export default function App() {
 
   const targets = selected ? (legalFrom.get(selected) ?? []) : [];
 
-  /** 복기 중에는 판을 읽기만 한다. 대국 중에는 내 차례의 기물만 집을 수 있다. */
+  /**
+   * 판을 만질 수 있는지.
+   *
+   * 복기는 읽기만 한다. 대국에서는 내 차례에만, 그리고 대국이 끝나면 못 둔다.
+   *
+   * 분석에서는 끝난 판이라도 둘 수 있어야 한다. 기권·시간패는 '국면' 이 아니라
+   * '대국' 에 붙는 결과인데, 그것 때문에 분석판까지 잠겨 있었다. 진 판을 다시
+   * 놓아보는 것이 분석판의 쓸모라 이건 앞뒤가 맞지 않는다. 정말로 둘 수가 없는
+   * 국면(외통·수몰)은 legalFrom 이 비어 있어서 저절로 막히므로, 여기서 한 번
+   * 더 막을 필요가 없다.
+   */
   const canTouchBoard =
-    !over &&
-    mode !== "review" &&
-    !(mode === "play" && (engineTurn || mySide === "watch"));
+    mode === "analyze"
+      ? true
+      : mode === "play" && !over && !engineTurn && mySide !== "watch";
 
   const handleSquareClick = (square: Square) => {
     if (editMode) {
@@ -1030,13 +1048,13 @@ export default function App() {
         position,
         side === "cho" ? "han" : "cho"
       ) as PieceType[],
-      active: !over && position.turn === side,
+      active: !showOver && position.turn === side,
       thinking: mode === "play" && engineTurn && position.turn === side,
       // 시계는 대국에서만 돈다. 복기·분석에서 남은 시간을 보여주면 아직
       // 대국 중인 것처럼 읽힌다.
       clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
     }),
-    [mySide, level.name, scores, position, over, engineTurn, mode, clockSettings.enabled, clocks]
+    [mySide, level.name, scores, position, showOver, engineTurn, mode, clockSettings.enabled, clocks]
   );
 
   // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
@@ -1142,12 +1160,13 @@ export default function App() {
               onUndo={undoMove}
             />
 
-            {resigned && (
+            {/* 분석에서는 띄우지 않는다 — 거기서는 끝난 판도 둘 수 있다. */}
+            {mode !== "analyze" && resigned && (
               <div className="banner resign">
                 기권 — {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
               </div>
             )}
-            {flagged && (
+            {mode !== "analyze" && flagged && (
               <div className="banner resign">
                 시간패 — {이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.
               </div>
@@ -1315,7 +1334,7 @@ export default function App() {
                 editing={editMode}
                 onHoverLine={setHover}
                 onPlayLine={(move) => {
-                  if (editMode || over) return;
+                  if (editMode || !canTouchBoard) return;
                   const { from, to } = splitMove(move);
                   if (from && to) pushMove(from, to);
                 }}

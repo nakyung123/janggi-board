@@ -506,3 +506,9 @@ textarea.fen-input:focus {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-xs);
 }
+
+/* 고른 급수가 어떤 상대인지. 드롭다운 바로 아래에 붙여 딸린 설명으로 읽히게
+   한다. 앞의 .row 가 이미 아래 여백을 가지므로 위는 당겨 붙인다. */
+.level-desc {
+  margin: -6px 0 10px;
+}
