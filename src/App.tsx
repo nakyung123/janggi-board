@@ -43,6 +43,9 @@ import { gameStatus, isGameOver, capturedPieces, scoreBoard } from "./janggi/sta
 import {
   DEFAULT_CLOCK_ID,
   clockPresetById,
+  resolveClock,
+  clampCustomClock,
+  DEFAULT_CUSTOM_CLOCK,
   commitMove,
   flaggedSide,
   initialClocks,
@@ -94,7 +97,9 @@ export default function App() {
   /** 시간패한 쪽 */
   const [flagged, setFlagged] = useState<Side | null>(null);
   const [clockId, setClockId] = useState(DEFAULT_CLOCK_ID);
-  const clockSettings = clockPresetById(clockId);
+  /** 직접 입력을 골랐을 때 쓰는 값. 프리셋으로 돌아가도 그대로 남는다. */
+  const [customClock, setCustomClock] = useState(DEFAULT_CUSTOM_CLOCK);
+  const clockSettings = resolveClock(clockId, customClock);
   const [clocks, setClocks] = useState<ClockState>(() =>
     initialClocks(clockPresetById(DEFAULT_CLOCK_ID))
   );
@@ -299,12 +304,12 @@ export default function App() {
       setCursor((c) => c + 1);
       setSelected(null);
       // 초읽기는 "회 안에만 두면 회수가 줄지 않는" 규칙이라, 둘 때마다 되채운다.
-      const s = clockPresetById(clockId);
+      const s = resolveClock(clockId, customClock);
       if (s.enabled) setClocks((prev) => commitMove(prev, mover, s));
       // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
       setReviewed(null);
     },
-    [cursor, mover, clockId, position.board]
+    [cursor, mover, clockId, customClock, position.board]
   );
 
   /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
@@ -326,15 +331,15 @@ export default function App() {
   // --- 시계 ------------------------------------------------------------
 
   const resetClocks = useCallback(() => {
-    setClocks(initialClocks(clockPresetById(clockId)));
+    setClocks(initialClocks(resolveClock(clockId, customClock)));
     setFlagged(null);
-  }, [clockId]);
+  }, [clockId, customClock]);
 
   // 설정을 바꾸면 양쪽 시계를 새로 채운다.
   useEffect(() => {
-    setClocks(initialClocks(clockPresetById(clockId)));
+    setClocks(initialClocks(resolveClock(clockId, customClock)));
     setFlagged(null);
-  }, [clockId]);
+  }, [clockId, customClock]);
 
   /**
    * 시계는 첫 수가 놓여야 돈다.
@@ -346,7 +351,7 @@ export default function App() {
 
   useEffect(() => {
     if (!clockRunning) return;
-    const s = clockPresetById(clockId);
+    const s = resolveClock(clockId, customClock);
     let last = performance.now();
     const id = window.setInterval(() => {
       const now = performance.now();
@@ -988,6 +993,12 @@ export default function App() {
                 flagged={flagged}
                 clockId={clockId}
                 onClock={setClockId}
+                customClock={customClock}
+                onCustomClock={(patch) =>
+                  setCustomClock((c) => clampCustomClock({ ...c, ...patch }))
+                }
+                variant={prefs.variant}
+                onVariant={(v) => setPrefs((o) => ({ ...o, variant: v }))}
                 thinking={thinking}
                 analysisOn={hintOn}
                 onMySide={(s) => {

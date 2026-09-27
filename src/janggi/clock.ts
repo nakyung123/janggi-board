@@ -37,7 +37,47 @@ export const CLOCK_PRESETS: ClockPreset[] = [
   { id: "long", name: "20분 + 1분 5회", enabled: true, mainSeconds: 1200, byoyomiSeconds: 60, byoyomiCount: 5 },
 ];
 
+/** 직접 입력을 고른 상태. 값은 프리셋이 아니라 따로 들고 있는 것을 쓴다. */
+export const CUSTOM_CLOCK_ID = "custom";
+
 export const DEFAULT_CLOCK_ID = "normal";
+
+/** 직접 입력의 처음 값. 프리셋에 없는 조합을 맞추고 싶을 때 시작점이다. */
+export const DEFAULT_CUSTOM_CLOCK: ClockSettings = {
+  enabled: true,
+  mainSeconds: 900,
+  byoyomiSeconds: 40,
+  byoyomiCount: 5,
+};
+
+/** 초읽기 없이 제한시간만 쓸 수도 있어야 해서 회수 0을 허용한다. */
+export function clampCustomClock(c: ClockSettings): ClockSettings {
+  const main = Math.max(0, Math.min(180 * 60, Math.round(c.mainSeconds)));
+  const byo = Math.max(0, Math.min(300, Math.round(c.byoyomiSeconds)));
+  const count = Math.max(0, Math.min(20, Math.round(c.byoyomiCount)));
+  return {
+    // 제한시간도 초읽기도 없으면 시계를 켜 둘 이유가 없다.
+    enabled: main > 0 || (byo > 0 && count > 0),
+    mainSeconds: main,
+    byoyomiSeconds: byo,
+    byoyomiCount: byo > 0 ? count : 0,
+  };
+}
+
+/** "15분 + 40초 5회" 처럼 읽기 좋게. */
+export function describeClock(c: ClockSettings): string {
+  if (!c.enabled) return "시계 없음";
+  const parts: string[] = [];
+  if (c.mainSeconds > 0) {
+    const m = Math.floor(c.mainSeconds / 60);
+    const sec = c.mainSeconds % 60;
+    parts.push(sec === 0 ? `${m}분` : m === 0 ? `${sec}초` : `${m}분 ${sec}초`);
+  }
+  if (c.byoyomiSeconds > 0 && c.byoyomiCount > 0) {
+    parts.push(`${c.byoyomiSeconds}초 ${c.byoyomiCount}회`);
+  }
+  return parts.join(" + ") || "시계 없음";
+}
 
 export const clockPresetById = (id: string): ClockPreset =>
   CLOCK_PRESETS.find((p) => p.id === id) ?? CLOCK_PRESETS[2];
@@ -221,4 +261,14 @@ export function clockView(c: SideClock): ClockView {
     // 초읽기가 없는 설정이면 제한시간 끝이 곧 시간패라 여기서도 센다.
     countdown: c.periods === 0 ? countdownOf(c.mainMs) : null,
   };
+}
+
+/**
+ * 고른 시계가 프리셋인지 직접 입력인지 가려서 실제 값을 돌려준다.
+ *
+ * 부르는 쪽이 매번 "직접 입력이면…" 을 따지면 한 군데만 빠뜨려도 시계가
+ * 어긋난다. 해석은 여기 한 곳에서만 한다.
+ */
+export function resolveClock(id: string, custom: ClockSettings): ClockSettings {
+  return id === CUSTOM_CLOCK_ID ? clampCustomClock(custom) : clockPresetById(id);
 }

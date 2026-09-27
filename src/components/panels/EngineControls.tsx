@@ -3,8 +3,10 @@
 // 스레드와 해시를 올리면 같은 시간에 더 깊이 본다. 브라우저에서는 코어 수만큼
 // 스레드를 쓰는 게 보통 가장 빠르지만, 화면이 버벅이면 하나 줄이는 편이 낫다.
 //
-// 여기는 '분석을 얼마나 깊게 할까' 만 다룬다. 상대를 몇 급으로 할지는
-// 대국 탭에 있다. 두 가지가 한 화면에 섞여 있으면 무엇을 만지는 건지 헷갈린다.
+// 여기는 '분석을 얼마나 깊게 할까' 만 다룬다. 상대를 몇 급으로 할지, 어떤
+// 규칙으로 둘지는 대국 탭에 있다. 규칙은 승부가 어떻게 갈리는지를 정하는
+// 대국 설정이지 엔진 손잡이가 아니다. 두 가지가 한 화면에 섞여 있으면
+// 무엇을 만지는 건지 헷갈린다.
 
 import type { EngineOptions, SearchLimits } from "../../engine/types";
 
@@ -16,13 +18,6 @@ interface Props {
   onLimits: (patch: Partial<SearchLimits>) => void;
   onAnalysisOn: (on: boolean) => void;
 }
-
-const VARIANTS: { id: EngineOptions["variant"]; label: string; desc: string }[] =
-  [
-    { id: "janggi", label: "표준", desc: "빅장 있음 · 점수제 판정" },
-    { id: "janggimodern", label: "현대(카카오)", desc: "빅장 없음 · 수 반복 금지" },
-    { id: "janggitraditional", label: "전통", desc: "빅장 무승부 · 점수제 없음" },
-  ];
 
 const maxThreads = Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 16));
 
@@ -48,22 +43,6 @@ export function EngineControls(props: Props) {
         />
         <span>실시간 분석</span>
       </label>
-
-      <div className="row">
-        <span className="label">규칙</span>
-        <select
-          value={options.variant}
-          onChange={(e) =>
-            onOptions({ variant: e.target.value as EngineOptions["variant"] })
-          }
-        >
-          {VARIANTS.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.label} — {v.desc}
-            </option>
-          ))}
-        </select>
-      </div>
 
       <div className="row">
         <span className="label">

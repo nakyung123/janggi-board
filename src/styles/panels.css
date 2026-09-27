@@ -459,3 +459,37 @@ textarea.fen-input:focus {
 .turn-tag .editing {
   color: #b45309;
 }
+
+/* 시계 직접 입력.
+   프리셋에 없는 조합("15분 + 40초 5회")을 맞출 때만 펼쳐진다. 숫자 칸이
+   셋이라 줄이 길어지므로 좁아지면 접어 내린다. */
+.clock-custom {
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  padding-left: 2px;
+}
+
+.clock-byoyomi {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clock-custom label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.clock-custom input {
+  width: 4.2em;
+  padding: 5px 7px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-xs);
+}

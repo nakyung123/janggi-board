@@ -6,8 +6,13 @@
 import { describe, expect, it } from "vitest";
 import type { ClockSettings, SideClock } from "./clock";
 import {
+  CUSTOM_CLOCK_ID,
+  DEFAULT_CUSTOM_CLOCK,
+  clampCustomClock,
   clockPresetById,
   clockView,
+  describeClock,
+  resolveClock,
   commitMove,
   flaggedSide,
   formatMain,
@@ -216,5 +221,93 @@ describe("초읽기 카운트다운", () => {
     // 아직 초읽기로 넘어갈 여지가 있어서 급한 상황이 아니다
     const c: SideClock = { mainMs: 3_000, inByoyomi: false, byoyomiMs: 0, periods: 3, flagged: false };
     expect(clockView(c).countdown).toBeNull();
+  });
+});
+
+// 시계 직접 입력
+//
+// 프리셋에 없는 조합을 맞추는 자리다. 사람이 아무 숫자나 넣을 수 있어서,
+// 말이 안 되는 값이 시계로 흘러가면 첫 수부터 시간패한다.
+describe("직접 입력 시계", () => {
+  it("범위를 벗어난 값은 잘라낸다", () => {
+    const c = clampCustomClock({
+      enabled: true, mainSeconds: -60, byoyomiSeconds: 9999, byoyomiCount: 999,
+    });
+    expect(c.mainSeconds).toBe(0);
+    expect(c.byoyomiSeconds).toBeLessThanOrEqual(300);
+    expect(c.byoyomiCount).toBeLessThanOrEqual(20);
+  });
+
+  it("제한시간도 초읽기도 없으면 시계를 끈다", () => {
+    // 이걸 켜 두면 남은 시간 0으로 시작해서 첫 수에 시간패한다
+    const c = clampCustomClock({
+      enabled: true, mainSeconds: 0, byoyomiSeconds: 0, byoyomiCount: 0,
+    });
+    expect(c.enabled).toBe(false);
+  });
+
+  it("제한시간만 있어도 시계는 돈다", () => {
+    const c = clampCustomClock({
+      enabled: true, mainSeconds: 600, byoyomiSeconds: 0, byoyomiCount: 0,
+    });
+    expect(c.enabled).toBe(true);
+    expect(c.byoyomiCount).toBe(0);
+  });
+
+  it("초읽기 길이가 0이면 회수도 0이다", () => {
+    // "0초 3회" 는 3회가 곧바로 날아간다는 뜻이라 회수만 남겨두면 안 된다
+    const c = clampCustomClock({
+      enabled: true, mainSeconds: 600, byoyomiSeconds: 0, byoyomiCount: 3,
+    });
+    expect(c.byoyomiCount).toBe(0);
+  });
+
+  it("소수점은 반올림한다", () => {
+    const c = clampCustomClock({
+      enabled: true, mainSeconds: 90.6, byoyomiSeconds: 30.2, byoyomiCount: 3.7,
+    });
+    expect(c.mainSeconds).toBe(91);
+    expect(c.byoyomiSeconds).toBe(30);
+    expect(c.byoyomiCount).toBe(4);
+  });
+});
+
+describe("시계 설명 문구", () => {
+  it("제한시간과 초읽기를 함께 읽는다", () => {
+    expect(describeClock({
+      enabled: true, mainSeconds: 900, byoyomiSeconds: 40, byoyomiCount: 5,
+    })).toBe("15분 + 40초 5회");
+  });
+
+  it("초읽기가 없으면 제한시간만", () => {
+    expect(describeClock({
+      enabled: true, mainSeconds: 600, byoyomiSeconds: 0, byoyomiCount: 0,
+    })).toBe("10분");
+  });
+
+  it("분과 초가 섞이면 둘 다 읽는다", () => {
+    expect(describeClock({
+      enabled: true, mainSeconds: 90, byoyomiSeconds: 0, byoyomiCount: 0,
+    })).toBe("1분 30초");
+  });
+
+  it("꺼져 있으면 시계 없음", () => {
+    expect(describeClock({
+      enabled: false, mainSeconds: 0, byoyomiSeconds: 0, byoyomiCount: 0,
+    })).toBe("시계 없음");
+  });
+});
+
+describe("시계 해석", () => {
+  it("프리셋 id 는 프리셋 값을 준다", () => {
+    expect(resolveClock("normal", DEFAULT_CUSTOM_CLOCK).mainSeconds).toBe(600);
+  });
+
+  it("직접 입력 id 는 넘겨준 값을 잘라서 준다", () => {
+    const c = resolveClock(CUSTOM_CLOCK_ID, {
+      enabled: true, mainSeconds: 1200, byoyomiSeconds: 999, byoyomiCount: 2,
+    });
+    expect(c.mainSeconds).toBe(1200);
+    expect(c.byoyomiSeconds).toBe(300);
   });
 });
