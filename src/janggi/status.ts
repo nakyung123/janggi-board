@@ -27,7 +27,17 @@ export type GameStatus =
   | { kind: "stalemate"; loser: Side; winner: Side }
   /** 장군 — 아직 피할 수 있다 */
   | { kind: "check"; side: Side; by: Square[] }
+  /** 수 제한에 걸려 점수로 갈렸다 */
+  | { kind: "points"; winner: Side | null; cho: number; han: number }
   | { kind: "playing" };
+
+/**
+ * 수 제한. 이 수를 넘기면 점수로 승부를 가린다.
+ *
+ * 카카오장기가 쓰는 값이라 그대로 맞췄다. 여기서 어긋나면 그쪽에서 온 사람은
+ * 끝나야 할 판이 안 끝난다고 느낀다. 양쪽을 합한 총 수(플라이)다.
+ */
+export const MOVE_LIMIT = 200;
 
 /** 출발과 도착이 같은 수 = 한수쉼 */
 function isPassMove(move: string): boolean {
@@ -41,6 +51,10 @@ export interface StatusInput {
   checkers: string[];
   /** 엔진 응답을 아직 못 받았으면 판정을 미룬다 */
   ready: boolean;
+  /** 지금까지 둔 총 수. 수 제한을 재는 데 쓴다. */
+  plies?: number;
+  /** 점수제를 쓰는 규칙인지. 전통 규칙에는 점수제가 없다. */
+  pointsRule?: boolean;
 }
 
 export function gameStatus(input: StatusInput): GameStatus {
@@ -65,6 +79,13 @@ export function gameStatus(input: StatusInput): GameStatus {
         ? { kind: "stalemate", loser, winner }
         : { kind: "playing" }; // 한수쉼만 가능한 평범한 국면은 아직 대국 중
   }
+
+  // 외통이 먼저다. 제한 수에 걸리는 그 수가 외통이면 점수가 아니라 외통으로 끝난다.
+  if (input.pointsRule && (input.plies ?? 0) >= MOVE_LIMIT) {
+    const s = scoreBoard(position);
+    return { kind: "points", winner: s.leader, cho: s.cho, han: s.han };
+  }
+
   if (checkers.length > 0) {
     return { kind: "check", side: position.turn, by: checkers };
   }
@@ -72,7 +93,7 @@ export function gameStatus(input: StatusInput): GameStatus {
 }
 
 export const isGameOver = (s: GameStatus): boolean =>
-  s.kind === "checkmate" || s.kind === "stalemate";
+  s.kind === "checkmate" || s.kind === "stalemate" || s.kind === "points";
 
 /** 배너에 띄울 한 줄. 상태마다 말투가 다르다. */
 export function statusMessage(s: GameStatus): string | null {
@@ -83,6 +104,10 @@ export function statusMessage(s: GameStatus): string | null {
       return `둘 수가 없습니다 — ${SIDE_LABEL[s.winner]} 승`;
     case "check":
       return `${SIDE_LABEL[s.side]} 장군`;
+    case "points":
+      return s.winner === null
+        ? `${MOVE_LIMIT}수 — 점수가 같아 비겼습니다 (${s.cho} : ${s.han})`
+        : `${MOVE_LIMIT}수 — 점수로 ${SIDE_LABEL[s.winner]} 승 (${s.cho} : ${s.han})`;
     case "invalid":
       return "대국으로 성립하지 않는 국면입니다";
     default:

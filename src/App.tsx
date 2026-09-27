@@ -24,6 +24,7 @@ import {
   DEFAULT_LEVEL_ID,
   DEFAULT_REVIEW_DEPTH_ID,
   MIN_THINK_MS,
+  ENGINE_MOVE_CAP_MS,
   levelById,
   limitsOf,
   reviewDepthById,
@@ -198,7 +199,12 @@ export default function App() {
     const byNodes = limitsOf(level);
     // 시계를 쓰면 남은 시간도 함께 건다. 엔진은 둘 중 먼저 닿는 쪽에서 멈추므로,
     // 시간이 넉넉하면 급수대로 노드를 다 쓰고 쫓기면 일찍 끊는다.
-    return moveBudget > 0 ? { ...byNodes, movetimeMs: moveBudget } : byNodes;
+    //
+    // 시계를 껐을 때도 상한은 있어야 한다. '시간 제한 없음'은 사람이 무제한이라는
+    // 뜻이지 엔진까지 무제한이라는 뜻이 아니다. 높은 급수는 노드가 수백만이라
+    // 상한이 없으면 한 수에 분 단위로 기다리게 된다.
+    const cap = moveBudget > 0 ? moveBudget : ENGINE_MOVE_CAP_MS;
+    return { ...byNodes, movetimeMs: cap };
   }, [mode, engineTurn, level, limits, moveBudget]);
 
   const options: EngineOptions = useMemo(
@@ -247,9 +253,20 @@ export default function App() {
 
   // --- 대국 상태 --------------------------------------------------------
 
+  // 전통 규칙에는 점수제가 없어서 수 제한으로 갈리지 않는다.
+  const pointsRule = prefs.variant !== "janggitraditional";
   const gstatus = useMemo(
-    () => gameStatus({ position, legal, checkers, ready: probed }),
-    [position, legal, checkers, probed]
+    () =>
+      gameStatus({
+        position,
+        legal,
+        checkers,
+        ready: probed,
+        // 지금 보고 있는 국면까지 둔 총 수. history[0] 이 시작 국면이다.
+        plies: cursor,
+        pointsRule,
+      }),
+    [position, legal, checkers, probed, cursor, pointsRule]
   );
   const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
 

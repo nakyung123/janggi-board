@@ -4,7 +4,7 @@
 // 평소(playing)에는 아무것도 그리지 않아 자리를 차지하지 않는다.
 
 import type { GameStatus } from "../janggi/status";
-import { statusMessage } from "../janggi/status";
+import { isGameOver, statusMessage } from "../janggi/status";
 
 interface Props {
   status: GameStatus;
@@ -16,6 +16,7 @@ interface Props {
 const TONE: Record<GameStatus["kind"], string> = {
   checkmate: "over",
   stalemate: "over",
+  points: "over",
   check: "check",
   invalid: "invalid",
   playing: "",
@@ -25,7 +26,7 @@ export function StatusBanner({ status, onUndo, canUndo }: Props) {
   const message = statusMessage(status);
   if (!message) return null;
 
-  const over = status.kind === "checkmate" || status.kind === "stalemate";
+  const over = isGameOver(status);
 
   return (
     <div className={"status-banner " + TONE[status.kind]}>

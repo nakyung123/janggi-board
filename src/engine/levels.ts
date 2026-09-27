@@ -89,6 +89,19 @@ export const levelById = (id: string): Level =>
  */
 export const MIN_THINK_MS = 450;
 
+/**
+ * 한 수에 기다릴 수 있는 최대 시간.
+ *
+ * 시계를 껐을 때를 위한 것이다. 높은 급수는 노드가 수백만이라 느린 기기에서는
+ * 한 수에 분 단위가 걸린다. 그 지점에서 사람은 앱이 멈춘 줄 안다.
+ *
+ * 이건 맞바꾼 결과다. 급수를 노드로만 끊으면 어느 기기에서나 똑같은 실력이
+ * 나오는데, 상한을 걸면 느린 기기에서는 높은 급수가 제 노드를 다 못 써서
+ * 조금 약해진다. 보통 PC 에서는 거의 닿지 않고(9단이 약 20초), 주로 휴대폰에서
+ * 걸린다. 분 단위로 기다리게 하느니 그쪽이 낫다고 봤다.
+ */
+export const ENGINE_MOVE_CAP_MS = 30_000;
+
 export const limitsOf = (level: Level): SearchLimits => ({ nodes: level.nodes });
 
 /**
