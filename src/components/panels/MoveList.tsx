@@ -30,12 +30,20 @@ interface Props {
   reviewed?: ReviewedMove[] | null;
   canSave: boolean;
   onJump: (index: number) => void;
+  /**
+   * 수에 마우스를 올렸을 때. 판에 화살표로 띄우라고 알린다.
+   *
+   * 판에 좌표 숫자를 그리지 않기로 했기 때문에, 기보의 "75卒65" 만 보고는
+   * 그게 어디인지 알 수가 없다. 누르면 알 수 있지만 그러면 국면이 그리로
+   * 옮겨간다. 보던 자리를 그대로 두고 어디인지만 알려면 이게 필요하다.
+   */
+  onHoverMove: (move: string | null) => void;
   onSave: () => void;
   onLoad: (file: File) => void;
 }
 
 export function MoveList(props: Props) {
-  const { history, cursor, reviewed, canSave, onJump, onSave, onLoad } = props;
+  const { history, cursor, reviewed, canSave, onJump, onHoverMove, onSave, onLoad } = props;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const gradeOf = (index: number) =>
@@ -98,6 +106,10 @@ export function MoveList(props: Props) {
                             (graded ? " g-" + graded.grade : "")
                           }
                           onClick={() => onJump(cell.i)}
+                          onMouseEnter={() => onHoverMove(cell.move)}
+                          onMouseLeave={() => onHoverMove(null)}
+                          onFocus={() => onHoverMove(cell.move)}
+                          onBlur={() => onHoverMove(null)}
                           title={
                             graded
                               ? `${SIDE_LABEL[side]} · ${cell.notation} — ${GRADE_LABEL[graded.grade]}`

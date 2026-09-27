@@ -14,6 +14,7 @@ import {
   rankOf,
   sq,
   toFen,
+  undoTarget,
   validate,
 } from "./board";
 
@@ -119,5 +120,63 @@ describe("판 검증", () => {
 
   it("차·포·마는 아무 데나 놓아도 된다", () => {
     expect(validate(판("4k4/9/9/9/4R4/4C4/4N4/9/4K4/9 w - - 0 1"))).toEqual([]);
+  });
+});
+
+// 무르기가 돌아갈 자리
+//
+// 한 칸만 되감으면 엔진 차례에 멈춘다. 기보 끝이 아니면 엔진은 두지 않으므로
+// 판이 조용히 죽는다 — 내 기물을 눌러도 아무 일이 없고 안내도 없다. 실제로
+// 그래서 고장인 줄 알았다. 여기가 틀리면 그 증상이 그대로 돌아온다.
+describe("무르기", () => {
+  /** 한 수씩 번갈아 둔 기보를 흉내낸다. fens[i] 는 i수를 둔 뒤의 국면. */
+  const 기보 = (수: number): string[] => {
+    const out: string[] = [];
+    for (let i = 0; i <= 수; i++) {
+      const turn = i % 2 === 0 ? "w" : "b";
+      out.push(`rnba1abnr/4k4/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/4K4/RNBA1ABNR ${turn} - - 0 1`);
+    }
+    return out;
+  };
+
+  it("초를 잡았으면 초 차례까지 되감는다", () => {
+    // 2수(초·한)를 둔 뒤 → 시작으로. 한 칸만 가면 한 차례라 아무것도 못 한다.
+    expect(undoTarget(기보(2), 2, "cho")).toBe(0);
+  });
+
+  it("내 수만 둔 상태에서도 내 차례로 온다", () => {
+    expect(undoTarget(기보(1), 1, "cho")).toBe(0);
+  });
+
+  it("긴 기보에서도 두 수만 되감는다", () => {
+    // 6수까지 뒀으면 4수 자리(다시 초 차례)로
+    expect(undoTarget(기보(6), 6, "cho")).toBe(4);
+  });
+
+  it("한을 잡았으면 한 차례까지 되감는다", () => {
+    // 3수를 둔 뒤(초·한·초) → 한 차례인 1수 자리로
+    expect(undoTarget(기보(3), 3, "han")).toBe(1);
+  });
+
+  it("구경 중이면 한 칸만 간다", () => {
+    expect(undoTarget(기보(6), 6, null)).toBe(5);
+  });
+
+  it("시작 국면보다 더 뒤로 가지 않는다", () => {
+    expect(undoTarget(기보(4), 0, "cho")).toBe(0);
+    expect(undoTarget(기보(4), 0, null)).toBe(0);
+  });
+
+  it("한을 잡고 첫 수 앞이면 시작에서 멈춘다", () => {
+    // 시작 국면은 초 차례라 한 차례가 영영 안 나온다. 0 에서 멈춰야 한다.
+    expect(undoTarget(기보(1), 1, "han")).toBe(0);
+  });
+
+  it("돌아간 자리는 정말 내 차례다", () => {
+    // 이게 이 함수의 존재 이유다
+    for (const c of [1, 2, 3, 4, 5, 6]) {
+      const i = undoTarget(기보(6), c, "cho");
+      if (i > 0) expect(parseFen(기보(6)[i]).turn).toBe("cho");
+    }
   });
 });

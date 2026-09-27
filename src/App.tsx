@@ -36,7 +36,7 @@ import { useKeyboard } from "./hooks/useKeyboard";
 import { playMoveSound, playPickSound } from "./audio/sound";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
-import { START_FEN, parseFen, toFen } from "./janggi/board";
+import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
 import { describeMove, splitMove } from "./janggi/notation";
 import type { PieceType, Side } from "./janggi/pieces";
 import { SIDE_LABEL, sideOf } from "./janggi/pieces";
@@ -336,6 +336,20 @@ export default function App() {
   );
   const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
 
+  /*
+   * 대국이 끝나면 골라둔 기물을 놓는다.
+   *
+   * 기물을 하나 고른 채로 기권하면 선택 링과 갈 곳 점이 판에 그대로 남았다.
+   * "한이 이겼습니다" 배너 아래에서 아직 둘 수 있는 것처럼 보인다. 실제로는
+   * 막혀 있어서 눌러도 아무 일이 없으니 더 헷갈린다.
+   *
+   * 끝나는 길이 넷(기권·시간패·외통·200수 점수)이라 각각 손보는 대신
+   * '끝났는가' 하나만 보고 지운다.
+   */
+  useEffect(() => {
+    if (over) setSelected(null);
+  }, [over]);
+
   // --- 수 두기 ----------------------------------------------------------
 
   /** 지금 둘 차례. 시계에서 "누구 시간을 깎을지" 를 정하는 값이기도 하다. */
@@ -462,6 +476,27 @@ export default function App() {
     },
     [history.length]
   );
+
+  /**
+   * 대국에서의 무르기.
+   *
+   * 한 칸만 되감으면 엔진 차례에 멈춘다. 그런데 기보 끝이 아니면 엔진은 두지
+   * 않으므로, 판이 조용히 멈춘 것처럼 보인다 — 내 기물을 눌러도 아무 일도
+   * 일어나지 않고 안내도 없다. 실제로 그래서 고장인 줄 알았다.
+   *
+   * 그래서 내 차례가 나올 때까지 되감는다. 보통 두 수(내 수 + 엔진 응수)다.
+   * 구경 모드나 분석·복기에서는 한 칸씩 움직이는 것이 맞으므로 그대로 둔다.
+   */
+  const undoMove = useCallback(() => {
+    setSelected(null);
+    setCursor((c) =>
+      undoTarget(
+        history.map((h) => h.fen),
+        c,
+        mode === "play" && mySide !== "watch" ? mySide : null
+      )
+    );
+  }, [mode, mySide, history]);
 
   useKeyboard(
     useMemo(
@@ -958,7 +993,7 @@ export default function App() {
             <StatusBanner
               status={gstatus}
               canUndo={cursor > 0 && !editMode}
-              onUndo={() => goTo(cursor - 1)}
+              onUndo={undoMove}
             />
 
             {resigned && (
@@ -1004,7 +1039,7 @@ export default function App() {
               <button
                 type="button"
                 disabled={cursor === 0}
-                onClick={() => goTo(cursor - 1)}
+                onClick={mode === "play" ? undoMove : () => goTo(cursor - 1)}
                 title="← 키"
               >
                 ← {mode === "play" ? "무르기" : "이전"}
@@ -1174,6 +1209,7 @@ export default function App() {
                 reviewed={reviewed}
                 canSave={history.length > 1}
                 onJump={goTo}
+                onHoverMove={setHover}
                 onSave={saveRecord}
                 onLoad={loadRecord}
               />

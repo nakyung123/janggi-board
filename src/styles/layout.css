@@ -222,7 +222,14 @@
   }
 
   .layout {
-    grid-template-columns: 1fr;
+    /*
+     * minmax(0, 1fr) 이어야 한다. 그냥 1fr 은 minmax(auto, 1fr) 과 같아서
+     * 칸의 최소 크기가 '자식의 min-content' 가 된다. 판은 가로세로 비가 고정된
+     * SVG 라 min-content 가 412px 쯤 나오고, 그러면 360px 짜리 폰에서 칸이
+     * 412px 로 벌어져 판 오른쪽 세로줄이 화면 밖으로 잘린다. 0 을 바닥으로
+     * 깔아야 칸이 화면 폭까지 줄어든다.
+     */
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .table {

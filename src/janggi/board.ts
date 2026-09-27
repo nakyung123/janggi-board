@@ -129,3 +129,27 @@ export function validate(pos: Position): string[] {
   }
   return problems;
 }
+
+/**
+ * 무르기가 돌아갈 자리.
+ *
+ * 한 칸만 되감으면 상대(엔진) 차례에 멈춘다. 그런데 기보 끝이 아니면 엔진은
+ * 두지 않으므로 판이 조용히 멈춘 것처럼 보인다 — 내 기물을 눌러도 아무 일도
+ * 일어나지 않고 안내도 없다. 그래서 내 차례가 나올 때까지 되감는다.
+ *
+ * @param fens   기보의 각 국면 FEN. fens[0] 이 시작 국면이다.
+ * @param cursor 지금 보고 있는 자리
+ * @param mySide 내가 잡은 쪽. 구경 중이거나 대국이 아니면 null — 이때는 한 칸만 간다.
+ */
+export function undoTarget(
+  fens: string[],
+  cursor: number,
+  mySide: Side | null
+): number {
+  if (cursor <= 0) return 0;
+  if (mySide === null) return cursor - 1;
+  let i = cursor - 1;
+  // 시작 국면(0)보다 더 갈 곳은 없다.
+  while (i > 0 && parseFen(fens[i]).turn !== mySide) i -= 1;
+  return i;
+}
