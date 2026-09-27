@@ -17,14 +17,17 @@ import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
 import { StatusBanner } from "./components/StatusBanner";
 
+import { usePersisted } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
 import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
 import { positionKey } from "./engine/types";
 import {
   DEFAULT_LEVEL_ID,
   DEFAULT_REVIEW_DEPTH_ID,
+  LEVELS,
   MIN_THINK_MS,
   ENGINE_MOVE_CAP_MS,
+  REVIEW_DEPTHS,
   levelById,
   limitsOf,
   reviewDepthById,
@@ -41,6 +44,8 @@ import { applySetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
 import { gameStatus, isGameOver, capturedPieces, scoreBoard } from "./janggi/status";
 import {
+  CLOCK_PRESETS,
+  CUSTOM_CLOCK_ID,
   DEFAULT_CLOCK_ID,
   clockPresetById,
   resolveClock,
@@ -79,32 +84,78 @@ function applyMove(pos: Position, from: Square, to: Square): Position {
   };
 }
 
+/**
+ * 저장해 둔 값이 지금도 쓸 수 있는 모양인지.
+ *
+ * localStorage 는 사람이 직접 고칠 수 있고 예전 판에서 남긴 값도 들어 있다.
+ * 여기서 걸러내면 이상한 값이 들어가도 다음 실행에 저절로 낫는다.
+ */
+function isClockSettings(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const c = v as Record<string, unknown>;
+  return (
+    typeof c.enabled === "boolean" &&
+    typeof c.mainSeconds === "number" &&
+    typeof c.byoyomiSeconds === "number" &&
+    typeof c.byoyomiCount === "number"
+  );
+}
+
+function isEnginePrefs(v: unknown): boolean {
+  if (typeof v !== "object" || v === null) return false;
+  const p = v as Record<string, unknown>;
+  const variants = ["janggi", "janggimodern", "janggitraditional"];
+  return (
+    typeof p.threads === "number" && p.threads >= 1 && p.threads <= 16 &&
+    typeof p.hashMb === "number" && p.hashMb >= 16 &&
+    typeof p.multiPV === "number" && p.multiPV >= 1 && p.multiPV <= 8 &&
+    typeof p.variant === "string" && variants.includes(p.variant)
+  );
+}
+
 export default function App() {
   const { engine, status, progress, error, evalMode } = useEngine();
 
   const [mode, setMode] = useState<Mode>("play");
   const [history, setHistory] = useState<HistoryEntry[]>(initialHistory);
   const [cursor, setCursor] = useState(0);
-  const [flipped, setFlipped] = useState(false);
+  const [flipped, setFlipped] = usePersisted("flipped", false, (v) => typeof v === "boolean");
   const [selected, setSelected] = useState<Square | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   // --- 대국 ------------------------------------------------------------
-  const [mySide, setMySide] = useState<MySide>("cho");
-  const [levelId, setLevelId] = useState(DEFAULT_LEVEL_ID);
+  const [mySide, setMySide] = usePersisted<MySide>("mySide", "cho", (v) =>
+    v === "cho" || v === "han" || v === "watch"
+  );
+  // 저장해 둔 급수가 지금 사다리에 없을 수 있다 (단계를 바꾼 적이 있다).
+  const [levelId, setLevelId] = usePersisted(
+    "levelId",
+    DEFAULT_LEVEL_ID,
+    (v) => typeof v === "string" && LEVELS.some((l) => l.id === v)
+  );
   const [resigned, setResigned] = useState<Side | null>(null);
   /** 시간패한 쪽 */
   const [flagged, setFlagged] = useState<Side | null>(null);
-  const [clockId, setClockId] = useState(DEFAULT_CLOCK_ID);
+  const [clockId, setClockId] = usePersisted(
+    "clockId",
+    DEFAULT_CLOCK_ID,
+    (v) =>
+      typeof v === "string" &&
+      (v === CUSTOM_CLOCK_ID || CLOCK_PRESETS.some((c) => c.id === v))
+  );
   /** 직접 입력을 골랐을 때 쓰는 값. 프리셋으로 돌아가도 그대로 남는다. */
-  const [customClock, setCustomClock] = useState(DEFAULT_CUSTOM_CLOCK);
+  const [customClock, setCustomClock] = usePersisted(
+    "customClock",
+    DEFAULT_CUSTOM_CLOCK,
+    isClockSettings
+  );
   const clockSettings = resolveClock(clockId, customClock);
   const [clocks, setClocks] = useState<ClockState>(() =>
     initialClocks(clockPresetById(DEFAULT_CLOCK_ID))
   );
   /** 두는 동안 훈수를 볼지. 기본은 꺼둔다 — 켜두면 대국이 아니라 받아쓰기가 된다. */
-  const [hintOn, setHintOn] = useState(false);
+  const [hintOn, setHintOn] = usePersisted("hintOn", false, (v) => typeof v === "boolean");
   const level = levelById(levelId);
 
   // --- 편집 (분석 모드) -------------------------------------------------
@@ -116,18 +167,28 @@ export default function App() {
   const [brush, setBrush] = useState<Brush>(null);
 
   // --- 분석 설정 --------------------------------------------------------
-  const [analysisOn, setAnalysisOn] = useState(true);
-  const [prefs, setPrefs] = useState<Omit<EngineOptions, "skill">>({
-    threads: Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4)),
-    hashMb: 128,
-    multiPV: 3,
-    variant: "janggi",
-  });
+  const [analysisOn, setAnalysisOn] = usePersisted(
+    "analysisOn", true, (v) => typeof v === "boolean"
+  );
+  const [prefs, setPrefs] = usePersisted<Omit<EngineOptions, "skill">>(
+    "enginePrefs",
+    {
+      threads: Math.max(1, Math.min(navigator.hardwareConcurrency || 2, 4)),
+      hashMb: 128,
+      multiPV: 3,
+      variant: "janggi",
+    },
+    isEnginePrefs
+  );
   // 기본값은 3초. 무제한은 코어를 계속 붙잡고 있어서 기본으로 두기엔 부담스럽다.
   const [limits, setLimits] = useState<SearchLimits>({ movetimeMs: 3000 });
 
   // --- 복기 -------------------------------------------------------------
-  const [reviewDepthId, setReviewDepthId] = useState(DEFAULT_REVIEW_DEPTH_ID);
+  const [reviewDepthId, setReviewDepthId] = usePersisted(
+    "reviewDepthId",
+    DEFAULT_REVIEW_DEPTH_ID,
+    (v) => typeof v === "string" && REVIEW_DEPTHS.some((d) => d.id === v)
+  );
   const [reviewed, setReviewed] = useState<ReviewedMove[] | null>(null);
   const [reviewRunning, setReviewRunning] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<ReviewProgress | null>(null);
