@@ -43,7 +43,7 @@ import type { PieceType, Side } from "./janggi/pieces";
 import { SIDE_LABEL, sideOf } from "./janggi/pieces";
 import { applySetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
-import { gameStatus, isGameOver, capturedPieces, scoreBoard } from "./janggi/status";
+import { gameStatus, isGameOver, outcomeOf, capturedPieces, scoreBoard } from "./janggi/status";
 import {
   CLOCK_PRESETS,
   CUSTOM_CLOCK_ID,
@@ -821,6 +821,24 @@ export default function App() {
     setNotice(`새 대국을 시작합니다. 상대는 ${level.name} 입니다.`);
   };
 
+  /**
+   * 탭을 옮긴다.
+   *
+   * 탭 말고도 '복기 보기' 버튼처럼 다른 데서 탭을 옮기는 자리가 생겨서, 옮길 때
+   * 같이 해야 하는 일(편집 끝내기·고른 기물 놓기)을 한곳에 뒀다.
+   */
+  const goMode = useCallback(
+    (next: Mode) => {
+      if (reviewRunning) return;
+      if (next !== "analyze" && draft !== null) leaveEdit();
+      setMode(next);
+      setSelected(null);
+    },
+    // leaveEdit 은 매 렌더 새로 만들어지지만 draft 를 닫는 일만 한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reviewRunning, draft]
+  );
+
   const resign = () => {
     if (mySide === "watch") return;
     setResigned(mySide);
@@ -848,15 +866,11 @@ export default function App() {
    * 통째로 'unfinished' 로 적혔다.
    */
   const recordResult = (): RecordResult => {
-    if (resigned) return resigned === "cho" ? "han" : "cho";
-    if (flagged) return flagged === "cho" ? "han" : "cho";
-    if (atTip) {
-      if (gstatus.kind === "checkmate") return gstatus.winner;
-      if (gstatus.kind === "stalemate") return gstatus.winner;
-      // 점수가 같으면 비긴 것이다. RecordResult 의 "draw" 를 여기서만 쓴다.
-      if (gstatus.kind === "points") return gstatus.winner ?? "draw";
-    }
-    return "unfinished";
+    // 기보 끝이 아니면 외통·수몰·점수는 믿을 수 없다(지금 보고 있는 국면의
+    // 판정이라서). 기권·시간패는 대국에 붙는 결과라 그대로 쓴다.
+    const o = outcomeOf(atTip ? gstatus : { kind: "playing" }, resigned, flagged);
+    if (!o) return "unfinished";
+    return o.winner ?? "draw";
   };
 
   const saveRecord = () => {
@@ -1119,16 +1133,7 @@ export default function App() {
         <span className="badge" title={evalMode ?? ""}>
           {evalMode?.includes("NNUE") ? "신경망 적용됨" : (evalMode ?? "")}
         </span>
-        <ModeTabs
-          mode={mode}
-          onMode={(next) => {
-            if (reviewRunning) return;
-            if (next !== "analyze" && editMode) leaveEdit();
-            setMode(next);
-            setSelected(null);
-          }}
-          canReview={history.length > 1}
-        />
+        <ModeTabs mode={mode} onMode={goMode} canReview={history.length > 1} />
 
         <span className="turn-tag">
           {editMode ? (
@@ -1195,6 +1200,7 @@ export default function App() {
                 onSquareClick={handleSquareClick}
                 onMove={handleMove}
                 onRemove={handleRemove}
+                onPick={handleSquareClick}
               />
             </div>
 
@@ -1282,6 +1288,8 @@ export default function App() {
                 onNewGame={newGame}
                 onResign={resign}
                 onAnalysisOn={setHintOn}
+                moveCount={history.length - 1}
+                onReview={() => goMode("review")}
               />
 
               {hintOn && (

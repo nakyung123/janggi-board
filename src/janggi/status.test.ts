@@ -12,9 +12,12 @@ import {
   capturedPieces,
   gameStatus,
   isGameOver,
+  outcomeMessage,
+  outcomeOf,
   scoreBoard,
   statusMessage,
 } from "./status";
+import type { GameStatus } from "./status";
 import { HAN_DEOM } from "./pieces";
 
 const 국면 = (fen = START_FEN) => parseFen(fen);
@@ -184,5 +187,51 @@ describe("수 제한 점수 판정", () => {
     const msg = statusMessage(s) ?? "";
     expect(msg).toContain(String(MOVE_LIMIT));
     expect(msg).toContain("점수");
+  });
+});
+
+describe("대국이 어떻게 끝났나", () => {
+  const 진행중: GameStatus = { kind: "playing" };
+
+  it("끝나지 않았으면 null", () => {
+    expect(outcomeOf(진행중, null, null)).toBeNull();
+    expect(outcomeOf({ kind: "check", side: "cho", by: ["a1"] }, null, null)).toBeNull();
+  });
+
+  it("다섯 갈래를 모두 알아본다", () => {
+    // 이 다섯을 각자 훑다가 매번 몇 개씩 빠졌다. 하나라도 빠지면 판이
+    // 끝났는데 화면이 아무 말도 하지 않는다.
+    expect(outcomeOf({ kind: "checkmate", loser: "han", winner: "cho" }, null, null))
+      .toEqual({ kind: "checkmate", winner: "cho" });
+    expect(outcomeOf({ kind: "stalemate", loser: "han", winner: "cho" }, null, null))
+      .toEqual({ kind: "stalemate", winner: "cho" });
+    expect(outcomeOf({ kind: "points", winner: "han", cho: 70, han: 72 }, null, null))
+      .toEqual({ kind: "points", winner: "han" });
+    expect(outcomeOf(진행중, "cho", null)).toEqual({ kind: "resign", winner: "han" });
+    expect(outcomeOf(진행중, null, "han")).toEqual({ kind: "flag", winner: "cho" });
+  });
+
+  it("기권한 쪽이 지고, 시간을 다 쓴 쪽이 진다", () => {
+    // 부호를 뒤집으면 진 사람이 이긴 것으로 적힌다.
+    expect(outcomeOf(진행중, "han", null)?.winner).toBe("cho");
+    expect(outcomeOf(진행중, null, "cho")?.winner).toBe("han");
+  });
+
+  it("기권·시간패가 국면 판정보다 앞선다", () => {
+    // 둘은 대국에 붙는 결과라 기보를 되짚는 중에도 그대로여야 한다.
+    const 외통: GameStatus = { kind: "checkmate", loser: "han", winner: "cho" };
+    expect(outcomeOf(외통, "cho", null)?.kind).toBe("resign");
+  });
+
+  it("점수가 같으면 비긴 것으로 둔다", () => {
+    const o = outcomeOf({ kind: "points", winner: null, cho: 72, han: 72 }, null, null);
+    expect(o?.winner).toBeNull();
+    expect(outcomeMessage(o!)).toContain("비겼");
+  });
+
+  it("문구에 어떻게 끝났는지가 들어간다", () => {
+    expect(outcomeMessage({ kind: "flag", winner: "cho" })).toContain("시간패");
+    expect(outcomeMessage({ kind: "resign", winner: "cho" })).toContain("기권");
+    expect(outcomeMessage({ kind: "points", winner: "cho" })).toContain(String(MOVE_LIMIT));
   });
 });

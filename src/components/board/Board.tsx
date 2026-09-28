@@ -42,6 +42,14 @@ export interface BoardProps {
   onMove: (from: Square, to: Square) => void;
   /** 편집 모드에서 기물을 판 밖으로 끌어내면 지운다. */
   onRemove?: (square: Square) => void;
+  /**
+   * 기물을 집어 들었다. 갈 곳을 띄우는 데 쓴다.
+   *
+   * 끌어서 두는 것은 되는데 집어 든 동안 갈 곳 점이 뜨지 않았다. 눌러서 고를
+   * 때만 떴기 때문이다. 초보일수록 기물을 쥐고 어디로 갈 수 있는지 보면서
+   * 옮기는데, 그때가 정작 아무 표시도 없는 순간이었다.
+   */
+  onPick?: (square: Square) => void;
 }
 
 export function Board(props: BoardProps) {
@@ -58,6 +66,7 @@ export function Board(props: BoardProps) {
     onSquareClick,
     onMove,
     onRemove,
+    onPick,
   } = props;
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -66,6 +75,8 @@ export function Board(props: BoardProps) {
     x: number;
     y: number;
     outside: boolean;
+    /** 이번에 누르면서 기물을 골랐는지. 뗄 때 도로 놓지 않으려고 기억한다. */
+    picked: boolean;
   } | null>(null);
 
   // 화면 좌표 ↔ 교차점 --------------------------------------------------
@@ -111,9 +122,31 @@ export function Board(props: BoardProps) {
   const handlePointerDown = (e: React.PointerEvent, square: Square) => {
     if (!board[square]) return;
     e.preventDefault();
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    /*
+     * 포인터를 이 기물에 묶어두면 손가락이 기물 밖으로 나가도 끌기가 이어진다.
+     * 다만 없어도 되는 편의라, 실패한다고 집어 드는 것까지 막으면 안 된다.
+     * 브라우저가 모르는 포인터면 던지는데, 그러면 아래가 통째로 건너뛰어져
+     * 갈 곳 표시도 끌기도 죽는다.
+     */
+    try {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      // 캡처 없이 진행한다.
+    }
     const { x, y } = locate(e);
-    setDrag({ from: square, x, y, outside: false });
+
+    /*
+     * 누르는 순간 기물을 골라 갈 곳을 띄운다.
+     *
+     * 이미 고른 기물의 '갈 곳' 을 누른 것이면 집어 드는 게 아니라 거기로 두려는
+     * 것이므로 건드리지 않는다. 편집 모드에서도 건드리지 않는다 — 붓이 들려
+     * 있으면 집어 들기 전에 그 칸을 칠해버린다.
+     */
+    const picked =
+      !editMode && selected !== square && !targets.includes(square);
+    if (picked) onPick?.(square);
+
+    setDrag({ from: square, x, y, outside: false, picked });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -134,7 +167,9 @@ export function Board(props: BoardProps) {
       return;
     }
     if (square === from) {
-      onSquareClick(from); // 제자리 클릭은 선택/해제로 취급
+      // 누르면서 방금 고른 것이면 그대로 둔다. 여기서 또 부르면 고르자마자
+      // 도로 놓여서, 끌지 않고 한 번 누른 경우에 갈 곳이 번쩍이고 사라진다.
+      if (!drag.picked) onSquareClick(from);
       return;
     }
     onMove(from, square);

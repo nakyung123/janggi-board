@@ -14,6 +14,7 @@
 
 import type { Position, Square } from "./board";
 import { validate } from "./board";
+import { 이가 } from "./korean";
 import { splitMove } from "./notation";
 import type { Side } from "./pieces";
 import { SIDE_LABEL, materialScore, sideOf } from "./pieces";
@@ -94,6 +95,55 @@ export function gameStatus(input: StatusInput): GameStatus {
 
 export const isGameOver = (s: GameStatus): boolean =>
   s.kind === "checkmate" || s.kind === "stalemate" || s.kind === "points";
+
+/** 대국이 끝나는 다섯 가지 길. */
+export type OutcomeKind = "checkmate" | "stalemate" | "points" | "resign" | "flag";
+
+export interface Outcome {
+  kind: OutcomeKind;
+  /** 이긴 쪽. 점수가 같아 비겼으면 null */
+  winner: Side | null;
+}
+
+/**
+ * 대국이 어떻게 끝났는지 한곳에서 답한다.
+ *
+ * 끝나는 길이 다섯인데 쓰는 자리마다 따로 훑다 보니 매번 몇 가지가 빠졌다.
+ * 기보에 적는 승부에서는 시간패와 점수가 빠져 전부 'unfinished' 로 저장됐고,
+ * 대국 패널의 결과 줄에서는 수몰과 점수가 빠져 판이 끝났는데 아무 말도 없었고,
+ * 기권 버튼은 그 두 경우에 끝난 판에서도 눌렸다. 같은 실수가 세 군데서 따로
+ * 났으니 목록을 각자 들고 있는 것이 문제다. 여기서 한 번 답하고 나머지는 묻는다.
+ *
+ * 기권과 시간패가 먼저다. 둘은 '국면' 이 아니라 '대국' 에 붙는 결과라 기보를
+ * 되짚는 중에도 그대로인 반면, 나머지 셋은 지금 보고 있는 국면의 판정이다.
+ */
+export function outcomeOf(
+  status: GameStatus,
+  resigned: Side | null,
+  flagged: Side | null
+): Outcome | null {
+  if (resigned) return { kind: "resign", winner: resigned === "cho" ? "han" : "cho" };
+  if (flagged) return { kind: "flag", winner: flagged === "cho" ? "han" : "cho" };
+  if (status.kind === "checkmate") return { kind: "checkmate", winner: status.winner };
+  if (status.kind === "stalemate") return { kind: "stalemate", winner: status.winner };
+  if (status.kind === "points") return { kind: "points", winner: status.winner };
+  return null;
+}
+
+const OUTCOME_HOW: Record<OutcomeKind, string> = {
+  checkmate: "외통",
+  stalemate: "둘 수가 없음",
+  points: `${MOVE_LIMIT}수 점수`,
+  resign: "기권",
+  flag: "시간패",
+};
+
+/** 끝난 사연을 한 줄로. "외통 — 초가 이겼습니다." */
+export function outcomeMessage(o: Outcome): string {
+  const how = OUTCOME_HOW[o.kind];
+  if (o.winner === null) return `${how} — 비겼습니다.`;
+  return `${how} — ${이가(SIDE_LABEL[o.winner])} 이겼습니다.`;
+}
 
 /** 배너에 띄울 한 줄. 상태마다 말투가 다르다. */
 export function statusMessage(s: GameStatus): string | null {

@@ -13,10 +13,15 @@ import { SIDE_LABEL } from "../../janggi/pieces";
 import { SETUPS, randomSetup } from "../../janggi/setups";
 import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
-import { 을를, 이가 } from "../../janggi/korean";
+import { outcomeMessage, outcomeOf } from "../../janggi/status";
+import { 을를 } from "../../janggi/korean";
 
 /** 내가 잡는 쪽. watch 는 엔진끼리 두는 것을 구경하는 것. */
 export type MySide = Side | "watch";
+
+/** 결과 카드의 색. 이겼는지 졌는지는 글자로도 적으므로 색은 거들 뿐이다. */
+const 승패 = (winner: Side | null, mine: MySide): string =>
+  winner === null ? "draw" : winner === mine ? "won" : "lost";
 
 /**
  * 규칙.
@@ -57,6 +62,10 @@ interface Props {
   onNewGame: () => void;
   onResign: () => void;
   onAnalysisOn: (on: boolean) => void;
+  /** 지금까지 둔 수. 끝난 뒤 "몇 수 만이었다" 를 적는 데 쓴다. */
+  moveCount: number;
+  /** 복기 탭으로 넘어간다 */
+  onReview: () => void;
 }
 
 export function PlayPanel(props: Props) {
@@ -64,9 +73,12 @@ export function PlayPanel(props: Props) {
     mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
     clockId, onClock, customClock, onCustomClock, variant, onVariant,
     onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
+    moveCount, onReview,
   } = props;
 
   const level = levelById(levelId);
+  /** 끝났는지, 끝났다면 어떻게. 결과 카드와 기권 버튼이 이 하나를 본다. */
+  const outcome = outcomeOf(status, resigned, flagged);
 
   /*
    * '새 대국' 은 되돌릴 수 없다. 두던 기보가 그대로 사라지고, 복기할 수 있었던
@@ -288,12 +300,9 @@ export function PlayPanel(props: Props) {
         <button
           type="button"
           className="ghost"
-          disabled={
-            !started ||
-            status.kind === "checkmate" ||
-            resigned !== null ||
-            flagged !== null
-          }
+          // 끝난 판에는 기권할 것이 없다. 예전에는 외통·기권·시간패만 보고
+          // 있어서, 수몰이나 200수 점수로 끝난 판에서는 버튼이 살아 있었다.
+          disabled={!started || outcome !== null}
           onClick={onResign}
         >
           기권
@@ -309,22 +318,37 @@ export function PlayPanel(props: Props) {
         <span>두는 동안 훈수 보기</span>
       </label>
 
-      {(status.kind === "checkmate" || resigned || flagged) && (
-        <p className="play-result">
-          {flagged
-            ? `시간패 — ${이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.`
-            : resigned
-              ? `기권 — ${이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.`
-              : status.kind === "checkmate"
-                ? `외통 — ${이가(SIDE_LABEL[status.winner])} 이겼습니다.`
-                : ""}
-          {!resigned &&
-            !flagged &&
-            status.kind === "checkmate" &&
-            mySide !== "watch" &&
-            (status.winner === mySide ? " 축하합니다." : ` ${level.name} 상대였습니다.`)}
-          {" 복기 탭에서 어디가 갈림길이었는지 볼 수 있습니다."}
-        </p>
+      {/*
+        대국이 끝났을 때.
+        예전에는 한 줄짜리 문장이었고 외통·기권·시간패만 알아봤다. 수몰과 200수
+        점수로 끝나면 판은 멈췄는데 아무 말도 없었다. 이제 다섯 갈래를 outcomeOf
+        한곳에서 받는다.
+
+        "복기 탭에서 볼 수 있습니다" 라고 적어두기만 했더니 탭을 직접 찾아가야
+        했다. 진 다음에 제일 알고 싶은 것이 '어디서 틀렸나' 이므로 버튼으로 낸다.
+      */}
+      {outcome && (
+        <div className="play-over">
+          {/* 구경 모드에는 '내' 가 없으니 이기고 지고를 말하지 않는다. */}
+          {mySide !== "watch" && (
+            <p className={"play-over-head " + 승패(outcome.winner, mySide)}>
+              {outcome.winner === null
+                ? "비겼습니다"
+                : outcome.winner === mySide
+                  ? "이겼습니다"
+                  : "졌습니다"}
+            </p>
+          )}
+          <p className="muted small">
+            {outcomeMessage(outcome)} {moveCount}수에서 끝났습니다.
+            {mySide !== "watch" && ` 상대는 ${level.name} 이었습니다.`}
+          </p>
+          <div className="row">
+            <button type="button" className="primary" onClick={onReview}>
+              복기 보기
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
