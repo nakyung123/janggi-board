@@ -44,7 +44,14 @@ export function BoardControls(props: Props) {
   return (
     <div className="panel board-controls">
       <div className="board-actions">
-        <button type="button" disabled={atStart} onClick={() => onJump(0)}>
+        <button
+          type="button"
+          className="icon"
+          disabled={atStart}
+          onClick={() => onJump(0)}
+          title="처음으로"
+          aria-label="처음으로"
+        >
           ⇤
         </button>
         <button
@@ -63,13 +70,20 @@ export function BoardControls(props: Props) {
         >
           {mode === "play" ? "다시" : "다음"} →
         </button>
-        <button type="button" disabled={atEnd} onClick={() => onJump(last)}>
+        <button
+          type="button"
+          className="icon"
+          disabled={atEnd}
+          onClick={() => onJump(last)}
+          title="끝으로"
+          aria-label="끝으로"
+        >
           ⇥
         </button>
       </div>
 
       <div className="board-actions">
-        <button type="button" className="ghost" onClick={onFlip} title="F 키">
+        <button type="button" onClick={onFlip} title="F 키">
           판 뒤집기
         </button>
         {mode !== "review" && (

@@ -51,3 +51,20 @@ CC BY-SA 3.0 은 변경 사실을 밝힐 것을 요구한다. 원본에서 다�
 
 이 파일을 가져다 쓰는 사람은 위 저작자 표기를 유지하고, 파생물을 동일 조건으로
 공유해야 한다.
+
+---
+
+## 4. 글꼴 — Pretendard
+
+- **저작자**: Kil Hyung-jin (길형진), Reserved Font Name Pretendard
+- **라이선스**: [SIL Open Font License 1.1](https://openfontlicense.org)
+- **출처**: https://github.com/orioncactus/pretendard
+- **사용 방식**: npm 패키지 [`pretendard`](https://www.npmjs.com/package/pretendard)
+  의 가변 글꼴 동적 서브셋(`dist/web/variable/pretendardvariable-dynamic-subset.css`)
+  을 번들에 넣는다. 글꼴 파일은 고치지 않았다.
+- **저장소 포함 여부**: **포함하지 않음.** `npm install` 로 받으며, 빌드 결과물에는
+  글꼴 파일이 들어간다.
+
+OFL 1.1 은 글꼴을 프로그램과 함께 배포하는 것을 허용한다. 글꼴 파일 자체를 따로
+팔 수는 없고, 고쳐서 배포할 때는 "Pretendard" 라는 이름을 쓸 수 없다. 라이선스
+전문은 패키지의 `dist/LICENSE.txt` 에 있다.

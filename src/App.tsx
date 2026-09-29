@@ -1049,19 +1049,50 @@ export default function App() {
   // 판은 남은 높이에 맞춰 크기가 정해지므로 너비를 CSS 만으로는 알 수 없다.
   // 다 그려진 뒤에 재서 --board-w 로 넘기면, 대국자 카드와 버튼 줄이 판과
   // 정확히 같은 너비로 선다. (layout.css 의 .table 주석 참고)
+  //
+  // 헤더와 판·패널 덩어리를 가운데로 모으려면(layout.css 의 .top/.layout)
+  // '판이 들어갈 수 있는 폭' 도 알아야 한다. 이건 --board-w 로 쓰면 안 된다.
+  // 처음에 그렇게 짰더니 1440 에서 잰 659 가 덩어리 폭을 정하고, 덩어리 폭이
+  // 다시 판 칸을 659 로 묶어서 1920 으로 창을 키워도 판이 커지지 못했다.
+  // 판이 제 폭으로 제 칸을 정하는 고리다.
+  //
+  // 그래서 판 자리의 '높이' 에서 거꾸로 계산한다(--board-fit). 판 자리의
+  // 높이는 헤더·대국자 카드처럼 세로로 쌓인 것만 보고 정해지므로 가로 폭에
+  // 기대지 않는다. 판은 그 높이를 다 쓰고, 폭은 높이 × 판의 가로세로 비다.
+  // 둘 다 .app 에 걸어 헤더와 판 칸이 같은 값을 본다.
+  //
+  // --board-fit 은 같은 창 크기 안에서는 줄이지 않는다. 장군·기권 알림이나
+  // 편집 팔레트가 판 위아래에 끼면 판 자리가 낮아지는데, 그때마다 덩어리 폭을
+  // 따라 줄이면 헤더와 패널이 옆으로 25px 씩 움직였다. 장군은 대국 중에 수시로
+  // 떴다 사라지니 화면 전체가 출렁인다. 가장 컸던 값을 쥐고 있으면 판만 제
+  // 칸 안에서 줄고(예전과 같다) 헤더와 패널은 제자리에 있다. 창 크기가
+  // 바뀌면 그때 새로 잰다.
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const table = tableRef.current;
-    const svg = table?.querySelector("svg.board");
-    if (!table || !svg) return;
+    const svg = table?.querySelector<SVGSVGElement>("svg.board");
+    const stage = table?.querySelector<HTMLElement>(".board-stage");
+    if (!table || !svg || !stage) return;
+    const host = table.closest<HTMLElement>(".app") ?? table;
+    let fitFor = "";
+    let fit = 0;
     const ro = new ResizeObserver(() => {
-      table.style.setProperty(
+      host.style.setProperty(
         "--board-w",
-        `${Math.round(svg.getBoundingClientRect().width)}px`
+        `${Math.ceil(svg.getBoundingClientRect().width)}px`
       );
+      const viewport = `${window.innerWidth}x${window.innerHeight}`;
+      if (viewport !== fitFor) {
+        fitFor = viewport;
+        fit = 0;
+      }
+      const { width: vbW, height: vbH } = svg.viewBox.baseVal;
+      fit = Math.max(fit, Math.ceil((stage.getBoundingClientRect().height * vbW) / vbH));
+      host.style.setProperty("--board-fit", `${fit}px`);
     });
     ro.observe(svg);
+    ro.observe(stage);
     return () => ro.disconnect();
     // 엔진을 내려받는 동안에는 로딩 화면이라 판이 아직 없다. 준비가 끝나고
     // 판이 붙은 뒤에 다시 걸어야 한다.
@@ -1164,23 +1195,14 @@ export default function App() {
         */}
         <ModeTabs mode={mode} onMode={goMode} canReview={history.length > 1} />
 
-        <span className="turn-tag">
-          {editMode ? (
-            <b className="editing">판 편집 중</b>
-          ) : mode === "review" ? (
-            <b className="reviewing">복기 중</b>
-          ) : (
-            <>
-              둘 차례:{" "}
-              <b className={position.turn}>
-                {position.turn === "cho" ? "초 楚" : "한 漢"}
-              </b>
-              {mode === "play" && thinking && (
-                <span className="muted"> · 엔진이 생각 중…</span>
-              )}
-            </>
-          )}
-        </span>
+        {/*
+          예전에는 여기서 늘 "둘 차례: 초 楚 · 엔진이 생각 중…" 을 말했다.
+          판 바로 위아래 대국자 카드가 같은 말(둘 차례, 생각 중인 점)을 하고
+          있어서 한 화면에 두 번 나왔고, 폰에서는 이 한 줄 때문에 헤더가 두
+          줄이 됐다. '복기 중' 도 바로 옆 탭이 이미 말한다. 편집 중만 남긴다 -
+          그때는 대국자 카드가 빠져서 판의 상태를 말할 곳이 여기뿐이다.
+        */}
+        {editMode && <span className="turn-tag">판 편집 중</span>}
       </header>
 
       {notice && <div className="notice">{notice}</div>}

@@ -1,5 +1,7 @@
 /* 스타일 진입점. 순서가 곧 우선순위라 base 를 가장 먼저 읽는다. */
 
+/* 글꼴 파일은 번들에 들어가 앱과 같은 출처에서 나간다. base.css 의 --sans 참고. */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 @import "./base.css";
 @import "./layout.css";
 @import "./board.css";

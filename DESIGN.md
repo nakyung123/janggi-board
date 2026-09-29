@@ -1,0 +1,184 @@
+---
+version: alpha
+name: 장기 분석판
+description: "스크롤 없는 한 화면 장기 도구. 나무 판이 화면의 주인공이고, 둘레의 껍데기는 무채색으로 물러나 있다. 색이 보이면 그건 초·한 어느 편인지를 말한다."
+
+colors:
+  primary: "#111111"         # 주 버튼. 브랜드 색을 따로 두지 않고 ink를 쓴다
+  canvas: "#f7f7f8"          # 페이지 바탕. 푸른 기·누런 기 없는 무채색
+  surface: "#ffffff"         # 카드·입력칸
+  surface-soft: "#f1f1f2"    # 분절 버튼 홈, 눌러 둔 칸, 시계 칸
+  hairline: "#ededed"        # 카드 테두리, 칸 나눔선
+  line: "#dbdbdb"            # 버튼 테두리 (글자가 버튼임을 알려 주므로 장식선)
+  control-line: "#8e8e8e"    # 셀렉트·입력칸 테두리. 흰 위 3.28:1
+  ink: "#111111"             # 본문, 주 버튼 바탕
+  ink-hover: "#333333"
+  ink-sub: "#505050"         # 보조 정보
+  muted: "#666666"           # 라벨·설명. 흰 5.74:1, canvas 5.36:1, surface-soft 5.09:1
+  on-ink: "#ffffff"
+  cho: "#15653c"             # 초 진영. 흰 7.1:1
+  han: "#b3261e"             # 한 진영. 흰 6.54:1
+  han-strong: "#8f1d17"      # 되돌릴 수 없는 버튼의 호버, 장군 알림 글자
+  han-soft: "#fef2f2"        # 장군 알림 바탕
+  han-soft-line: "#f5cccc"
+  warn: "#85610f"            # 규칙에 어긋난 판, 편집 중 표시. 흰 5.65:1
+  warn-soft: "#fefaf0"
+  warn-soft-line: "#eedfb8"
+  accent: "#2563eb"          # 엔진이 말하는 값(포커스, 슬라이더)에만
+  accent-strong: "#1d4ed8"   # 판 위 최선수 화살표. 가장 어두운 나무 위 3.86:1
+  amber: "#b84300"           # 미리 보는 수, 평가 그래프 커서. 가장 어두운 나무 위 3.15:1
+  alert: "#b91c1c"           # 장군 맞은 궁의 테, 잡을 수 있는 칸. 가장 어두운 나무 위 3.73:1
+  grade-inaccuracy: "#946200" # 복기 '부정확'. 흰 5.24:1, surface-soft 4.64:1
+  grade-mistake: "#c2410c"   # 복기 '실수'. 흰 5.18:1, surface-soft 4.59:1
+
+typography:
+  display:     { fontFamily: Pretendard, fontSize: 24px, fontWeight: 700, lineHeight: 1.2, letterSpacing: -0.025em }
+  title:       { fontFamily: Pretendard, fontSize: 18px, fontWeight: 600, lineHeight: 1.4, letterSpacing: -0.025em }
+  body:        { fontFamily: Pretendard, fontSize: 16px, fontWeight: 400, lineHeight: 1.4, letterSpacing: -0.025em }
+  body-strong: { fontFamily: Pretendard, fontSize: 16px, fontWeight: 600, lineHeight: 1.4, letterSpacing: -0.025em }
+  button:      { fontFamily: Pretendard, fontSize: 16px, fontWeight: 500, lineHeight: 1.4, letterSpacing: -0.025em }
+  numeric:     { fontFamily: Pretendard, fontSize: 16px, fontWeight: 600, lineHeight: 1.4, letterSpacing: 0 }
+  numeric-lg:  { fontFamily: Pretendard, fontSize: 24px, fontWeight: 700, lineHeight: 1, letterSpacing: 0 }
+  hanja:       { fontFamily: Batang, fontSize: 16px, fontWeight: 700, lineHeight: 1.4, letterSpacing: 0 }
+
+rounded:
+  inner: 6px
+  control: 8px
+  card: 16px
+  full: 9999px
+
+spacing:
+  xs: 4px
+  sm: 8px
+  md: 12px
+  lg: 16px
+  xl: 20px
+  2xl: 24px
+  3xl: 32px
+  panel-width: 400px
+  label-column: 96px
+
+components:
+  panel:           { backgroundColor: "{colors.surface}", textColor: "{colors.ink}", typography: "{typography.body}", rounded: "{rounded.card}", padding: 16px }
+  panel-title:     { textColor: "{colors.ink}", typography: "{typography.title}" }
+  button:          { backgroundColor: "{colors.surface}", textColor: "{colors.ink}", typography: "{typography.button}", rounded: "{rounded.control}", height: 40px, padding: 0 16px }
+  button-primary:  { backgroundColor: "{colors.primary}", textColor: "{colors.on-ink}", typography: "{typography.button}", rounded: "{rounded.control}", height: 40px, padding: 0 20px }
+  button-danger:   { backgroundColor: "{colors.han}", textColor: "{colors.on-ink}", typography: "{typography.button}", rounded: "{rounded.control}", height: 40px, padding: 0 20px }
+  select:          { backgroundColor: "{colors.surface}", textColor: "{colors.ink}", typography: "{typography.body}", rounded: "{rounded.control}", height: 40px, padding: 0 12px }
+  segmented:       { backgroundColor: "{colors.surface-soft}", textColor: "{colors.muted}", typography: "{typography.button}", rounded: "{rounded.control}", padding: 4px }
+  segmented-on:    { backgroundColor: "{colors.surface}", textColor: "{colors.ink}", typography: "{typography.body-strong}", rounded: "{rounded.inner}", height: 32px }
+  field-label:     { textColor: "{colors.muted}", typography: "{typography.body}", width: 96px }
+  check-banner:    { backgroundColor: "{colors.han-soft}", textColor: "{colors.han-strong}", typography: "{typography.body-strong}", rounded: "{rounded.control}", padding: 8px 12px }
+  invalid-banner:  { backgroundColor: "{colors.warn-soft}", textColor: "{colors.warn}", typography: "{typography.body-strong}", rounded: "{rounded.control}", padding: 8px 12px }
+  player-bar:      { backgroundColor: "{colors.surface}", textColor: "{colors.ink}", typography: "{typography.body}", rounded: "{rounded.control}", height: 38px, padding: 0 12px }
+  player-clock:    { backgroundColor: "{colors.surface-soft}", textColor: "{colors.ink}", typography: "{typography.numeric}", rounded: "{rounded.inner}", height: 28px, padding: 0 8px }
+---
+
+# 장기 분석판 DESIGN.md
+
+기준은 [DESIGN-BASE](https://github.com/nakyung123/design-base)(로컬 `c:\nakyung\design-base\DESIGN-BASE.md`)다. 이 앱은 그 파일의 §8.11 **게임·도구형(한 화면 앱)** 이라, 섹션 간격·1920 프레임·콘텐츠 폭 같은 스크롤 페이지용 값은 쓰지 않는다. 이 파일과 DESIGN-BASE가 다르면 이 파일을 따른다.
+
+토큰의 실제 값은 `src/styles/base.css` 의 `:root` 에 있다. 이 파일을 고치면 거기도 같이 고친다.
+
+## Overview
+
+- **판이 주인공이다.** 페이지는 스크롤되지 않고, 남는 세로가 곧 판 크기다. 여백 하나를 늘리기 전에 판이 줄어드는지 먼저 잰다.
+- **색은 뜻이 있을 때만.** 껍데기(버튼·탭·카드)는 무채색이다. 초록·빨강은 진영, 파랑은 엔진이 알려 주는 값이다.
+- **판과 패널은 한 덩어리다.** 둘이 화면 양 끝으로 벌어지지 않게 가운데에 모은다.
+- **글자는 16px 아래로 내리지 않는다.** 화면이 작아도 읽어야 할 때 읽혀야 한다(기존 결정). DESIGN-BASE의 대시보드 본문 14·표 12보다 이 결정이 우선이다.
+
+## Colors
+
+- 무채색은 한 계열(푸른 기·누런 기 없는 회색)로만 쓴다. 따뜻한 회색과 차가운 회색을 섞지 않는다.
+- 텍스트는 세 단계다. `ink` 본문·값, `ink-sub` 보조 정보, `muted` 라벨·설명.
+- 셀렉트·입력칸은 테두리만으로 알아봐야 하므로 `control-line`(3:1 이상)을 쓴다. 버튼은 글자가 버튼임을 알려 주므로 옅은 `line`을 쓴다.
+- 판 위 표시(화살표·장군 테·잡을 수 있는 칸·집어 든 기물의 테)는 가장 어두운 나무색 `#e2c081` 위에서도 3:1 이상이어야 한다. 집어 든 기물의 테는 편집 팔레트의 '고른 기물' 과 같은 `ink`.
+- 나무 판·기물·팔레트 기물 칸의 나무색은 판 그림의 일부라 이 토큰과 따로 둔다(`Board.tsx`, `PieceGlyph.tsx`, `board.css`).
+- CSS에 색을 직접 쓰지 않는다. 전부 토큰에서 꺼낸다.
+
+| 이 파일 | CSS 변수 |
+| --- | --- |
+| canvas · surface · surface-soft | `--bg` · `--panel` · `--panel-2` (`--line-soft` 도 같은 값) |
+| hairline · line · control-line | `--line` · `--line-strong` · `--control-line` |
+| ink · ink-sub · muted | `--text`(=`--ink`) · `--text-sub` · `--muted` |
+| grade-inaccuracy · grade-mistake | `--g-inaccuracy` · `--g-mistake` (`review.css`) |
+| 나머지 | 같은 이름에 `--` |
+
+## Typography
+
+- 서체는 **Pretendard**(가변 글꼴, 동적 서브셋). 외부 서버에서 받지 않고 npm 패키지를 번들에 넣어 앱과 같은 출처에서 준다(COEP `require-corp`, 인터넷 없이 동작). 첫 화면에서 받는 조각은 15개, 374KB다.
+- 기물·기보 수·급수 같은 한자는 명조(Batang 계열)를 그대로 쓴다.
+- 크기는 **16·18·24 세 가지**다. 16 본문·버튼·라벨, 18 앱 이름·패널 제목·초읽기 시계, 24 대국 결과·마지막 5초 시계·로딩 제목.
+- 굵기는 역할로 나눈다. 400 본문, 500 버튼, 600 제목·강조(`b`)·숫자, 700은 24px 표시와 명조 한자에만.
+- 행간 1.4(큰 표시 1.2, 시계 숫자 1). 자간 -0.025em. 숫자·FEN·한자 칸은 자간 0과 고정폭 숫자(`tabular-nums`)로 자릿수가 바뀌어도 흔들리지 않게 한다.
+
+## Layout
+
+- **뼈대:** 헤더 한 줄 + 무대(판 칸 | 패널 칸). 헤더·알림·무대는 같은 폭의 가운데 덩어리다. 앱 이름의 왼쪽 끝이 판의 왼쪽 끝, 헤더 오른쪽 끝이 패널의 오른쪽 끝과 맞는다.
+- **덩어리 폭 = 판이 들어갈 폭 + 사이 + 패널 400.** 판이 들어갈 폭(`--board-fit`)은 판 자리 높이 × 판의 가로세로 비(556:618)로 `App.tsx` 가 잰다. 그린 뒤의 판 폭(`--board-w`)으로 잡으면 판이 제 칸을 묶어 창을 키워도 커지지 않는다.
+- **같은 창 크기에서는 덩어리 폭을 줄이지 않는다.** 장군 알림·팔레트가 끼어 판이 낮아져도 판만 제 칸 안에서 줄고 헤더·패널은 움직이지 않는다.
+- **판과 패널 사이는 고정 간격**이다. 1280 미만 24, 1280 이상 32. 남는 가로는 화면 양옆으로 간다.
+- **간격은 4·8·12·16·20·24·32만 쓴다.** 패널 안쪽 16(세로 900 이상이면 20), 패널 사이 12, 폼 줄 사이 12, 제목→내용 12. 1~2px은 기물 줄처럼 촘촘한 묶음에만.
+- **폼은 라벨 열 96 고정.** 라벨 옆에 컨트롤, 딸린 설명·직접 입력 줄은 라벨이 아니라 컨트롤의 왼쪽 끝(96 + 12)에 맞춘다.
+- **넓은 컨트롤은 라벨을 위에.** 상차림, FEN, 생각 시간(`.row.stacked`)처럼 라벨 옆에 들어가지 않는 것.
+- **대국자 카드는 판 위아래.** 한국 장기 앱의 공통 배치라 옮기지 않는다.
+
+## Elevation & Depth
+
+| 단계 | 값 | 쓰임 |
+| --- | --- | --- |
+| 평면 | 없음 | 헤더, 판 칸 바탕 |
+| 카드 | `0 1px 2px rgba(16,24,40,.05)` + 1px `hairline` | 패널, 둘 차례인 대국자 카드 |
+| 떠 있는 칸 | `0 1px 3px rgba(16,24,40,.09)` | 분절 버튼·모드 탭의 고른 칸 |
+| 판 | `0 2px 4px rgba(16,24,40,.06), 0 16px 40px rgba(16,24,40,.1)` | 장기판 한 곳 |
+| 대화상자 | `0 8px 12px rgba(16,24,40,.08), 0 24px 56px rgba(16,24,40,.18)` + 딤드 32% | 대국 결과. 판이 뒤로 보여야 해서 딤드를 옅게 둔다 |
+
+그림자는 "거의 안 보이게". 새 단계를 만들지 않는다.
+
+## Shapes
+
+- 카드 16, 컨트롤(버튼·셀렉트·분절 버튼 홈·대국자 카드·알림) 8, 컨트롤 안에 한 겹 더 든 칸(분절 버튼 칸·시계 칸·기보 칸) 6, 진행 막대·점은 풀라운드.
+- 장기판의 CSS 모서리는 `1.619% / 1.456%` 다. SVG 나무판의 rx 9(556×618 기준)와 같은 비율이라 판이 커져도 그림자와 나무 모서리가 겹친다.
+- 같은 줄에 나란히 서는 버튼·셀렉트·분절 버튼은 높이 40으로 같다.
+
+## Components
+
+- **버튼:** 한 패널에 채운 버튼(`button-primary`)은 하나. 나머지는 흰 바탕 + `line` 테두리, 덜 중요한 것은 테두리 없는 고스트. 되돌릴 수 없는 확인 단계만 `button-danger`로 붉힌다. 목록 칸 버튼(기보 칸·복기 수·팔레트 기물·글 속 링크)은 40 높이를 따르지 않는다.
+- **판 조작 줄:** 두 줄이 패널 폭을 꽉 채운다. 윗줄은 처음·끝(화살표만이라 40 정사각)과 무르기·다시(남은 폭을 반씩), 아랫줄은 판 뒤집기·한수쉼을 반씩. 여섯 개가 400 한 줄에 안 들어가서 두 줄이다.
+- **분절 버튼**(모드 탭, 초·한 고르기, 보기·편집, 생각 시간): 홈 `surface-soft` 안쪽 4, 칸 32. 고른 칸만 흰 바탕 + 떠 있는 칸 그림자 + 600.
+- **상차림:** 네 가지를 같은 폭으로 한 줄에, 랜덤은 그 끝에 글자만큼. 폰 폭(420 이하)에서는 랜덤이 다음 줄을 다 쓴다. 셀렉트로 바꾸지 않는다 - 셀렉트는 이미 고른 값을 다시 골라도 아무 일이 없어서 '같은 상차림으로 되돌리기' 가 사라진다.
+- **대국자 카드:** 높이 38, 진영 색은 테두리·시간 막대·진영 글자에만. 시계는 `player-clock`, 초읽기는 18 + `han`, 마지막 5초는 `numeric-lg` + `han`.
+- **헤더:** 앱 이름 + 모드 탭. 둘 차례는 대국자 카드가 말하므로 헤더에 두지 않는다. 편집 중에만 오른쪽에 "판 편집 중"(`warn`) - 그때는 대국자 카드가 빠진다.
+- **체크박스:** 20×20, `accent-color: ink`. 라벨 글자까지 눌리고 줄 높이 40.
+- **장군 알림 / 어긋난 판 알림:** `check-banner` / `invalid-banner`. 안의 무르기 버튼은 32로 작게.
+
+## Do's and Don'ts
+
+- Do: 새 값이 필요하면 먼저 이 파일의 토큰 안에서 고른다.
+- Do: 레이아웃을 바꾸면 판 크기를 잰다. 기준(2026-09-29): 1440×900 659×732, 1920×1080 821×912, 1280×720 522×580, 390×844 366×407. 이보다 작아지면 안 된다.
+- Do: 창 크기를 바꿔 가며(1920 → 1440 → 1920) 판이 매번 제 크기로 돌아오는지 본다.
+- Don't: 껍데기에 색을 칠하지 않는다. 초록·빨강은 진영, 파랑은 엔진.
+- Don't: 16px보다 작은 글자, 16·18·24 밖의 크기를 만들지 않는다.
+- Don't: 판과 패널 사이를 화면 폭에 따라 늘리지 않는다.
+
+## Responsive Behavior
+
+- **900 초과:** 판 칸 | 패널 칸 2단, 가운데 덩어리. 판 크기는 남은 세로가 정한다.
+- **900 이하:** 1단. 헤더 → 판 → 패널 순으로 세로로 쌓고, 이때만 페이지가 스크롤된다. 좌우 여백 12(판이 화면 폭을 채우므로 여백이 곧 판 크기).
+- **세로 900 이상:** 앱 여백 12·24·16, 패널 안쪽 20. 그 아래는 8·16·8, 16.
+- **세로 780 이하:** 헤더 위아래와 판 둘레 틈을 4로.
+- **터치 기기(`pointer: coarse`):** 버튼·셀렉트·입력칸·체크박스 줄 44 이상. 분절 버튼·모드 탭은 칸 36에 보이지 않는 판을 덧대(`::after`, 테두리 바깥 기준 위아래 4) 눌리는 높이 44.
+
+## Iteration Guide
+
+1. 토큰(`base.css :root`)부터 바꾸고, 컴포넌트 CSS는 토큰만 참조하게 한다.
+2. 바꿀 때마다 1440×900, 1920×1080, 390×844에서 캡처하고 판 크기를 잰다. 폰은 터치 흉내(CDP `Emulation.setTouchEmulationEnabled`)를 켜야 `pointer: coarse` 규칙이 보인다.
+3. 결정은 `docs/DECISIONS.md`에 남긴다.
+
+## Known Gaps
+
+2026-09-29 기준, 이 파일과 아직 다르거나 정하지 못한 곳이다.
+
+- 대국 탭의 상차림 버튼에는 고른 표시가 없다. 분석 탭은 판을 보고 지금 상차림을 짚어 주는데, 대국 탭은 판을 봐야만 안다.
+- 복기 성적표의 등급 다섯 개가 2열로 놓여 '악수' 하나가 셋째 줄에 혼자 남는다.
+- 고스트 버튼이 줄 맨 앞에 오면(초기 배치·판 비우기) 안쪽 여백 16만큼 글자가 패널의 다른 줄보다 안으로 들어가 보인다.

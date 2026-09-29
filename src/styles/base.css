@@ -1,5 +1,7 @@
 /* 전역 토큰과 기본 요소.
    색·글꼴 같은 밑바탕과 button/input 기본 모양을 여기서 정한다.
+   값의 출처와 이유는 저장소 맨 위 DESIGN.md 에 있다. 새 값이 필요하면
+   거기부터 고친다.
 
    화이트 한 가지로만 간다. 장기판 자체가 밝은 나무색이라, 판 둘레가 어두우면
    판만 떠 보이고 눈이 아프다. 실물 장기판을 밝은 데 놓고 보는 쪽에 가깝다.
@@ -7,32 +9,61 @@
    색은 아껴 쓴다. 버튼·탭·테두리 같은 껍데기는 전부 무채색이고, 물든 색은
    초(초록)와 한(빨강) 두 진영에만 준다. 화면에서 색이 보이면 그건 누구 편인지를
    말하는 것이지 장식이 아니다. 파랑(--accent)은 예외로 판 위 엔진 화살표와
-   포커스 표시에만 쓴다. 이건 껍데기가 아니라 기계가 알려주는 값이다. */
+   포커스 표시에만 쓴다. 이건 껍데기가 아니라 기계가 알려주는 값이다.
+
+   무채색은 한 계열이다. 예전에는 누런 회색(#fafaf9, #ececea)과 푸른 회색
+   (#f4f4f5, #e4e4e7, #71717a)이 섞여 있었다. 판이 나무색이라 둘레는 어느
+   쪽으로도 물들지 않은 회색이 맞다. */
 
 :root {
-  --bg: #fafaf9;
+  --bg: #f7f7f8;
   --panel: #ffffff;
-  --panel-2: #f4f4f5;
+  --panel-2: #f1f1f2;
   /* 카드 테두리와 칸 나눔선 */
-  --line: #ececea;
-  /* 버튼·입력칸처럼 눌러야 하는 것의 테두리. 나눔선보다 한 단계 진하다. */
-  --line-strong: #e4e4e7;
-  /* 패널 안에서 한 겹 더 눌러야 할 때 (표 머리, 비활성 칸) */
-  --line-soft: #f4f4f5;
-  --text: #18181b;
-  --muted: #71717a;
+  --line: #ededed;
+  /* 버튼 테두리. 글자가 버튼임을 알려주므로 장식선이라 옅어도 된다. */
+  --line-strong: #dbdbdb;
+  /* 패널 안에서 한 겹 더 눌러야 할 때 (시계 칸, 시간 막대 바탕) */
+  --line-soft: #f1f1f2;
+  /* 셀렉트·입력칸 테두리. 이건 테두리만 보고 '여기 쓸 수 있다'를 알아야
+     하므로 흰 바탕 위 3:1 을 넘긴다(3.28:1). 예전 #e4e4e7 은 1.27:1 이었다. */
+  --control-line: #8e8e8e;
+  --text: #111111;
+  /* 배지·보조 정보. 라벨보다 한 단계 진하다. */
+  --text-sub: #505050;
+  /* 라벨·설명. 흰 5.74:1, 바탕 5.36:1, 회색 칸 5.09:1 */
+  --muted: #666666;
   /* 초록·빨강은 흰 바탕에서 읽히도록 실물 장기알보다 조금 어둡게 잡았다.
      기물에 새기는 글자 색(PieceGlyph)과 같은 계열이다. */
   --cho: #15653c;
   --han: #b3261e;
+  /* 한 번 더 누르면 되돌릴 수 없는 버튼의 호버, 장군 알림 글자 */
+  --han-strong: #8f1d17;
+  --han-soft: #fef2f2;
+  --han-soft-line: #f5cccc;
+  /* 규칙에 어긋난 판, 편집 중 표시. 흰 5.65:1 */
+  --warn: #85610f;
+  --warn-soft: #fefaf0;
+  --warn-soft-line: #eedfb8;
   /* 무채색 강조. 주 버튼과 켜진 상태가 이 색을 쓴다. */
-  --ink: #18181b;
+  --ink: #111111;
+  --ink-hover: #333333;
+  --on-ink: #ffffff;
   /* 판 위 엔진 화살표, 포커스 링, 슬라이더처럼 '기계가 말하는 값'에만. */
   --accent: #2563eb;
+  /*
+   * 판 위에 얹는 표시. 나무판에서 가장 어두운 곳(#e2c081)에서도 3:1 을
+   * 넘게 잡았다. 예전 호박색 #d97706 은 1.83:1, 장군 테 #ef4444 는 2.17:1 로
+   * 판이 어두운 아래쪽에서 묻혔다.
+   */
+  --accent-strong: #1d4ed8;
+  --amber: #b84300;
+  --alert: #b91c1c;
 
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-xs: 8px;
+  /* 카드 16, 버튼·셀렉트 같은 컨트롤 8, 컨트롤 안에 한 겹 더 든 칸 6 */
+  --radius: 16px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
 
   --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-raise: 0 1px 3px rgba(16, 24, 40, 0.09);
@@ -49,16 +80,39 @@
    * 다만 글자 크기는 밀도와 함께 줄이지 않는다. 화면이 작다고 글씨까지 작아지면
    * 정작 읽어야 할 때 못 읽는다. 어디서나 16px 아래로는 내려가지 않는다.
    */
+  /*
+   * 글자 크기는 셋이다. 16 본문·버튼·라벨, 18 앱 이름·패널 제목,
+   * 24 대국 결과·마지막 5초 시계·급수. 예전에는 16·17·18·22·24·26 여섯이었다.
+   */
   --fs-base: 16px;
-  --pad-app: 8px 14px 10px;
-  --gap-col: 14px;
-  --gap-panel: 12px;
-  --pad-panel: 12px 14px 14px;
-  --fs-panel-title: 17px;
+  --fs-title: 18px;
+  --fs-xl: 24px;
 
-  --sans: "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
-  /* 외부 폰트를 받지 않는다. COEP require-corp 아래에서 막힐 수 있고,
-     이 도구는 인터넷 없이도 돌아가야 한다. 장기 한자는 명조 계열이 어울린다. */
+  /*
+   * 간격은 4·8·12·16·20·24·32 에서만 고른다. 예전에는 1px 부터 17px 까지
+   * 열아홉 가지가 섞여 있어서 칸마다 조금씩 어긋났다.
+   */
+  --pad-app: 8px 16px 8px;
+  --gap-col: 24px;
+  --gap-panel: 12px;
+  --pad-panel: 16px;
+  --panel-w: 400px;
+  /* 폼 줄의 라벨 칸. 라벨이 길든 짧든 컨트롤이 같은 세로선에서 시작한다. */
+  --label-w: 96px;
+
+  /*
+   * Pretendard 는 앱과 같은 곳에서 준다(index.css 가 node_modules 에서 읽어
+   * 번들에 넣는다). 바깥 서버에서 받지 않는 이유는 둘이다. COEP require-corp
+   * 아래에서는 교차 출처 글꼴이 막힐 수 있고, 이 도구는 인터넷 없이도 돌아야
+   * 한다. 글자 범위별로 쪼갠 파일이라 화면에 나온 글자가 든 조각만 받는다.
+   *
+   * 맑은 고딕에서 옮긴 이유: 맑은 고딕은 Regular·Bold 두 굵기뿐이라 600 을
+   * 줘도 Bold 로 보였다. 제목과 강조를 굵기로 나눌 수가 없었고, 맥·폰에는
+   * 맑은 고딕이 없어서 기기마다 다른 글꼴로 보였다.
+   */
+  --sans: "Pretendard Variable", Pretendard, "Malgun Gothic", "맑은 고딕", system-ui,
+    -apple-system, sans-serif;
+  /* 장기 한자는 명조 계열이 어울린다. 기물·급수 표시에만 쓴다. */
   --serif: "Batang", "바탕", "Nanum Myeongjo", "Apple SD Gothic Neo", serif;
   color-scheme: light;
 }
@@ -66,10 +120,14 @@
 @media (min-height: 900px) {
   :root {
     --pad-app: 12px 24px 16px;
-    --gap-col: 20px;
-    --gap-panel: 12px;
-    --pad-panel: 14px 16px 16px;
-    --fs-panel-title: 18px;
+    --pad-panel: 20px;
+  }
+}
+
+/* 판과 패널 사이. 화면이 넓어도 이 이상 벌리지 않는다. 남는 가로는 양옆으로 간다. */
+@media (min-width: 1280px) {
+  :root {
+    --gap-col: 32px;
   }
 }
 
@@ -92,7 +150,10 @@ body {
   color: var(--text);
   font-family: var(--sans);
   font-size: var(--fs-base);
-  line-height: 1.55;
+  line-height: 1.4;
+  /* 한글은 조금 당겨야 단어가 한 덩어리로 읽힌다. 점수·시계·FEN 처럼 숫자가
+     주인 칸은 각자 0 으로 되돌린다. */
+  letter-spacing: -0.025em;
   overflow: hidden;
   /*
    * 한글은 어절 단위로 끊는다.
@@ -110,21 +171,50 @@ select,
 input,
 textarea {
   font: inherit;
+  /* 브라우저가 폼 요소에만 letter-spacing: normal 을 박아 둔다. */
+  letter-spacing: inherit;
   color: inherit;
 }
 
+/*
+ * 버튼은 높이 40 으로 맞춘다. 옆에 서는 셀렉트도 40 이라 한 줄에 놓이면
+ * 윗선·아랫선이 맞는다. 목록 칸처럼 버튼이지만 줄 높이를 따라야 하는 것은
+ * 각자 min-height 를 풀어 둔다(기보 칸, 복기 수, 팔레트 기물).
+ */
 button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 40px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  padding: 7px 13px;
+  padding: 0 16px;
+  font-weight: 500;
   cursor: pointer;
   transition: background 0.14s, border-color 0.14s;
 }
 
 button:hover:not(:disabled) {
   background: var(--panel-2);
-  border-color: #d4d4d8;
+  border-color: var(--line-strong);
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  min-height: 40px;
+  background: var(--panel);
+  border: 1px solid var(--control-line);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ink);
 }
 
 button:disabled {
@@ -155,6 +245,13 @@ button.ghost:hover:not(:disabled) {
   border-radius: var(--radius-xs);
 }
 
+/* 강조는 600. 브라우저 기본 700 을 그대로 두면 본문 속 숫자 하나가 제목만큼
+   무거워진다. 700 은 24px 짜리 큰 표시에만 쓴다. */
+b,
+strong {
+  font-weight: 600;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -166,13 +263,13 @@ button.ghost:hover:not(:disabled) {
 }
 
 .pad {
-  padding: 10px 2px;
+  padding: 8px 0;
 }
 
 .error {
   color: var(--han);
   font-size: var(--fs-base);
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 b.cho,
@@ -183,6 +280,24 @@ b.cho,
 b.han,
 .han {
   color: var(--han);
+}
+
+/*
+ * 손가락으로 누르는 기기에서는 누를 자리를 44px 이상으로.
+ *
+ * 마우스 기준 40 이면 폰에서는 옆 버튼을 잘못 누른다. 폰(390×844)에서 재어
+ * 보니 누르는 요소 30개가 모두 37~41px 이었고, 체크박스는 15px 이었다.
+ * 폰에서는 패널이 판 아래로 쌓여 스크롤되므로 판은 줄지 않는다. 넓은 터치
+ * 화면(태블릿)에서는 헤더 탭이 커진 4px 만큼 판이 준다 - 잘못 누르지 않는
+ * 쪽이 판 4px 보다 중요하다.
+ */
+@media (pointer: coarse) {
+  button,
+  select,
+  input[type="number"],
+  input[type="text"] {
+    min-height: 44px;
+  }
 }
 
 /*

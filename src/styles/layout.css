@@ -15,18 +15,17 @@
 }
 
 .boot h1 {
-  font-size: 24px;
+  font-size: var(--fs-xl);
   font-weight: 700;
-  letter-spacing: -0.015em;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .boot-bar {
-  height: 6px;
+  height: 8px;
   background: var(--panel-2);
-  border-radius: 99px;
+  border-radius: 9999px;
   overflow: hidden;
-  margin: 14px 0;
+  margin: 16px 0;
 }
 
 .boot-bar > div {
@@ -41,8 +40,9 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 12px;
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: var(--fs-base);
+  letter-spacing: 0;
   white-space: pre-wrap;
   color: var(--han);
 }
@@ -57,38 +57,53 @@
   overflow: hidden;
 }
 
+/*
+ * 판과 패널을 한 덩어리로 가운데에 모은다.
+ *
+ * 예전에는 패널이 화면 오른쪽 끝에 붙고 판은 남은 칸의 가운데에 섰다. 그래서
+ * 화면이 넓을수록 둘 사이가 벌어졌다 - 1440 에서 183px, 1920 에서 344px.
+ * 한 묶음인 것이 따로 떨어져 보였다.
+ *
+ * 이제 덩어리의 폭을 '판이 들어갈 폭 + 사이 + 패널 폭' 으로 잡는다. 판이
+ * 들어갈 폭은 판 자리의 높이가 정하므로 CSS 로는 모르고, App.tsx 가 재서
+ * --board-fit 으로 넘긴다(그린 뒤의 판 폭 --board-w 를 쓰면 안 되는 이유도
+ * 거기 적었다). 판 칸이 판과 같은 폭이 되는 것뿐이라 판 크기는 그대로다.
+ * 재기 전에는 100vw 로 떨어져 min() 이 100% 를 고르니 예전처럼 꽉 찬다.
+ *
+ * 헤더도 같은 폭을 쓴다. 앱 이름의 왼쪽 끝이 판의 왼쪽 끝과 맞는다.
+ */
+.top,
+.notice,
+.layout {
+  width: min(100%, calc(var(--board-fit, 100vw) + var(--gap-col) + var(--panel-w)));
+  margin-inline: auto;
+}
+
 .top {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 16px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
 .top h1 {
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-size: var(--fs-title);
+  font-weight: 600;
 }
 
-/* 테두리 없이 옅은 알약. 읽히기만 하면 되는 표시라 눌러둔다. */
-.badge {
-  font-size: var(--fs-base);
-  color: var(--muted);
-  background: var(--panel-2);
-  border-radius: 999px;
-  padding: 4px 11px;
-}
-
+/* 편집 중일 때만 뜬다. 그때는 대국자 카드가 빠져서 이 한 줄이 판의 상태를
+   말하는 유일한 자리다. 둘 차례는 대국자 카드가 말한다. */
 .turn-tag {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--warn);
+  font-weight: 600;
 }
 
 .layout {
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, var(--panel-w));
   gap: var(--gap-col);
   align-items: stretch;
   /* 이게 없으면 자식이 넘쳐도 칸이 늘어나 페이지가 스크롤된다. */
@@ -189,11 +204,11 @@
 
 @media (max-height: 780px) {
   .app {
-    padding-top: 6px;
+    padding-top: 4px;
   }
 
   .top {
-    margin-bottom: 5px;
+    margin-bottom: 4px;
   }
 
   .table {
@@ -211,10 +226,28 @@
     overflow: auto;
   }
 
+  /*
+   * 폰에서는 판이 화면 폭을 꽉 채우므로 좌우 여백이 곧 판 크기다. 넓은
+   * 화면의 16 을 그대로 두면 판이 362 에서 358 로 줄었다. 12 로 둔다.
+   */
   .app {
     height: auto;
     min-height: 100dvh;
     overflow: visible;
+    padding-inline: 12px;
+  }
+
+  /*
+   * 한 줄로 쌓이면 모을 것이 없다. 화면 폭을 그대로 쓴다.
+   * 가운데 모으던 auto 여백도 같이 풀어야 한다. 폭만 풀고 여백을 두면 세로
+   * flex 안에서 auto 여백이 남는 폭을 먹어, 헤더가 글자 폭으로 줄어든 채
+   * 가운데로 간다(앱 이름이 판 왼쪽 끝보다 44px 안쪽에서 시작했다).
+   */
+  .top,
+  .notice,
+  .layout {
+    width: auto;
+    margin-inline: 0;
   }
 
   .layout {
@@ -274,7 +307,7 @@
   justify-content: center;
   padding: 16px;
   /* 판을 완전히 가리지 않는다. 방금 무슨 일이 있었는지 뒤로 보여야 한다. */
-  background: rgba(24, 24, 27, 0.32);
+  background: rgba(0, 0, 0, 0.32);
   animation: result-in 0.14s ease-out;
 }
 
@@ -290,9 +323,9 @@
 }
 
 .result-head {
-  font-size: 26px;
+  font-size: var(--fs-xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
   margin-bottom: 8px;
 }
 
@@ -311,13 +344,13 @@
 }
 
 .result-detail {
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 /* 복기 보기가 첫 자리다. 진 다음에 제일 알고 싶은 것이 '어디서 틀렸나' 다. */
 .result-buttons {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
   margin-top: 16px;

@@ -244,6 +244,7 @@ export function PlayPanel(props: Props) {
               ))}
               <button
                 type="button"
+                className="setup-random"
                 disabled={started}
                 title={
                   started

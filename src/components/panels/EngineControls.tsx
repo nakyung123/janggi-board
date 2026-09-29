@@ -84,7 +84,7 @@ export function EngineControls(props: Props) {
         />
       </div>
 
-      <div className="row">
+      <div className="row stacked">
         <span className="label">생각 시간</span>
         <div className="seg">
           {([500, 1000, 3000, 10000] as const).map((ms) => (

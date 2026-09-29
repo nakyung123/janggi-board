@@ -12,10 +12,16 @@
   width: auto;
   max-width: 100%;
   display: block;
-  border-radius: var(--radius);
+  /*
+   * 나무판은 SVG 안에서 rx=9 로 둥글다(Board.tsx, 판 556×618). 판이 커지면
+   * 그 모서리도 같이 커지므로 CSS 쪽 모서리를 px 로 박으면 그림자와 나무
+   * 모서리가 어긋난다. 같은 비율(9/556, 9/618)로 걸어 늘 겹치게 한다.
+   */
+  border-radius: 1.619% / 1.456%;
   box-shadow: var(--shadow-board);
   touch-action: none;
   user-select: none;
+  letter-spacing: 0;
 }
 
 @media (max-width: 900px) {
@@ -104,9 +110,16 @@
   pointer-events: none;
 }
 
+/*
+ * 집어 든 기물의 테.
+ *
+ * 예전 금색 #f5c451 은 나무판 위 2:1 이 안 돼서 판이 어두운 아래쪽에서는
+ * 무엇을 집었는지 잘 안 보였다. 편집 팔레트에서 고른 기물을 짚는 테와 같은
+ * 먹색으로 맞춘다 - 앱 안에서 '지금 고른 것' 은 한 가지 모양이다.
+ */
 .board .selected {
   fill: none;
-  stroke: #f5c451;
+  stroke: var(--ink);
   stroke-width: 3;
 }
 
@@ -116,7 +129,7 @@
 
 .board .target-capture {
   fill: none;
-  stroke: rgba(220, 38, 38, 0.75);
+  stroke: var(--alert);
   stroke-width: 3.5;
 }
 
@@ -129,7 +142,7 @@
 }
 
 .board .best-arrow {
-  stroke: #1d4ed8;
+  stroke: var(--accent-strong);
   stroke-width: 6;
   stroke-linecap: round;
   opacity: 0.62;
@@ -142,16 +155,8 @@
 
 .board-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  justify-content: center;
-}
-
-/* 판이 좁을 때 한 줄에 들어가도록 버튼을 촘촘하게. 줄이 하나 늘면
-   그만큼 판이 깎인다. */
-.board-actions button {
-  padding: 5px 9px;
-  font-size: var(--fs-base);
 }
 
 /* --- 팔레트 ------------------------------------------------------------ */
@@ -161,7 +166,7 @@
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -170,13 +175,14 @@
 .palette-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .palette-side {
-  width: 22px;
-  font-weight: 700;
+  width: 24px;
+  flex: none;
+  font-weight: 600;
   font-size: var(--fs-base);
 }
 
@@ -195,24 +201,27 @@
   margin-right: 4px;
 }
 
+/* 기물 칸은 판 그림의 일부라 나무색을 쓴다. 판 아래 한 줄이 판 높이를
+   깎으므로 40 이 아니라 36 으로 둔다. */
 .palette-piece {
   width: 36px;
   height: 36px;
+  min-height: 0;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: #f7f0de;
   border: 1px solid #8d7444;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .palette-piece.cho {
-  color: #166534;
+  color: var(--cho);
 }
 
 .palette-piece.han {
-  color: #b91c1c;
+  color: var(--han);
 }
 
 .palette-piece.erase {
@@ -239,7 +248,7 @@
 /* 장군을 맞은 궁. 눈에 확 띄어야 해서 붉은 테두리에 맥박을 준다. */
 .board .checked-king {
   fill: none;
-  stroke: #ef4444;
+  stroke: var(--alert);
   stroke-width: 4;
   animation: check-pulse 1s ease-in-out infinite;
 }
@@ -256,7 +265,7 @@
 
 /* 분석 줄에 마우스를 올렸을 때 미리 보는 수. 최선수(파랑)와 색으로 구분한다. */
 .board .hover-arrow {
-  stroke: #d97706;
+  stroke: var(--amber);
   stroke-width: 6;
   stroke-linecap: round;
   opacity: 0.78;
@@ -268,18 +277,18 @@
 .status-banner {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
-  padding: 10px 14px;
-  border-radius: var(--radius);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   border: 1px solid;
   box-shadow: var(--shadow-card);
   font-size: var(--fs-base);
 }
 
 .status-text {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .status-detail {
@@ -288,9 +297,9 @@
 }
 
 .status-banner.check {
-  background: #fef2f2;
-  border-color: #f5cccc;
-  color: #9c2020;
+  background: var(--han-soft);
+  border-color: var(--han-soft-line);
+  color: var(--han-strong);
 }
 
 /* 대국이 끝났다는 알림은 어느 편 이야기도 아니라 무채색으로 둔다. */
@@ -301,19 +310,16 @@
 }
 
 .status-banner.invalid {
-  background: #fefaf0;
-  border-color: #eedfb8;
-  color: #85610f;
+  background: var(--warn-soft);
+  border-color: var(--warn-soft-line);
+  color: var(--warn);
 }
 
+/* 배너 안의 버튼(무르기)은 배너 높이를 늘리지 않게 작게 둔다. */
 .status-banner button {
   margin-left: auto;
-}
-
-.board-actions .stop {
-  margin-left: auto;
-  color: var(--han);
-  border-color: #f0c4c4;
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 /* --- 대국자 카드 -------------------------------------------------------- */
@@ -327,18 +333,18 @@
   align-items: center;
   gap: 12px;
   /*
-   * 한 줄짜리 카드다. 16px 글자 한 줄이 24px 이니 위아래 6px 이면 36px,
-   * 여기에 여유 2px 을 더해 38px. 예전 44px 은 두 장이면 판에서 12px 을
-   * 가져갔다 - 이 앱은 남는 세로가 곧 판 크기라 그만큼이 판이다.
+   * 한 줄짜리 카드다. 높이는 38 로 박고 내용은 세로 가운데에 둔다. 안에 든
+   * 시계 칸이 28 이라 위아래 5 씩 남는다. 예전 44px 은 두 장이면 판에서 12px
+   * 을 가져갔다 - 이 앱은 남는 세로가 곧 판 크기라 그만큼이 판이다.
    */
-  padding: 6px 14px;
+  padding: 0 12px;
   min-height: 38px;
   /* 시간 막대가 카드 아래 모서리에 깔린다. 둥근 모서리 밖으로 삐져나오지
      않게 여기서 자른다. */
   position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   background: var(--panel-2);
   color: var(--muted);
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
@@ -380,12 +386,12 @@
 }
 
 .player-name {
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-base);
   white-space: nowrap;
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
 }
 
 .player-kind {
@@ -397,22 +403,23 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
   overflow: hidden;
 }
 
 .captured-piece {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   flex: none;
   opacity: 0.85;
 }
 
 .player-score {
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-base);
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
@@ -421,7 +428,7 @@
   font-weight: 400;
   font-size: var(--fs-base);
   color: var(--muted);
-  margin-left: 1px;
+  margin-left: 2px;
 }
 
 /* 한(漢)이 후수라서 미리 받는 덤. 점수를 볼 때 "왜 내가 앞서지?" 하지 않도록
@@ -431,8 +438,8 @@
   font-weight: 400;
   font-size: var(--fs-base);
   color: var(--muted);
-  margin-left: 6px;
-  padding: 0 5px;
+  margin-left: 8px;
+  padding: 0 4px;
   border: 1px solid var(--line);
   border-radius: var(--radius-xs);
 }
@@ -442,8 +449,9 @@
 .player-clock {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 10px;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 28px;
   border-radius: var(--radius-xs);
   background: var(--line-soft);
   white-space: nowrap;
@@ -452,7 +460,7 @@
 .player-clock b {
   font-variant-numeric: tabular-nums;
   font-size: var(--fs-base);
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .player-bar.active .player-clock {
@@ -462,7 +470,7 @@
 /* 초읽기에 들어가면 숫자를 키우고 붉게. 남은 회수는 점으로 센다. */
 .player-clock.byoyomi b {
   color: var(--han);
-  font-size: 17px;
+  font-size: var(--fs-title);
 }
 
 .byoyomi-dots {
@@ -472,7 +480,7 @@
 }
 
 .player-clock.urgent {
-  background: #fef2f2;
+  background: var(--han-soft);
 }
 
 .player-clock.urgent b {
@@ -489,7 +497,7 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: 99px;
+  border-radius: 9999px;
   background: var(--accent);
   animation: pulse 1.1s ease-in-out infinite;
 }
@@ -513,7 +521,8 @@
    붉게 바꾼다. 자리는 그대로라 카드 높이가 흔들리지 않는다.
    맥박은 동작 줄이기에서 멈춘다 (base.css 의 prefers-reduced-motion 참고). */
 .player-clock.counting b {
-  font-size: var(--fs-xl, 22px);
+  font-size: var(--fs-xl);
+  font-weight: 700;
   line-height: 1;
   color: var(--han);
   animation: countdown-beat 1s steps(1, end) infinite;

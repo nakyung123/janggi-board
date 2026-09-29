@@ -54,7 +54,8 @@ Cross-Origin-Embedder-Policy: require-corp
 
 `vite.config.ts`(개발·미리보기)와 `vercel.json`(배포)에 이미 넣어뒀다. 파일을
 그냥 열거나(`file://`) 헤더 없는 정적 서버에 올리면 **엔진이 시작되지 않는다.**
-같은 이유로 외부 웹폰트를 쓰지 않고 시스템 폰트만 쓴다.
+같은 이유로 글꼴(Pretendard)은 외부 서버에서 받지 않고 npm 패키지를 번들에 넣어
+앱과 같은 출처에서 준다(`src/styles/index.css`).
 
 올릴 곳을 고를 때 이 제약이 갈린다.
 

@@ -3,11 +3,16 @@
 
 /* --- 등급 색 ----------------------------------------------------------- */
 
+/*
+ * 등급은 글자에 칠하는 색이라 흰 바탕과 회색 칸 둘 다에서 4.5:1 을 넘겨야
+ * 한다. 예전 값(#8b93a3 3.09, #b47600 3.8, #d9600c 3.73)은 흰 바탕에서도
+ * 모자랐다. '좋은 수' 는 눈에 띌 까닭이 없는 수라 라벨과 같은 회색으로 둔다.
+ */
 :root {
   --g-best: var(--cho);
-  --g-good: #8b93a3;
-  --g-inaccuracy: #b47600;
-  --g-mistake: #d9600c;
+  --g-good: var(--muted);
+  --g-inaccuracy: #946200;
+  --g-mistake: #c2410c;
   --g-blunder: var(--han);
 }
 
@@ -37,14 +42,16 @@
  */
 .mode-tabs {
   display: flex;
-  gap: 3px;
-  padding: 3px;
+  gap: 4px;
+  padding: 4px;
   background: var(--panel-2);
   border-radius: var(--radius-sm);
 }
 
+/* 분절 버튼(panels.css 의 .seg)과 같은 치수: 홈 4 안에 32 짜리 칸. */
 .mode-tab {
-  padding: 5px 17px;
+  min-height: 32px;
+  padding: 0 16px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-xs);
@@ -53,7 +60,7 @@
 
 .mode-tab b {
   font-size: var(--fs-base);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* 설명은 툴팁으로 옮겼다. 읽어주는 기기를 위해 글자는 남겨 둔다. */
@@ -73,61 +80,46 @@
 
 .mode-tab.active b {
   color: var(--ink);
-  font-weight: 700;
+  font-weight: 600;
+}
+
+/* 손가락으로 누를 때: 분절 버튼(panels.css)과 같이 칸 36 + 홈까지 덧댄 판. */
+@media (pointer: coarse) {
+  .mode-tab {
+    position: relative;
+    min-height: 36px;
+  }
+
+  .mode-tab::after {
+    content: "";
+    position: absolute;
+    inset: -5px -3px;
+  }
 }
 
 @media (max-width: 560px) {
   .mode-tab {
-    padding: 5px 11px;
+    padding: 0 12px;
   }
 }
 
 /* --- 대국 패널 --------------------------------------------------------- */
 
-.level-block {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 11px 0;
-  margin: 11px 0;
-}
-
-.level-now {
-  margin-left: auto;
-  font-family: var(--serif);
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--ink);
-  line-height: 1.1;
-}
-
-.level-slider {
-  width: 100%;
-  accent-color: var(--ink);
-  margin: 2px 0;
-}
-
-.level-ends {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 7px;
-}
-
 .level-desc {
   font-size: var(--fs-base);
-  color: var(--text);
-  margin-bottom: 6px;
+  color: var(--muted);
 }
 
 button.primary {
   background: var(--ink);
   border-color: var(--ink);
-  color: #fff;
-  font-weight: 700;
+  color: var(--on-ink);
+  padding: 0 20px;
 }
 
 button.primary:hover:not(:disabled) {
-  background: #3f3f46;
-  border-color: #3f3f46;
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
 }
 
 /*
@@ -142,8 +134,8 @@ button.primary.danger {
 }
 
 button.primary.danger:hover:not(:disabled) {
-  background: #8f1d17;
-  border-color: #8f1d17;
+  background: var(--han-strong);
+  border-color: var(--han-strong);
 }
 
 /* 복기 등급을 어느 급수 눈높이로 매겼는지. 성적표 바로 위에 조용히 둔다. */
@@ -152,17 +144,13 @@ button.primary.danger:hover:not(:disabled) {
 }
 
 .banner.resign {
-  margin-bottom: 10px;
-  padding: 9px 13px;
-  border-radius: var(--radius);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   background: var(--panel-2);
   border: 1px solid var(--line);
   font-size: var(--fs-base);
-  font-weight: 700;
-}
-
-b.reviewing {
-  color: var(--ink);
+  font-weight: 600;
 }
 
 /* --- 복기 진행률 ------------------------------------------------------- */
@@ -170,9 +158,9 @@ b.reviewing {
 .review-bar {
   height: 8px;
   background: var(--panel-2);
-  border-radius: 99px;
+  border-radius: 9999px;
   overflow: hidden;
-  margin: 4px 0 10px;
+  margin: 4px 0 12px;
 }
 
 .review-bar > div {
@@ -190,7 +178,7 @@ b.reviewing {
 .review-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -198,13 +186,13 @@ b.reviewing {
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
+  padding: 12px;
 }
 
 .review-side-name {
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-base);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .review-side-name .muted {
@@ -222,20 +210,21 @@ b.reviewing {
    */
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .review-counts li {
   display: flex;
   flex-direction: column;
   align-items: center;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .review-counts b {
   font-size: var(--fs-base);
   color: var(--grade, var(--text));
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 /* 좁아지면 등급 이름이 카드를 벌리지 못하게 한다. */
@@ -254,36 +243,40 @@ b.reviewing {
   text-wrap: balance;
 }
 
+/* 글 속의 링크 같은 버튼. 문장 줄 높이를 따른다. */
 button.linkish {
+  display: inline;
+  min-height: 0;
   background: none;
   border: 0;
   padding: 0;
   color: var(--ink);
   text-decoration: underline;
   font-size: inherit;
+  font-weight: inherit;
 }
 
 /* --- 고른 수의 설명 — 이 패널의 알맹이 --------------------------------- */
 
 .review-detail {
   border: 1px solid var(--grade, var(--line));
-  border-left-width: 3px;
+  border-left-width: 4px;
   border-radius: var(--radius-sm);
-  padding: 11px 13px;
-  margin-bottom: 11px;
+  padding: 12px;
+  margin-bottom: 12px;
   background: var(--panel-2);
 }
 
 .review-detail-head {
   display: flex;
   align-items: baseline;
-  gap: 9px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .review-grade {
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--fs-base);
   color: var(--grade, var(--text));
 }
@@ -302,13 +295,13 @@ button.linkish {
 .review-loss {
   margin-left: auto;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  letter-spacing: 0;
+  font-weight: 600;
   color: var(--grade, var(--muted));
 }
 
 .review-comment {
   font-size: var(--fs-base);
-  line-height: 1.6;
   color: var(--text);
 }
 
@@ -317,7 +310,7 @@ button.linkish {
   padding-top: 8px;
   border-top: 1px solid var(--line);
   display: flex;
-  gap: 9px;
+  gap: 8px;
   align-items: baseline;
   flex-wrap: wrap;
 }
@@ -343,18 +336,21 @@ button.linkish {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
+/* 버튼이지만 목록의 한 줄이라 40 높이를 따르지 않는다. */
 .review-item {
   width: 100%;
+  min-height: 0;
   display: grid;
-  grid-template-columns: 30px 1fr 26px 44px;
-  gap: 7px;
+  grid-template-columns: 32px 1fr 24px 44px;
+  gap: 8px;
   align-items: baseline;
   background: transparent;
   border-color: transparent;
   padding: 4px 8px;
+  font-weight: 400;
   text-align: left;
 }
 
@@ -371,17 +367,19 @@ button.linkish {
   color: var(--muted);
   font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   text-align: right;
 }
 
 .review-item-move {
   font-family: var(--serif);
   font-size: var(--fs-base);
+  letter-spacing: 0;
 }
 
 .review-item-grade {
   color: var(--grade, var(--muted));
-  font-weight: 700;
+  font-weight: 600;
   text-align: center;
 }
 
@@ -389,6 +387,7 @@ button.linkish {
   color: var(--grade, var(--muted));
   font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
   text-align: right;
 }
 
@@ -405,12 +404,12 @@ button.linkish {
   font-style: normal;
   font-family: var(--sans);
   font-size: var(--fs-base);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--grade, var(--muted));
 }
 
 .move-actions {
   border-top: 1px solid var(--line);
-  padding-top: 10px;
-  margin-top: 10px;
+  padding-top: 12px;
+  margin-top: 12px;
 }

@@ -295,11 +295,13 @@ export function Board(props: BoardProps) {
           <rect width={WIDTH} height={HEIGHT} rx="9" />
         </clipPath>
         <PieceDefs />
+        {/* 화살표 머리는 몸통(board.css 의 .best-arrow/.hover-arrow)과 같은
+            토큰을 쓴다. 색을 여기 박아 두면 몸통만 바뀌고 머리는 옛 색으로 남는다. */}
         <marker id="arrowBest" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
-          <path d="M0,0 L4,2 L0,4 z" fill="#1d4ed8" />
+          <path d="M0,0 L4,2 L0,4 z" style={{ fill: "var(--accent-strong)" }} />
         </marker>
         <marker id="arrowHover" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
-          <path d="M0,0 L4,2 L0,4 z" fill="#d97706" />
+          <path d="M0,0 L4,2 L0,4 z" style={{ fill: "var(--amber)" }} />
         </marker>
       </defs>
 
