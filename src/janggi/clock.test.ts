@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { ClockSettings, SideClock } from "./clock";
 import {
   CLOCK_PRESETS,
+  alarmSecondOf,
   clockPresetById,
   clockView,
   describeClock,
@@ -235,6 +236,40 @@ describe("초읽기 카운트다운", () => {
     // 아직 초읽기로 넘어갈 여지가 있어서 급한 상황이 아니다
     const c: SideClock = { mainMs: 3_000, inByoyomi: false, byoyomiMs: 0, periods: 3, flagged: false };
     expect(clockView(c).countdown).toBeNull();
+  });
+});
+
+describe("초읽기 소리", () => {
+  const 초읽기 = (ms: number, periods = 3): SideClock => ({
+    mainMs: 0, inByoyomi: true, byoyomiMs: ms, periods, flagged: false,
+  });
+
+  it("10초부터 1초까지 울릴 초를 준다", () => {
+    expect(alarmSecondOf(초읽기(10_001))).toBeNull();
+    expect(alarmSecondOf(초읽기(10_000))).toBe(10);
+    expect(alarmSecondOf(초읽기(9_800))).toBe(10);
+    expect(alarmSecondOf(초읽기(9_000))).toBe(9);
+    expect(alarmSecondOf(초읽기(200))).toBe(1);
+  });
+
+  it("초읽기가 남은 채 제한시간을 쓰는 중에는 울리지 않는다", () => {
+    // 제한시간이 끝나도 초읽기로 넘어갈 뿐이다. 5분의 마지막 10초는 급하지 않다.
+    const c: SideClock = { mainMs: 8_000, inByoyomi: false, byoyomiMs: 0, periods: 3, flagged: false };
+    expect(alarmSecondOf(c)).toBeNull();
+  });
+
+  it("초읽기가 없는 설정이면 제한시간 끝에 울린다", () => {
+    const c: SideClock = { mainMs: 8_000, inByoyomi: false, byoyomiMs: 0, periods: 0, flagged: false };
+    expect(alarmSecondOf(c)).toBe(8);
+  });
+
+  it("시간패한 뒤에는 울리지 않는다", () => {
+    const c: SideClock = { mainMs: 0, inByoyomi: true, byoyomiMs: 0, periods: 0, flagged: true };
+    expect(alarmSecondOf(c)).toBeNull();
+  });
+
+  it("마지막 회도 앞 회와 똑같이 센다", () => {
+    expect(alarmSecondOf(초읽기(4_000, 1))).toBe(4);
   });
 });
 

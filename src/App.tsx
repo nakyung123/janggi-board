@@ -32,7 +32,7 @@ import {
   reviewDepthById,
 } from "./engine/levels";
 import { useKeyboard } from "./hooks/useKeyboard";
-import { playMoveSound, playPickSound } from "./audio/sound";
+import { playMoveSound, playPickSound, playTickSound } from "./audio/sound";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
@@ -54,6 +54,7 @@ import type { Outcome } from "./janggi/status";
 import {
   CLOCK_PRESETS,
   DEFAULT_CLOCK_ID,
+  alarmSecondOf,
   clockPresetById,
   withFlagged,
   commitMove,
@@ -295,6 +296,8 @@ export default function App() {
 
   /** 기보 탭에서 연 판. null 이면 목록을 보여준다. */
   const [openId, setOpenId] = useState<string | null>(null);
+  /** 기보 목록에서 보던 쪽. 한 판을 열었다가 '목록' 으로 돌아오면 이 쪽으로 온다. */
+  const [listPage, setListPage] = useState(0);
   const [viewCursor, setViewCursor] = useState(0);
   /** 연 판은 그 판을 둔 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 설정은 건드리지 않는다. */
   const [viewFlipped, setViewFlipped] = useState(false);
@@ -710,6 +713,18 @@ export default function App() {
     // mover 가 바뀌면 타이머를 다시 건다. 그 순간 last 도 새로 잡혀 시간이 새지 않는다.
   }, [clockRunning, clockSettings, mover]);
 
+  /*
+   * 초읽기 소리. 내 차례에, 다 쓰면 한 회가 줄거나 지는 시간의 마지막 10초에
+   * 1초마다 한 번(alarmSecondOf 주석). 값이 10 → 9 → … → 1 로 바뀔 때마다 이
+   * effect 가 한 번씩 돌아서 따로 타이머를 걸 필요가 없다. 엔진 차례에는 울리지
+   * 않는다 - 엔진은 제 시간에 쫓기지 않고, 소리는 사람에게 하는 말이다.
+   */
+  const myAlarm =
+    clockRunning && !engineTurn && mover === mySide ? alarmSecondOf(clocks[mySide]) : null;
+  useEffect(() => {
+    if (myAlarm !== null) playTickSound(myAlarm <= 5);
+  }, [myAlarm]);
+
   useEffect(() => {
     const out = flaggedSide(clocks);
     // 알림은 띄우지 않는다. 결과 팝업·대국자 카드·시계 칸이 이미 같은 말을 한다.
@@ -914,6 +929,8 @@ export default function App() {
       if (reviewRunning) return;
       setMode(next);
       setOpenId(null);
+      // 탭으로 들어오면 첫 쪽(가장 최근 판)부터 본다.
+      setListPage(0);
       setSelected(null);
       setHover(null);
     },
@@ -1052,6 +1069,8 @@ export default function App() {
         reviewed: null,
       };
       setGames((list) => upsertGame(list, game));
+      // 불러온 판은 목록 맨 위(첫 쪽)에 선다. 다른 쪽을 보던 중이면 보이지 않는다.
+      setListPage(0);
       setNotice(`기보를 불러왔습니다. ${record.moves.length}수.`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : String(err));
@@ -1358,6 +1377,8 @@ export default function App() {
             now={Date.now()}
             onOpen={openArchived}
             onLoad={loadRecord}
+            page={listPage}
+            onPage={setListPage}
           />
           {toast}
         </main>

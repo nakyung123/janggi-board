@@ -14,7 +14,8 @@
 //   · 부딪는 순간  — 아주 짧은 잡음 한 방 (20ms). 이게 "딱" 의 앞부분이다.
 //   · 울림        — 감쇠하는 사인파 넷. 낮은 쪽은 판이, 높은 쪽은 알이 낸다.
 //
-// 소리는 셋이다. 집을 때(얕은 "톡"), 놓을 때("딱"), 잡을 때(두 번 닿는다).
+// 소리는 넷이다. 집을 때(얕은 "톡"), 놓을 때("딱"), 잡을 때(두 번 닿는다),
+// 초읽기 마지막 10초(1초마다 "똑", 마지막 5초는 높게 두 번).
 //
 // 브라우저는 사람이 무언가를 누르기 전에는 소리를 내주지 않는다(자동재생 차단).
 // 그래서 첫 수를 둘 때 깨우고, 그래도 막히면 소리 없이 넘어간다.
@@ -75,6 +76,36 @@ const PICK: Hit = {
     [2400, 0.07, 0.018],
   ],
   gain: 0.34,
+};
+
+/**
+ * 초읽기 소리 — 마른 나무를 가볍게 두드리는 "똑".
+ *
+ * 착수음과 같은 재료(짧은 잡음 + 감쇠 사인파)라 앱의 다른 소리와 한 벌로 들린다.
+ * 전자음 "삑" 은 판의 나무 소리 사이에서 혼자 튀었다. 착수음보다 높고 짧게 둬서
+ * 수를 둔 소리로 헷갈리지 않게 한다.
+ */
+const TICK: Hit = {
+  noiseHz: 4200,
+  noiseGain: 0.28,
+  noiseDecay: 0.01,
+  partials: [
+    [1180, 0.16, 0.05],
+    [2360, 0.08, 0.025],
+  ],
+  gain: 0.42,
+};
+
+/** 마지막 5초. 한 음 높이고 두 번 두드려("똑딱") 급하게 들리게 한다. */
+const TICK_URGENT: Hit = {
+  noiseHz: 5200,
+  noiseGain: 0.34,
+  noiseDecay: 0.012,
+  partials: [
+    [1580, 0.2, 0.06],
+    [3160, 0.1, 0.03],
+  ],
+  gain: 0.55,
 };
 
 export type MoveSound = "move" | "capture";
@@ -180,6 +211,28 @@ export function playMoveSound(kind: MoveSound): void {
       strike(ac, CAPTURE, now + 0.055, 1);
     } else {
       strike(ac, MOVE, now, 1);
+    }
+  } catch {
+    /* 소리는 없어도 되는 것이다 */
+  }
+}
+
+/**
+ * 초읽기 마지막 10초에 1초마다 한 번 부른다(App.tsx). urgent 면 마지막 5초.
+ *
+ * 화면의 숫자는 판을 보고 있으면 눈에 들어오지 않는다. 시간패는 대개 '시간이
+ * 얼마 남았는지 몰라서' 난다.
+ */
+export function playTickSound(urgent: boolean): void {
+  const ac = open();
+  if (!ac) return;
+  try {
+    const now = ac.currentTime + 0.001;
+    if (urgent) {
+      strike(ac, TICK_URGENT, now, 1);
+      strike(ac, TICK_URGENT, now + 0.14, 0.7);
+    } else {
+      strike(ac, TICK, now, 1);
     }
   } catch {
     /* 소리는 없어도 되는 것이다 */

@@ -261,9 +261,40 @@ export interface ClockView {
 /** 이 시간부터 초를 센다. */
 const COUNTDOWN_FROM_MS = 5_000;
 
-function countdownOf(ms: number): number | null {
-  if (ms > COUNTDOWN_FROM_MS) return null;
+/** 이 시간부터 초읽기 소리를 낸다(App.tsx). 숫자를 키우는 5초보다 앞서 귀로 먼저 알린다. */
+const ALARM_FROM_MS = 10_000;
+
+/**
+ * 다 쓰면 무언가를 잃는 시간이 몇 ms 남았는지. 그런 시간이 아니면 null.
+ *
+ * 초읽기 중이면 이번 회의 남은 시간이다(다 쓰면 한 회가 줄거나 시간패).
+ * 초읽기가 남은 채 제한시간을 쓰는 중이면 null 이다 - 제한시간이 끝나도
+ * 초읽기로 넘어갈 뿐 잃는 것이 없다. 초읽기가 없는 설정이면 제한시간 끝이 곧
+ * 시간패라 제한시간을 센다.
+ */
+function stakeMs(c: SideClock): number | null {
+  if (c.flagged) return null;
+  if (c.inByoyomi) return c.byoyomiMs;
+  return c.periods === 0 ? c.mainMs : null;
+}
+
+/** 남은 시간을 1초 단위로 올려 센다. 0 은 보여주지 않는다 - 아직 둘 수 있다. */
+function secondsLeft(ms: number, from: number): number | null {
+  if (ms > from) return null;
   return Math.max(1, Math.ceil(Math.max(0, ms) / 1000));
+}
+
+function countdownOf(ms: number): number | null {
+  return secondsLeft(ms, COUNTDOWN_FROM_MS);
+}
+
+/**
+ * 초읽기 소리를 낼 초(10, 9, … 1). 소리를 낼 때가 아니면 null.
+ * 값이 바뀔 때마다 한 번 울리면 1초에 한 번이 된다.
+ */
+export function alarmSecondOf(c: SideClock): number | null {
+  const ms = stakeMs(c);
+  return ms === null ? null : secondsLeft(ms, ALARM_FROM_MS);
 }
 
 export function clockView(c: SideClock): ClockView {
@@ -283,13 +314,14 @@ export function clockView(c: SideClock): ClockView {
       countdown: countdownOf(c.byoyomiMs),
     };
   }
+  const stake = stakeMs(c);
   return {
     text: formatMain(c.mainMs),
     inByoyomi: false,
     periods: c.periods,
     urgent: c.mainMs < 30_000,
     flagged: false,
-    // 초읽기가 없는 설정이면 제한시간 끝이 곧 시간패라 여기서도 센다.
-    countdown: c.periods === 0 ? countdownOf(c.mainMs) : null,
+    // 초읽기가 없는 설정이면 제한시간 끝이 곧 시간패라 여기서도 센다(stakeMs).
+    countdown: stake === null ? null : countdownOf(stake),
   };
 }

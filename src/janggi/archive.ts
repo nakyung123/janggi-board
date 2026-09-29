@@ -186,3 +186,21 @@ export function readArchive(v: unknown): ArchivedGame[] {
     .sort((a, b) => b.endedAt - a.endedAt)
     .slice(0, ARCHIVE_LIMIT);
 }
+
+/**
+ * 기보 목록 아래의 쪽 번호. 0 부터 센 쪽 번호와 줄임표("gap")를 늘어놓는다.
+ *
+ * 쪽이 일곱 이하면 다 보인다. 그보다 많으면 처음·끝과 지금 쪽 앞뒤 하나씩만
+ * 두고 사이를 줄임표로 접는다(1 … 4 5 6 … 9). 줄임표가 쪽 하나만 가리게
+ * 되면 줄임표 대신 그 쪽을 그냥 보인다 - "1 … 3" 보다 "1 2 3" 이 짧다.
+ * 칸 수가 일곱으로 늘 같아서 쪽을 넘겨도 번호 줄의 폭이 흔들리지 않는다.
+ */
+export function pageItems(current: number, total: number): (number | "gap")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i);
+  const run = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => from + i);
+  // 앞쪽 끝 가까이면 앞 다섯, 뒤쪽 끝 가까이면 뒤 다섯을 붙여 보인다.
+  if (current <= 3) return [...run(0, 4), "gap", total - 1];
+  if (current >= total - 4) return [0, "gap", ...run(total - 5, total - 1)];
+  return [0, "gap", current - 1, current, current + 1, "gap", total - 1];
+}

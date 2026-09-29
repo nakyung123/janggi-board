@@ -10,6 +10,7 @@ import {
   ARCHIVE_LIMIT,
   isArchivedGame,
   newGameId,
+  pageItems,
   readArchive,
   resultTag,
   upsertGame,
@@ -125,5 +126,36 @@ describe("읽어 온 목록", () => {
   it("목록이 아니면 빈 목록", () => {
     expect(readArchive({ 판: 1 })).toEqual([]);
     expect(readArchive(null)).toEqual([]);
+  });
+});
+
+describe("쪽 번호", () => {
+  /** 사람이 읽는 모양으로: 1 부터, 줄임표는 … */
+  const 줄 = (current: number, total: number) =>
+    pageItems(current, total).map((x) => (x === "gap" ? "…" : x + 1)).join(" ");
+
+  it("일곱 쪽까지는 다 보인다", () => {
+    expect(줄(0, 1)).toBe("1");
+    expect(줄(3, 7)).toBe("1 2 3 4 5 6 7");
+  });
+
+  it("앞쪽에서는 앞 다섯을 붙여 보인다", () => {
+    expect(줄(0, 9)).toBe("1 2 3 4 5 … 9");
+    // 줄임표가 2쪽 하나만 가리게 두지 않는다
+    expect(줄(3, 9)).toBe("1 2 3 4 5 … 9");
+  });
+
+  it("가운데에서는 앞뒤 하나씩", () => {
+    expect(줄(4, 9)).toBe("1 … 4 5 6 … 9");
+    expect(줄(6, 12)).toBe("1 … 6 7 8 … 12");
+  });
+
+  it("뒤쪽에서는 뒤 다섯을 붙여 보인다", () => {
+    expect(줄(5, 9)).toBe("1 … 5 6 7 8 9");
+    expect(줄(8, 9)).toBe("1 … 5 6 7 8 9");
+  });
+
+  it("칸 수가 늘 일곱이라 넘겨도 줄 폭이 흔들리지 않는다", () => {
+    for (let c = 0; c < 25; c++) expect(pageItems(c, 25)).toHaveLength(7);
   });
 });
