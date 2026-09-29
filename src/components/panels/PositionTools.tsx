@@ -22,7 +22,6 @@ interface Props {
   onSetup: (side: Side, setup: Setup) => void;
   onClear: () => void;
   onReset: () => void;
-  onFlip: () => void;
 }
 
 export function PositionTools(props: Props) {
@@ -35,7 +34,6 @@ export function PositionTools(props: Props) {
     onSetup,
     onClear,
     onReset,
-    onFlip,
   } = props;
 
   const fen = toFen(position);
@@ -86,9 +84,8 @@ export function PositionTools(props: Props) {
             편집
           </button>
         </div>
-        <button type="button" className="ghost" onClick={onFlip} title="F 키">
-          판 뒤집기
-        </button>
+        {/* '판 뒤집기'는 오른쪽 칸 맨 위 판 조작 줄로 갔다. 버튼 줄을 그리로
+            옮기고 나니 같은 칸에 같은 버튼이 둘 서 있었다. */}
       </div>
 
       {editMode && (

@@ -512,3 +512,24 @@ textarea.fen-input:focus {
 .level-desc {
   margin: -6px 0 10px;
 }
+
+/* --- 판 조작 줄 --------------------------------------------------------- */
+/*
+ * 판 아래에 있던 버튼 줄을 오른쪽 칸 맨 위로 옮긴 카드다(BoardControls.tsx).
+ * 제목을 달지 않는다 - 버튼 여섯 개가 스스로를 설명하고, 제목 한 줄이 이
+ * 카드 높이를 절반쯤 더 늘린다.
+ */
+.board-controls {
+  padding: 10px 12px;
+}
+
+/* 판 아래에 있을 때는 판 너비에 맞춰 가운데로 모았다. 카드 안에서는 왼쪽부터
+   채우는 쪽이 옆 패널들의 줄과 첫 글자가 맞는다. */
+.board-controls .board-actions {
+  justify-content: flex-start;
+}
+
+/* 기보를 오가는 줄과 판에 손대는 줄 사이. */
+.board-controls .board-actions + .board-actions {
+  margin-top: 6px;
+}

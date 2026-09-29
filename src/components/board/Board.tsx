@@ -275,6 +275,25 @@ export function Board(props: BoardProps) {
           <path d="M14 0 V4" stroke="#fffaf0" strokeWidth="1.4" opacity="0.13" />
           <path d="M23 0 V4" stroke="#7a5420" strokeWidth="0.6" opacity="0.02" />
         </pattern>
+        {/*
+          직전 수 자리에 깔리는 흰 발광.
+          예전에는 파란 반투명 상자였다. 판이 밝은 나무색이라 파랑이 얹히면
+          회색 상자처럼 보였고, 무엇보다 장기판에 없는 물건이었다. 흰빛은
+          나무색 위에서 '밝아진다'로 읽혀서 기물을 가리지 않는다.
+        */}
+        <radialGradient id="lastGlow">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
+          <stop offset="55%" stopColor="#ffffff" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        {/*
+          발광은 교차점을 중심으로 한 원이라, 가장자리 줄에서는 판 밖까지
+          번진다. 판 모양 그대로 잘라내지 않으면 나무판 바깥 페이지 바탕에
+          흰 반달이 찍힌다.
+        */}
+        <clipPath id="boardClip">
+          <rect width={WIDTH} height={HEIGHT} rx="9" />
+        </clipPath>
         <PieceDefs />
         <marker id="arrowBest" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 z" fill="#1d4ed8" />
@@ -299,21 +318,22 @@ export function Board(props: BoardProps) {
       <g className="grid">{palaceDiagonals}</g>
 
       {/* 직전 수 표시 */}
-      {lastMove &&
-        [lastMove.from, lastMove.to].map((s) => {
-          const p = posOf(s);
-          return (
-            <rect
-              key={"last" + s}
-              className="last-move"
-              x={p.x - CELL * 0.42}
-              y={p.y - CELL * 0.42}
-              width={CELL * 0.84}
-              height={CELL * 0.84}
-              rx="5"
-            />
-          );
-        })}
+      {lastMove && (
+        <g clipPath="url(#boardClip)">
+          {[lastMove.from, lastMove.to].map((s) => {
+            const p = posOf(s);
+            return (
+              <circle
+                key={"last" + s}
+                className="last-move"
+                cx={p.x}
+                cy={p.y}
+                r={CELL * 0.6}
+              />
+            );
+          })}
+        </g>
+      )}
 
       {/* 장군을 맞은 궁 */}
       {checkedKing &&

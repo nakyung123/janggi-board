@@ -92,11 +92,16 @@
   stroke-width: 0.9;
 }
 
-/* 직전 수. 판이 밝아지면서 예전 색(파랑 20%)은 회색 상자처럼 보였다. */
+/*
+ * 직전 수. 흰빛이 교차점에서 번진다 (그라디언트는 Board.tsx 의 #lastGlow).
+ *
+ * 처음에는 파란 반투명 상자였다. 판이 밝은 나무색이라 파랑이 얹히면 회색
+ * 상자처럼 보였고, 무엇보다 장기판에 없는 물건이라 '앱이 그린 것'으로 떠
+ * 보였다. 흰빛은 같은 나무판이 그 자리만 밝아진 것으로 읽힌다.
+ */
 .board .last-move {
-  fill: rgba(59, 130, 246, 0.22);
-  stroke: rgba(29, 78, 216, 0.75);
-  stroke-width: 1.8;
+  fill: url(#lastGlow);
+  pointer-events: none;
 }
 
 .board .selected {
@@ -321,8 +326,13 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 7px 14px;
-  min-height: 44px;
+  /*
+   * 한 줄짜리 카드다. 16px 글자 한 줄이 24px 이니 위아래 6px 이면 36px,
+   * 여기에 여유 2px 을 더해 38px. 예전 44px 은 두 장이면 판에서 12px 을
+   * 가져갔다 - 이 앱은 남는 세로가 곧 판 크기라 그만큼이 판이다.
+   */
+  padding: 6px 14px;
+  min-height: 38px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--panel-2);

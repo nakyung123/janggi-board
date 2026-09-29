@@ -10,6 +10,7 @@ import { EngineControls } from "./components/panels/EngineControls";
 import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
+import { BoardControls } from "./components/panels/BoardControls";
 import { PlayPanel } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
 import { PositionTools } from "./components/panels/PositionTools";
@@ -1209,55 +1210,28 @@ export default function App() {
 
             {!editMode && <PlayerBar {...playerOf(bottomSide)} />}
 
-            {editMode ? (
-              <PiecePalette brush={brush} onPick={setBrush} />
-            ) : (
-              <div className="board-actions">
-              <button type="button" disabled={cursor === 0} onClick={() => goTo(0)}>
-                ⇤
-              </button>
-              <button
-                type="button"
-                disabled={cursor === 0}
-                onClick={mode === "play" ? undoMove : () => goTo(cursor - 1)}
-                title="← 키"
-              >
-                ← {mode === "play" ? "무르기" : "이전"}
-              </button>
-              <button
-                type="button"
-                disabled={cursor >= history.length - 1}
-                onClick={() => goTo(cursor + 1)}
-                title="→ 키"
-              >
-                {mode === "play" ? "다시" : "다음"} →
-              </button>
-              <button
-                type="button"
-                disabled={cursor >= history.length - 1}
-                onClick={() => goTo(history.length - 1)}
-              >
-                ⇥
-              </button>
-              <button type="button" className="ghost" onClick={() => setFlipped((f) => !f)} title="F 키">
-                판 뒤집기
-              </button>
-              {mode !== "review" && (
-                <button
-                  type="button"
-                  disabled={!canTouchBoard}
-                  title="궁을 제자리에 두는 것이 장기의 한수쉼입니다"
-                  onClick={passMove}
-                >
-                  한수쉼
-                </button>
-              )}
-              </div>
-            )}
+            {/*
+              버튼 줄은 오른쪽 칸(BoardControls)으로 갔다. 판 아래에 두면 그
+              44px 만큼 판이 작아진다. 편집 중의 팔레트는 판 바로 아래가 맞다 -
+              집은 기물을 판에 찍는 동작이라 손이 오가는 거리가 짧아야 한다.
+            */}
+            {editMode && <PiecePalette brush={brush} onPick={setBrush} />}
           </div>
         </section>
 
         <section className="side-col">
+          <BoardControls
+            mode={mode}
+            editing={editMode}
+            cursor={cursor}
+            last={history.length - 1}
+            canTouch={canTouchBoard}
+            onJump={goTo}
+            onUndo={undoMove}
+            onFlip={() => setFlipped((f) => !f)}
+            onPass={passMove}
+          />
+
           {mode === "play" && (
             <>
               <PlayPanel
@@ -1279,6 +1253,15 @@ export default function App() {
                 analysisOn={hintOn}
                 onMySide={(s) => {
                   setMySide(s);
+                  /*
+                   * 고른 쪽을 아래에 놓는다.
+                   *
+                   * 판은 늘 초를 아래에 두고 그렸다. 그래서 한을 잡으면 내
+                   * 기물이 화면 위쪽에 거꾸로 서 있고, 판 뒤집기를 직접
+                   * 눌러야 했다. 앉은 자리에서 보는 것이 당연한 기본값이다.
+                   * 그래도 뒤집어 보고 싶으면 판 뒤집기로 언제든 바꾼다.
+                   */
+                  setFlipped(s === "han");
                   playedFor.current = null;
                 }}
                 onLevel={setLevelId}
@@ -1335,7 +1318,6 @@ export default function App() {
                   setResigned(null);
                   resetClocks();
                 }}
-                onFlip={() => setFlipped((f) => !f)}
               />
 
               <AnalysisPanel

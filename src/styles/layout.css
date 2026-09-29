@@ -130,7 +130,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  /* 카드-판-카드 사이 두 군데. 여기서 2px 을 줄이면 판이 4px 커진다. */
+  gap: 8px;
 }
 
 /*
@@ -148,7 +149,6 @@
 
 /* 판과 나란히 서야 하는 것들 */
 .table > .player-bar,
-.table > .board-actions,
 .table > .status-banner,
 .table > .banner,
 .table > .palette {
@@ -247,7 +247,6 @@
 
   /* 좁은 화면에서는 판이 폭을 꽉 채우므로 잰 값을 쓰지 않는다. */
   .table > .player-bar,
-  .table > .board-actions,
   .table > .status-banner,
   .table > .banner,
   .table > .palette {
