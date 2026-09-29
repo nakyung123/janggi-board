@@ -1173,10 +1173,10 @@ export default function App() {
     let fitFor = "";
     let fit = 0;
     const ro = new ResizeObserver(() => {
-      host.style.setProperty(
-        "--board-w",
-        `${Math.ceil(svg.getBoundingClientRect().width)}px`
-      );
+      const drawn = svg.getBoundingClientRect();
+      host.style.setProperty("--board-w", `${Math.ceil(drawn.width)}px`);
+      // 대국 탭의 오른쪽 칸이 판 아래 끝에 맞춰 선다(layout.css 의 .side-col.play).
+      host.style.setProperty("--board-h", `${Math.floor(drawn.height)}px`);
       const viewport = `${window.innerWidth}x${window.innerHeight}`;
       if (viewport !== fitFor) {
         fitFor = viewport;
@@ -1400,7 +1400,7 @@ export default function App() {
             </div>
           </section>
 
-          <section className="side-col">
+          <section className={"side-col" + (mode === "play" ? " play" : "")}>
             {openGame && openTag && (
               <div className="game-back">
                 <button

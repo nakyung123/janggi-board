@@ -119,11 +119,6 @@
   pointer-events: none;
 }
 
-/* 도착 자리는 기물이 가운데를 덮으므로 더 크고 진한 발광(Board.tsx 주석). */
-.board .last-move.to {
-  fill: url(#lastGlowTo);
-}
-
 /*
  * 집어 든 기물의 테.
  *
@@ -326,10 +321,6 @@
    */
   padding: 0 12px;
   min-height: 38px;
-  /* 시간 막대가 카드 아래 모서리에 깔린다. 둥근 모서리 밖으로 삐져나오지
-     않게 여기서 자른다. */
-  position: relative;
-  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--panel-2);
@@ -507,7 +498,7 @@
  * 오른쪽 칸의 두 줄 카드(PlayerBar layout="stacked").
  *
  *   윗줄: 진영 · 이름 · 차례/장군/승패 ········ 시계
- *   아랫줄: 잡아낸 기물 ······················· 점수
+ *   아랫줄: 시간 막대(시계를 끄면 잡아낸 기물) ··· 점수
  *
  * 판 위아래의 한 줄 카드는 판 폭(600px 넘게)이라 한 줄에 다 들어갔다. 오른쪽
  * 칸은 400 이라 한 줄에 넣으면 잡은 기물 칸이 두세 알 폭으로 줄어든다. 두 줄로
@@ -518,12 +509,11 @@
   grid-template-columns: auto auto 1fr auto;
   grid-template-areas:
     "mark name status clock"
-    "cap  cap  cap    score";
+    "bar  bar  bar    score";
   align-items: center;
   column-gap: 12px;
-  row-gap: 4px;
-  /* 아래 4 는 시간 막대가 깔리는 자리 */
-  padding: 8px 12px 12px;
+  row-gap: 8px;
+  padding: 8px 12px;
   min-height: 0;
 }
 
@@ -546,8 +536,12 @@
 
 /* 잡은 기물이 없어도 아랫줄 높이는 그대로 둔다. 한 알 잡을 때마다 카드가 자라면 안 된다. */
 .player-bar.stacked .player-captured {
-  grid-area: cap;
+  grid-area: bar;
   min-height: 22px;
+}
+
+.player-bar.stacked .time-bar {
+  grid-area: bar;
 }
 
 .player-bar.stacked .player-score {
@@ -621,21 +615,27 @@
 }
 
 /*
- * 줄어드는 시간 막대.
+ * 줄어드는 시간 막대. 시계가 도는 동안 잡은 기물 자리에 선다(PlayerBar 주석).
  *
- * 카드 아래 모서리를 따라 깔린다. 카드 안에 자리를 따로 내주지 않으므로
- * (판이 그만큼 줄어든다) 높이를 더하지 않는 곳에 붙였다.
+ * 예전에는 카드 아래 모서리에 4px 로 깔려 있었다. 카드에 자리를 따로 내주지
+ * 않으려던 것인데(판이 그만큼 줄어든다), 가늘어서 대국 중에 있는 줄도 몰랐다.
+ * 잡은 기물 칸(22)의 가운데에 8px 로 서므로 카드 높이는 그대로다.
  *
  * 시계는 200ms 마다 깎이니 그대로 두면 막대가 초당 다섯 번 툭툭 끊긴다.
  * 같은 길이의 transition 을 걸어 그 사이를 잇는다.
  */
-.clock-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  background: var(--line-soft);
+.time-bar {
+  display: block;
+  min-width: 0;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+/* 한 줄 카드(폰)에서는 잡은 기물이 쓰던 가운데 남는 폭을 다 쓴다. */
+.player-bar.row .time-bar {
+  flex: 1;
 }
 
 /*
@@ -643,22 +643,81 @@
  * 규칙(base.css 머리말)을 여기서도 지킨다. 처음에는 무채색 회색으로 뒀는데
  * 카드 밑줄과 구별이 안 돼서 막대가 있는 줄도 몰랐다.
  */
-.clock-bar i {
+.time-bar i {
   display: block;
   height: 100%;
+  border-radius: inherit;
   transition: width 0.2s linear;
   /* 둘 차례가 아닌 쪽은 눌러둔다. 카드 전체를 눌러두는 것과 같은 이치다. */
   opacity: 0.4;
 }
 
-.player-bar.active .clock-bar i {
+.player-bar.active .time-bar i {
   opacity: 1;
 }
 
-.player-bar.cho .clock-bar i {
+.player-bar.cho .time-bar i {
   background: var(--cho);
 }
 
-.player-bar.han .clock-bar i {
+.player-bar.han .time-bar i {
   background: var(--han);
+}
+
+/*
+ * 오른쪽 칸에 높이가 남을 때의 카드(대국 탭).
+ *
+ * layout.css 가 대국 탭의 오른쪽 칸 아래 끝을 판 아래 끝에 맞추고, 남는 높이를
+ * 카드 두 장(.players)에 준다. 1920×1080 이면 두 장이 224 를 나눠 갖는다.
+ * 카드가 넉넉해지면(두 장 합쳐 320 이상) 시계가 윗줄 끝에서 내려와 가운데 줄을
+ * 통째로 쓰고 숫자가 40 으로 커진다. 남는 높이를 빈 여백으로 두는 것보다 멀리서도
+ * 읽히는 시계가 낫다. 시계를 끈 판은 잡은 기물이 가운데 줄로 올라와 크게 선다.
+ *
+ * 320 은 잰 값에서 나왔다. 이 모양의 카드는 한 장에 적어도 149(윗줄에 장군 칸
+ * 28 이 설 때)가 든다. 두 장과 사이 8 이면 306 이라, 그 아래에서 바꾸면 카드
+ * 밖으로 넘친다.
+ */
+@container players (min-height: 320px) {
+  .player-bar.stacked {
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "mark name status status"
+      "clock clock clock clock"
+      "bar  bar  bar    score";
+    padding: 12px 16px;
+  }
+
+  .player-bar.stacked .player-clock {
+    justify-self: start;
+    gap: 12px;
+    padding: 4px 12px;
+  }
+
+  .player-bar.stacked .player-clock b,
+  .player-bar.stacked .player-clock.byoyomi b,
+  .player-bar.stacked .player-clock.counting b {
+    font-size: var(--fs-clock);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .player-bar.stacked .player-clock.flagged b {
+    font-size: var(--fs-title);
+  }
+
+  .player-bar.stacked .byoyomi-dots {
+    font-size: var(--fs-title);
+  }
+
+  .player-bar.stacked .player-captured {
+    grid-area: clock;
+    flex-wrap: wrap;
+    align-content: center;
+    gap: 4px;
+  }
+
+  .player-bar.stacked .captured-piece {
+    width: 28px;
+    height: 28px;
+  }
 }

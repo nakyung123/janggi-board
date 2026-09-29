@@ -346,17 +346,12 @@ export function Board(props: BoardProps) {
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
         {/*
-          도착 자리는 더 크고 진하게. 같은 발광을 쓰면 기물이 가운데를 덮어
-          가장자리의 옅은 테두리만 남았다 - 출발 자리는 잘 보이는데 도착은 어디인지
-          몰랐다. 기물 둘레로 한참 번지게 하고, 70% 까지 거의 불투명하게 둔다.
-          시안 넷(진영색 테·진영색 번짐 포함)을 나란히 놓고 골랐다. 색을 쓰면
-          '잡을 수 있는 칸' 의 붉은 테나 장군 경고로 읽혔다.
+          도착 자리도 같은 발광을 쓰고 크기만 키운다(0.8칸). 같은 크기면 기물이
+          가운데를 덮어 가장자리의 옅은 테두리만 남는다. 한동안 도착 자리에 따로
+          진한 발광(70% 까지 거의 불투명)을 썼는데, 기물 둘레에 흰 고리가 박혀
+          "두고 나서 말이 빛나는 게 유독 더 밝다" 가 됐다. 같은 그라디언트를 넓게
+          펴면 기물 밖으로 드러나는 부분이 출발 자리의 가장자리와 같은 밝기다.
         */}
-        <radialGradient id="lastGlowTo">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-          <stop offset="72%" stopColor="#ffffff" stopOpacity="0.9" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </radialGradient>
         {/*
           발광은 교차점을 중심으로 한 원이라, 가장자리 줄에서는 판 밖까지
           번진다. 판 모양 그대로 잘라내지 않으면 나무판 바깥 페이지 바탕에

@@ -1,6 +1,6 @@
 // 대국자 카드
 //
-//   누가 어느 쪽을 잡았는지 · 기물 점수 · 잡아낸 기물 · 남은 시간
+//   누가 어느 쪽을 잡았는지 · 기물 점수 · 남은 시간(시간 막대) 또는 잡아낸 기물
 // 둘 차례인 쪽만 밝게 띄워서, 판을 보다가 고개를 들면 바로 알 수 있게 한다.
 //
 // 넓은 화면에서는 오른쪽 칸 맨 위에 두 장이 포개진다(상대 위, 나 아래 - 판과
@@ -39,7 +39,8 @@ interface Props {
   tag: SideTag | null;
   /**
    * row: 판 위아래에 붙는 한 줄(폰). stacked: 오른쪽 칸의 두 줄 카드.
-   * 두 줄에서는 윗줄이 누구·차례·시계, 아랫줄이 잡은 기물·점수다.
+   * 두 줄에서는 윗줄이 누구·차례·시계, 아랫줄이 시간 막대(또는 잡은 기물)·점수다.
+   * 오른쪽 칸에 높이가 남으면 카드가 커지고 시계가 한 줄을 따로 차지한다(board.css).
    */
   layout?: "row" | "stacked";
 }
@@ -66,14 +67,32 @@ export function PlayerBar(props: Props) {
         </span>
       </span>
 
-      {/* 잡아낸 기물. 상대 기물이라 색도 상대 색으로 새긴다. */}
-      <span className="player-captured" title="잡아낸 기물">
-        {captured.map((type, i) => (
-          <svg key={type + i} viewBox="-11 -11 22 22" className="captured-piece">
-            <PieceBody piece={charOf(type, opponent) as PieceChar} radius={10} flat />
-          </svg>
-        ))}
-      </span>
+      {/*
+        시계가 돌면 시간 막대, 아니면 잡아낸 기물.
+
+        막대는 카드 아래 모서리에 4px 로 깔려 있었는데, 가늘어서 대국 중에
+        눈에 들어오지 않았다. 대국에서는 잡은 기물보다 남은 시간이 더 급한
+        정보라("잡은 거 표시 대신에 시간 막대를") 잡은 기물 자리를 막대에 내준다.
+        시계를 끈 판과 기보 탭의 지난 판은 시계가 없으니 잡은 기물이 그대로 선다.
+
+        숫자는 읽어서 계산해야 하지만 막대는 보면 안다. 둘 차례가 아닌 쪽도
+        그려 둔다 - 상대에게 얼마나 남았는지가 내 수를 정하는 값이다. 읽어
+        주는 것은 시계 숫자가 하므로 여기는 화면에서만 뜻이 있다.
+      */}
+      {ratio !== null ? (
+        <span className="time-bar" aria-hidden="true">
+          <i style={{ width: `${ratio * 100}%` }} />
+        </span>
+      ) : (
+        // 잡아낸 기물. 상대 기물이라 색도 상대 색으로 새긴다.
+        <span className="player-captured" title="잡아낸 기물">
+          {captured.map((type, i) => (
+            <svg key={type + i} viewBox="-11 -11 22 22" className="captured-piece">
+              <PieceBody piece={charOf(type, opponent) as PieceChar} radius={10} flat />
+            </svg>
+          ))}
+        </span>
+      )}
 
       <span
         className="player-score"
@@ -121,25 +140,6 @@ export function PlayerBar(props: Props) {
         )}
       </span>
       <span className="sr-only">{SIDE_LABEL[side]}</span>
-
-      {/*
-        줄어드는 시간 막대. 카드 아래 모서리에 깔린다.
-        숫자는 읽어서 계산해야 하지만 막대는 보면 안다. 둘 차례가 아닌 쪽도
-        그려둔다 - 상대에게 얼마나 남았는지가 내 수를 정하는 값이다.
-        읽어주는 것은 숫자 쪽이 하므로 여기는 화면에서만 뜻이 있다.
-      */}
-      {ratio !== null && (
-        <span
-          className={
-            "clock-bar" +
-            (view?.inByoyomi ? " byoyomi" : "") +
-            (view?.urgent ? " urgent" : "")
-          }
-          aria-hidden="true"
-        >
-          <i style={{ width: `${ratio * 100}%` }} />
-        </span>
-      )}
     </div>
   );
 }
