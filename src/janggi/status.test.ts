@@ -12,11 +12,13 @@ import {
   capturedPieces,
   gameStatus,
   isGameOver,
+  kingsFacing,
   outcomeMessage,
   outcomeOf,
   scoreBoard,
   sideTag,
   statusMessage,
+  trailingPasses,
 } from "./status";
 import type { GameStatus } from "./status";
 import { HAN_DEOM } from "./pieces";
@@ -31,6 +33,8 @@ const 입력 = (opts: {
   ready?: boolean;
   plies?: number;
   pointsRule?: boolean;
+  bikjangRule?: boolean;
+  passesInRow?: number;
 }) => ({
   position: 국면(opts.fen),
   legal: new Set(opts.legal),
@@ -38,6 +42,8 @@ const 입력 = (opts: {
   ready: opts.ready ?? true,
   plies: opts.plies,
   pointsRule: opts.pointsRule,
+  bikjangRule: opts.bikjangRule,
+  passesInRow: opts.passesInRow,
 });
 
 describe("대국 중", () => {
@@ -273,5 +279,103 @@ describe("대국자 카드 표시", () => {
     const 비김 = { kind: "points", winner: null } as const;
     expect(sideTag(진행중, 비김, "cho")?.text).toBe("무승부");
     expect(sideTag(진행중, 비김, "han")?.text).toBe("무승부");
+  });
+});
+
+/*
+ * 빅장과 양쪽 한수쉼.
+ *
+ * 아래 국면과 합법수는 엔진(Fairy-Stockfish)에 직접 물어 받은 것이다.
+ * 한 궁 e10, 초 차 a2, 초 궁 d1 에서 초가 궁을 e1 로 옮기면(d1e1) 두 궁이 e 줄에서
+ * 마주 본다. 표준·전통에서 한이 둘 수 있는 수는 한수쉼·궁 비키기 셋뿐이고
+ * (e10e9 처럼 줄에 남는 수는 안 준다), 한수쉼으로 받으면 엔진은 수를 하나도
+ * 내놓지 않는다. 현대에서는 e10e9 도 되고 판이 이어진다.
+ */
+describe("빅장", () => {
+  // d1e1 뒤: 두 궁이 e 줄에서 마주 보고, 한 차례
+  const 빅장 = "4k4/9/9/9/9/9/9/9/R8/4K4 b - - 1 1";
+  // d1e1 e10e10 뒤: 한이 한수쉼으로 받았다, 초 차례
+  const 받음 = "4k4/9/9/9/9/9/9/9/R8/4K4 w - - 2 2";
+  const 표준 = { pointsRule: true, bikjangRule: true };
+  const 전통 = { pointsRule: false, bikjangRule: true };
+  const 현대 = { pointsRule: true, bikjangRule: false };
+
+  it("두 궁 사이가 비었을 때만 마주 본다", () => {
+    expect(kingsFacing(국면(빅장))).toBe(true);
+    expect(kingsFacing(국면("4k4/9/4r4/9/9/9/9/9/R8/4K4 b - - 1 1"))).toBe(false);
+    expect(kingsFacing(국면("4k4/9/9/9/9/9/9/9/R8/3K5 w - - 0 1"))).toBe(false);
+    expect(kingsFacing(국면(START_FEN))).toBe(false);
+  });
+
+  it("빅장이 걸리면 받은 쪽이 풀어야 한다", () => {
+    const s = gameStatus(입력({ fen: 빅장, legal: ["e10e10", "e10d10", "e10f10"], ...표준 }));
+    expect(s).toEqual({ kind: "facing", side: "han" });
+    expect(isGameOver(s)).toBe(false);
+    expect(sideTag(s, null, "han")).toEqual({ text: "빅장", tone: "check" });
+    expect(sideTag(s, null, "cho")).toBeNull();
+  });
+
+  it("빅장 규칙이 없으면(현대) 마주 봐도 아무 일이 없다", () => {
+    const s = gameStatus(입력({ fen: 빅장, legal: ["e10e9", "e10d10", "e10f10", "e10e10"], ...현대 }));
+    expect(s.kind).toBe("playing");
+  });
+
+  it("받으면 점수로 갈린다 (표준) - 앞선 쪽이 이긴다", () => {
+    const s = gameStatus(입력({ fen: 받음, legal: [], passesInRow: 1, ...표준 }));
+    expect(s).toMatchObject({ kind: "bikjang", winner: "cho", cho: 13, han: HAN_DEOM });
+    expect(isGameOver(s)).toBe(true);
+    expect(outcomeOf(s, null, null)).toEqual({ kind: "bikjang", winner: "cho" });
+    expect(statusMessage(s)).toBe("빅장 - 점수로 초 승 (13 : 1.5)");
+  });
+
+  it("받으면 비긴다 (전통)", () => {
+    const s = gameStatus(입력({ fen: 받음, legal: [], passesInRow: 1, ...전통 }));
+    expect(s).toMatchObject({ kind: "bikjang", winner: null });
+    expect(outcomeMessage(outcomeOf(s, null, null)!)).toBe("빅장 - 비겼습니다.");
+  });
+
+  it("예전처럼 둘 차례인 쪽의 패(수몰)로 읽지 않는다", () => {
+    // 받은 뒤 초 차례라, 수몰로 읽으면 초가 진다. 초가 차 하나 앞서는데도.
+    const s = gameStatus(입력({ fen: 받음, legal: [], passesInRow: 1, ...표준 }));
+    expect(s.kind).not.toBe("stalemate");
+  });
+
+  it("장군이 먼저다 - 마주 보면서 장군이면 장군", () => {
+    const s = gameStatus(입력({ fen: 빅장, legal: ["e10d10"], checkers: ["a10"], ...표준 }));
+    expect(s.kind).toBe("check");
+  });
+});
+
+describe("양쪽 한수쉼", () => {
+  // 궁만 남은 한 쪽과 차 하나 앞선 초가 차례로 한수쉼을 뒀다(d1d1 e10e10). 궁은 d·e 줄로 갈려 있다.
+  const 쉼 = "4k4/9/9/9/9/9/9/9/R8/3K5 w - - 2 2";
+
+  it("끝에서부터 이어진 한수쉼을 센다", () => {
+    expect(trailingPasses([])).toBe(0);
+    expect(trailingPasses(["a4a5", "e9e9"])).toBe(1);
+    expect(trailingPasses(["a4a5", "e2e2", "e9e9"])).toBe(2);
+    expect(trailingPasses(["e2e2", "a7a6", "e9e9"])).toBe(1);
+  });
+
+  it("양쪽이 이어 쉬면 점수로 갈린다 (표준·현대)", () => {
+    const s = gameStatus(입력({ fen: 쉼, legal: [], passesInRow: 2, pointsRule: true, bikjangRule: false }));
+    expect(s).toMatchObject({ kind: "passes", winner: "cho" });
+    expect(outcomeMessage(outcomeOf(s, null, null)!)).toBe("양쪽 한수쉼 - 초가 이겼습니다.");
+  });
+
+  it("전통 규칙이면 비긴다", () => {
+    const s = gameStatus(입력({ fen: 쉼, legal: [], passesInRow: 2, pointsRule: false, bikjangRule: true }));
+    expect(s).toMatchObject({ kind: "passes", winner: null });
+  });
+
+  it("둘 다 아니면 예전처럼 수몰", () => {
+    const s = gameStatus(입력({ fen: 쉼, legal: [], passesInRow: 0, pointsRule: true, bikjangRule: true }));
+    expect(s.kind).toBe("stalemate");
+  });
+
+  it("결과 카드에는 빅장패·점수패로 적는다", () => {
+    expect(sideTag({ kind: "playing" }, { kind: "bikjang", winner: "cho" }, "han")).toEqual({ text: "빅장패", tone: "lose" });
+    expect(sideTag({ kind: "playing" }, { kind: "passes", winner: "cho" }, "han")).toEqual({ text: "점수패", tone: "lose" });
+    expect(sideTag({ kind: "playing" }, { kind: "bikjang", winner: null }, "han")).toEqual({ text: "무승부", tone: "draw" });
   });
 });

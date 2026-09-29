@@ -81,6 +81,15 @@ describe("목록에 적을 승부", () => {
     expect(진("points")).toBe("점수패");
     expect(진("stalemate")).toBe("패");
     expect(진("record")).toBe("패");
+    expect(진("bikjang")).toBe("빅장패");
+    expect(진("passes")).toBe("점수패");
+  });
+
+  it("빅장·양쪽 한수쉼으로 끝난 판도 다시 읽힌다", () => {
+    // 끝나는 길을 늘리면서 받아 줄 종류 목록을 빠뜨리면, 새로고침할 때 사라진다
+    const 빅장 = 판({ id: "b", result: { kind: "bikjang", winner: null } });
+    const 쉼 = 판({ id: "p", result: { kind: "passes", winner: "cho" } });
+    expect(readArchive([빅장, 쉼]).map((g) => g.id).sort()).toEqual(["b", "p"]);
   });
 
   it("비긴 판, 그만둔 판", () => {

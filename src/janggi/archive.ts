@@ -82,6 +82,9 @@ const HOW: Record<ArchivedKind, string> = {
   checkmate: "외통",
   stalemate: "",
   points: "점수",
+  bikjang: "빅장",
+  // 양쪽 한수쉼은 점수로 갈린 것이라 목록에서는 점수승·점수패로 적는다.
+  passes: "점수",
   resign: "기권",
   flag: "시간",
   abandoned: "",
@@ -138,9 +141,23 @@ export function whenLabel(endedAt: number, now = Date.now()): string {
 // 목록 전체를 버리면 안 되므로, 판마다 따져서 멀쩡한 것만 남긴다.
 
 const SIDES = ["cho", "han"];
-const KINDS: ArchivedKind[] = [
-  "checkmate", "stalemate", "points", "resign", "flag", "abandoned", "record",
-];
+/*
+ * 받아 줄 결과 종류. 배열로 적어 두었을 때는 끝나는 길(빅장·양쪽 한수쉼)을 늘리면서
+ * 여기를 빠뜨려, 그렇게 끝난 판이 새로고침하면 목록에서 사라질 뻔했다. 종류마다
+ * 키를 두는 표로 두면 하나라도 빠질 때 타입 검사가 잡는다.
+ */
+const KIND_TABLE: Record<ArchivedKind, true> = {
+  checkmate: true,
+  stalemate: true,
+  points: true,
+  bikjang: true,
+  passes: true,
+  resign: true,
+  flag: true,
+  abandoned: true,
+  record: true,
+};
+const KINDS = Object.keys(KIND_TABLE) as ArchivedKind[];
 
 function isPly(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;

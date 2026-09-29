@@ -34,10 +34,12 @@ interface Props {
   onUndo: () => void;
   onFlip: () => void;
   onPass: () => void;
+  /** 한수쉼 버튼의 툴팁을 바꿔 달 때. 빅장이 걸리면 한수쉼이 빅장을 받는 수가 된다. */
+  passTitle?: string;
 }
 
 export function BoardControls(props: Props) {
-  const { mode, cursor, last, canTouch, onJump, onUndo, onFlip, onPass } = props;
+  const { mode, cursor, last, canTouch, onJump, onUndo, onFlip, onPass, passTitle } = props;
 
   const atStart = cursor === 0;
   const atEnd = cursor >= last;
@@ -102,7 +104,7 @@ export function BoardControls(props: Props) {
           <button
             type="button"
             disabled={!canTouch}
-            title="궁을 제자리에 두는 것이 장기의 한수쉼입니다"
+            title={passTitle ?? "궁을 제자리에 두는 것이 장기의 한수쉼입니다"}
             onClick={onPass}
           >
             한수쉼

@@ -49,6 +49,7 @@ import {
   scoreBoard,
   sideTag,
   statusMessage,
+  trailingPasses,
 } from "./janggi/status";
 import type { Outcome } from "./janggi/status";
 import {
@@ -441,8 +442,11 @@ export default function App() {
 
   // --- 대국 상태 --------------------------------------------------------
 
-  // 전통 규칙에는 점수제가 없어서 수 제한으로 갈리지 않는다.
+  // 전통 규칙에는 점수제가 없어서 수 제한으로 갈리지 않고, 빅장·양쪽 한수쉼은 비긴다.
   const pointsRule = variant !== "janggitraditional";
+  // 현대(카카오) 규칙에는 빅장이 없다. 두 궁이 마주 봐도 아무 일이 없다.
+  const bikjangRule = variant !== "janggimodern";
+  const passesInRow = useMemo(() => trailingPasses(positionRef.moves), [positionRef]);
   const gstatus = useMemo(
     () =>
       gameStatus({
@@ -453,8 +457,10 @@ export default function App() {
         // 지금 보고 있는 국면까지 둔 총 수. history[0] 이 시작 국면이다.
         plies: cursor,
         pointsRule,
+        bikjangRule,
+        passesInRow,
       }),
-    [position, legal, checkers, probed, cursor, pointsRule]
+    [position, legal, checkers, probed, cursor, pointsRule, bikjangRule, passesInRow]
   );
 
   /**
@@ -645,11 +651,14 @@ export default function App() {
   const [callout, setCallout] = useState<{ text: string; key: number } | null>(null);
 
   /*
-   * 방금 둔 수로 장군이 걸렸으면 판 가운데에 외친다.
+   * 방금 둔 수로 장군이나 빅장이 걸렸으면 판 가운데에 외친다.
    *
    * 장군을 받은 쪽이 그 수로 피하면서 되받아 장군을 부르면 멍군이다 - 앞 국면도
    * 장군, 이번 국면도 장군. 외통은 외치지 않는다. 결과 창이 바로 뜨기 때문이다.
    * 되짚거나 무르다가 장군 국면에 와도 외치지 않는다(방금 둔 수일 때만).
+   *
+   * 빅장도 외친다. 받은 쪽은 궁을 비키거나 막아야 하고, 모르고 한수쉼을 두면 판이
+   * 끝난다. 두 궁이 마주 선 것은 판을 봐서는 눈에 잘 안 띈다.
    */
   useEffect(() => {
     if (mode !== "play" || !probed) return;
@@ -657,9 +666,12 @@ export default function App() {
     checkAt.current.set(playCursor, inCheck);
     if (justMoved.current !== playCursor) return;
     justMoved.current = null;
-    if (!inCheck || gstatus.kind !== "check") return;
-    const text = checkAt.current.get(playCursor - 1) ? "멍군!" : "장군!";
-    setCallout({ text, key: playCursor });
+    if (gstatus.kind === "check") {
+      const text = checkAt.current.get(playCursor - 1) ? "멍군!" : "장군!";
+      setCallout({ text, key: playCursor });
+    } else if (gstatus.kind === "facing") {
+      setCallout({ text: "빅장!", key: playCursor });
+    }
   }, [mode, probed, checkers, playCursor, gstatus.kind]);
 
   useEffect(() => {
@@ -1457,6 +1469,14 @@ export default function App() {
               onUndo={undoMove}
               onFlip={flip}
               onPass={passMove}
+              passTitle={
+                // 빅장이 걸린 쪽의 한수쉼은 빅장을 받는 수라 판이 끝난다. 모르고 누르지 않게.
+                gstatus.kind === "facing"
+                  ? pointsRule
+                    ? "한수쉼을 두면 빅장을 받아 점수로 승부를 가립니다"
+                    : "한수쉼을 두면 빅장을 받아 비깁니다"
+                  : undefined
+              }
             />
 
             {mode === "play" && (

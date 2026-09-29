@@ -30,10 +30,14 @@ import { Dropdown } from "../Dropdown";
  * 볼까' 지만 규칙은 '이 판을 어떻게 둘까' 라서 성격이 다르다. 판이 시작되면
  * 상차림과 같이 잠근다 — 두던 중에 승부 조건이 바뀌면 안 된다.
  */
+/*
+ * 설명은 무엇이 다른지만 적는다. 셋 다 한 줄 남짓이 되게 줄였다.
+ * 양쪽이 한수쉼을 이어 두면 판이 끝나는 것은 셋이 같다(점수제면 점수로, 전통은 비김).
+ */
 const VARIANTS: { id: EngineOptions["variant"]; label: string; desc: string }[] = [
-  { id: "janggi", label: "표준", desc: "빅장 있음 · 200수 뒤 점수제 판정" },
-  { id: "janggimodern", label: "현대(카카오)", desc: "빅장 없음 · 수 반복 금지 · 200수 뒤 점수제" },
-  { id: "janggitraditional", label: "전통", desc: "빅장 무승부 · 점수제 없음" },
+  { id: "janggi", label: "표준", desc: "빅장은 점수로 · 200수 뒤 점수로" },
+  { id: "janggimodern", label: "현대(카카오)", desc: "빅장 없음 · 같은 수 되풀이 금지 · 200수 뒤 점수로" },
+  { id: "janggitraditional", label: "전통", desc: "빅장은 무승부 · 점수제 없음" },
 ];
 
 interface Props {

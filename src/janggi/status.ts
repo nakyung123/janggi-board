@@ -13,7 +13,7 @@
 // 그래서 판정 기준은 "장군인데 한수쉼 말고는 둘 게 없음" 이다.
 
 import type { Position, Square } from "./board";
-import { validate } from "./board";
+import { rankOf, validate } from "./board";
 import { 이가 } from "./korean";
 import { splitMove } from "./notation";
 import type { Side } from "./pieces";
@@ -28,8 +28,18 @@ export type GameStatus =
   | { kind: "stalemate"; loser: Side; winner: Side }
   /** 장군 — 아직 피할 수 있다 */
   | { kind: "check"; side: Side; by: Square[] }
+  /**
+   * 빅장이 걸렸다 — 두 궁이 한 줄에서 사이에 아무것도 없이 마주 본다.
+   * side(둘 차례)가 궁을 비키거나 기물로 막아 풀고, 한수쉼을 두면 빅장을 받아
+   * 판이 끝난다(bikjang). 궁을 그 줄에 둔 채 옮기는 수는 엔진이 주지 않는다.
+   */
+  | { kind: "facing"; side: Side }
   /** 수 제한에 걸려 점수로 갈렸다 */
   | { kind: "points"; winner: Side | null; cho: number; han: number }
+  /** 빅장을 받아 끝났다. 점수제 규칙이면 점수로 갈리고, 아니면(전통) 비긴다 */
+  | { kind: "bikjang"; winner: Side | null; cho: number; han: number }
+  /** 양쪽이 한수쉼을 이어 두어 끝났다. 점수제 규칙이면 점수로, 아니면 비긴다 */
+  | { kind: "passes"; winner: Side | null; cho: number; han: number }
   | { kind: "playing" };
 
 /**
@@ -46,6 +56,30 @@ function isPassMove(move: string): boolean {
   return Boolean(from) && from === to;
 }
 
+/** 수순 끝에서부터 한수쉼이 몇 번 이어졌는지. 양쪽이 이어 쉬면(2) 판이 끝난다. */
+export function trailingPasses(moves: string[]): number {
+  let n = 0;
+  for (let i = moves.length - 1; i >= 0 && isPassMove(moves[i]); i--) n++;
+  return n;
+}
+
+/** 두 궁이 한 줄(세로)에서 사이에 아무 기물 없이 마주 보는지. 빅장이다. */
+export function kingsFacing(position: Position): boolean {
+  let cho: Square | null = null;
+  let han: Square | null = null;
+  for (const [square, piece] of Object.entries(position.board)) {
+    if (piece === "K") cho = square;
+    else if (piece === "k") han = square;
+  }
+  if (!cho || !han || cho[0] !== han[0]) return false;
+  const lo = Math.min(rankOf(cho), rankOf(han));
+  const hi = Math.max(rankOf(cho), rankOf(han));
+  for (let r = lo + 1; r < hi; r++) {
+    if (position.board[cho[0] + r]) return false;
+  }
+  return true;
+}
+
 export interface StatusInput {
   position: Position;
   legal: Set<string>;
@@ -56,6 +90,10 @@ export interface StatusInput {
   plies?: number;
   /** 점수제를 쓰는 규칙인지. 전통 규칙에는 점수제가 없다. */
   pointsRule?: boolean;
+  /** 빅장 규칙을 쓰는지. 현대(카카오) 규칙에는 없다. */
+  bikjangRule?: boolean;
+  /** 수순 끝에서부터 이어진 한수쉼 수(trailingPasses). */
+  passesInRow?: number;
 }
 
 export function gameStatus(input: StatusInput): GameStatus {
@@ -74,11 +112,10 @@ export function gameStatus(input: StatusInput): GameStatus {
   const realMoves = [...legal].filter((m) => !isPassMove(m));
 
   if (realMoves.length === 0) {
-    return checkers.length > 0
-      ? { kind: "checkmate", loser, winner }
-      : legal.size === 0
-        ? { kind: "stalemate", loser, winner }
-        : { kind: "playing" }; // 한수쉼만 가능한 평범한 국면은 아직 대국 중
+    if (checkers.length > 0) return { kind: "checkmate", loser, winner };
+    // 한수쉼만 가능한 평범한 국면은 아직 대국 중
+    if (legal.size > 0) return { kind: "playing" };
+    return endedWithoutMoves(input, loser, winner);
   }
 
   // 외통이 먼저다. 제한 수에 걸리는 그 수가 외통이면 점수가 아니라 외통으로 끝난다.
@@ -90,14 +127,56 @@ export function gameStatus(input: StatusInput): GameStatus {
   if (checkers.length > 0) {
     return { kind: "check", side: position.turn, by: checkers };
   }
+  if (input.bikjangRule && kingsFacing(position)) {
+    return { kind: "facing", side: position.turn };
+  }
   return { kind: "playing" };
 }
 
-export const isGameOver = (s: GameStatus): boolean =>
-  s.kind === "checkmate" || s.kind === "stalemate" || s.kind === "points";
+/*
+ * 장군이 아닌데 엔진이 둘 수를 하나도 내놓지 않는 국면.
+ *
+ * 장기에는 한수쉼이 있어서 장군만 아니면 둘 수가 늘 하나는 있다. 그런데도 엔진이
+ * 한수쉼까지 거두는 것은 규칙으로 판이 끝났다는 뜻이다. 엔진(Fairy-Stockfish)에
+ * 물어 확인한 경우는 둘이다.
+ *
+ *   빅장을 받았다   두 궁이 마주 본 채 받은 쪽이 한수쉼을 뒀다 (표준·전통)
+ *   양쪽 한수쉼     두 쪽이 한수쉼을 이어 뒀다 (세 규칙 모두)
+ *
+ * 둘 다 점수제 규칙(표준·현대)이면 덤을 넣은 점수로, 전통이면 비김으로 갈린다.
+ * 예전에는 이것을 전부 '수몰'(둘 차례인 쪽의 패)로 읽었다. 그래서 전통 규칙에서
+ * 내가 한수쉼을 두고 엔진이 비기려고 한수쉼으로 받으면, 비긴 판이 내 패로 적혔다.
+ * 수몰은 이 둘이 아닐 때만 남긴다.
+ */
+function endedWithoutMoves(input: StatusInput, loser: Side, winner: Side): GameStatus {
+  const { position } = input;
+  const s = scoreBoard(position);
+  const byRule = input.pointsRule ? s.leader : null;
+  if (input.bikjangRule && kingsFacing(position)) {
+    return { kind: "bikjang", winner: byRule, cho: s.cho, han: s.han };
+  }
+  if ((input.passesInRow ?? 0) >= 2) {
+    return { kind: "passes", winner: byRule, cho: s.cho, han: s.han };
+  }
+  return { kind: "stalemate", loser, winner };
+}
 
-/** 대국이 끝나는 다섯 가지 길. */
-export type OutcomeKind = "checkmate" | "stalemate" | "points" | "resign" | "flag";
+export const isGameOver = (s: GameStatus): boolean =>
+  s.kind === "checkmate" ||
+  s.kind === "stalemate" ||
+  s.kind === "points" ||
+  s.kind === "bikjang" ||
+  s.kind === "passes";
+
+/** 대국이 끝나는 일곱 가지 길. */
+export type OutcomeKind =
+  | "checkmate"
+  | "stalemate"
+  | "points"
+  | "bikjang"
+  | "passes"
+  | "resign"
+  | "flag";
 
 export interface Outcome {
   /**
@@ -131,6 +210,8 @@ export function outcomeOf(
   if (status.kind === "checkmate") return { kind: "checkmate", winner: status.winner };
   if (status.kind === "stalemate") return { kind: "stalemate", winner: status.winner };
   if (status.kind === "points") return { kind: "points", winner: status.winner };
+  if (status.kind === "bikjang") return { kind: "bikjang", winner: status.winner };
+  if (status.kind === "passes") return { kind: "passes", winner: status.winner };
   return null;
 }
 
@@ -138,6 +219,8 @@ const OUTCOME_HOW: Record<Outcome["kind"], string> = {
   checkmate: "외통",
   stalemate: "둘 수가 없음",
   points: `${MOVE_LIMIT}수 점수`,
+  bikjang: "빅장",
+  passes: "양쪽 한수쉼",
   resign: "기권",
   flag: "시간패",
   record: "불러온 기보",
@@ -163,6 +246,15 @@ export function statusMessage(s: GameStatus): string | null {
       return s.winner === null
         ? `${MOVE_LIMIT}수 - 점수가 같아 비겼습니다 (${s.cho} : ${s.han})`
         : `${MOVE_LIMIT}수 - 점수로 ${SIDE_LABEL[s.winner]} 승 (${s.cho} : ${s.han})`;
+    case "facing":
+      return `${SIDE_LABEL[s.side]} 빅장`;
+    case "bikjang":
+    case "passes": {
+      const how = s.kind === "bikjang" ? "빅장" : "양쪽 한수쉼";
+      return s.winner === null
+        ? `${how} - 비겼습니다`
+        : `${how} - 점수로 ${SIDE_LABEL[s.winner]} 승 (${s.cho} : ${s.han})`;
+    }
     case "invalid":
       return "대국으로 성립하지 않는 국면입니다";
     default:
@@ -181,6 +273,8 @@ const LOSE_TAG: Record<Outcome["kind"], string> = {
   checkmate: "외통패",
   stalemate: "패",
   points: "점수패",
+  bikjang: "빅장패",
+  passes: "점수패",
   resign: "기권패",
   flag: "시간패",
   record: "패",
@@ -208,6 +302,10 @@ export function sideTag(
   }
   if (status.kind === "check" && status.side === side) {
     return { text: "장군", tone: "check" };
+  }
+  // 빅장도 받은 쪽이 지금 무언가 해야 하는 일이라 장군과 같은 칸에 띄운다.
+  if (status.kind === "facing" && status.side === side) {
+    return { text: "빅장", tone: "check" };
   }
   return null;
 }
