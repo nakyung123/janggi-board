@@ -37,7 +37,7 @@ import { playMoveSound, playPickSound } from "./audio/sound";
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
 import { arrowOf, describeMove, splitMove } from "./janggi/notation";
-import type { PieceType, Side } from "./janggi/pieces";
+import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
 import { applySetup, detectSetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
@@ -562,11 +562,34 @@ export default function App() {
   /** 지금 둘 차례. 시계에서 "누구 시간을 깎을지" 를 정하는 값이기도 하다. */
   const mover = position.turn;
 
+  /**
+   * 방금 둔 수의 날아오는 모양(Board 의 flyMove). ply 는 그 수로 생긴 국면 번호라,
+   * 무르거나 되짚어 다른 국면을 보고 있으면 날지 않는다.
+   */
+  const [fly, setFly] = useState<{
+    from: Square;
+    to: Square;
+    captured?: PieceChar;
+    ply: number;
+    /** 날 때마다 다른 값. 무르고 같은 번호의 국면을 다시 둬도 새로 난다. */
+    key: number;
+  } | null>(null);
+
+  /** 방금 수를 둬서 생긴 국면 번호. 장군·멍군을 그 순간에만 외치려고 기억한다. */
+  const justMoved = useRef<number | null>(null);
+
   const pushMove = useCallback(
-    (from: Square, to: Square) => {
+    (from: Square, to: Square, animate = true) => {
       // 소리는 판을 고치기 전에 낸다. 여기를 사람도 엔진도 다 지나가므로
       // 한 군데만 손보면 된다. 한수쉼(제자리 수)은 잡는 게 아니다.
       playMoveSound(from !== to && position.board[to] ? "capture" : "move");
+      // 끌어서 둔 수는 손으로 이미 옮겼으니 날리지 않는다. 한수쉼은 움직임이 없다.
+      setFly(
+        animate && from !== to
+          ? { from, to, captured: position.board[to], ply: playCursor + 1, key: Date.now() }
+          : null
+      );
+      justMoved.current = playCursor + 1;
       setPlayHistory((prev) => {
         const base = prev.slice(0, playCursor + 1);
         const current = parseFen(base[base.length - 1].fen);
@@ -592,6 +615,41 @@ export default function App() {
     },
     [playCursor, mover, clockSettings, position.board]
   );
+
+  // --- 장군·멍군 ---------------------------------------------------------
+
+  /**
+   * 국면마다 장군이 걸려 있었는지. 멍군을 가리려면 '바로 앞 국면' 이 장군이었는지
+   * 알아야 한다. 대국 탭의 국면은 다음 수를 두기 전에 반드시 엔진 응답(probed)을
+   * 받으므로(합법수가 있어야 둘 수 있다) 앞 국면의 값은 늘 채워져 있다.
+   */
+  const checkAt = useRef(new Map<number, boolean>());
+  const [callout, setCallout] = useState<{ text: string; key: number } | null>(null);
+
+  /*
+   * 방금 둔 수로 장군이 걸렸으면 판 가운데에 외친다.
+   *
+   * 장군을 받은 쪽이 그 수로 피하면서 되받아 장군을 부르면 멍군이다 - 앞 국면도
+   * 장군, 이번 국면도 장군. 외통은 외치지 않는다. 결과 창이 바로 뜨기 때문이다.
+   * 되짚거나 무르다가 장군 국면에 와도 외치지 않는다(방금 둔 수일 때만).
+   */
+  useEffect(() => {
+    if (mode !== "play" || !probed) return;
+    const inCheck = checkers.length > 0;
+    checkAt.current.set(playCursor, inCheck);
+    if (justMoved.current !== playCursor) return;
+    justMoved.current = null;
+    if (!inCheck || gstatus.kind !== "check") return;
+    const text = checkAt.current.get(playCursor - 1) ? "멍군!" : "장군!";
+    setCallout({ text, key: playCursor });
+  }, [mode, probed, checkers, playCursor, gstatus.kind]);
+
+  useEffect(() => {
+    if (!callout) return;
+    // CSS 가 1.1초에 걸쳐 떴다 사라진다. 요소는 조금 뒤에 걷는다.
+    const t = window.setTimeout(() => setCallout(null), 1200);
+    return () => window.clearTimeout(t);
+  }, [callout]);
 
   // --- 시계 ------------------------------------------------------------
 
@@ -760,9 +818,10 @@ export default function App() {
     }
   };
 
+  // 끌어서 둔 수. 기물은 손을 따라 이미 도착했으므로 날리지 않는다.
   const handleMove = (from: Square, to: Square) => {
     if (!canTouchBoard) return;
-    if (legalFrom.get(from)?.includes(to)) pushMove(from, to);
+    if (legalFrom.get(from)?.includes(to)) pushMove(from, to, false);
     else setSelected(null);
   };
 
@@ -784,6 +843,15 @@ export default function App() {
     setSelected(null);
     setResigned(null);
     resetClocks();
+    forgetMoves();
+  };
+
+  /** 판을 새로 놓으면 지난 판의 날던 수·장군 기억을 버린다. 국면 번호가 다시 0부터다. */
+  const forgetMoves = () => {
+    setFly(null);
+    setCallout(null);
+    justMoved.current = null;
+    checkAt.current.clear();
   };
 
   /**
@@ -811,6 +879,7 @@ export default function App() {
     setSelected(null);
     setResigned(null);
     resetClocks();
+    forgetMoves();
     playedFor.current = null;
     setNotice(`새 대국을 시작합니다. 상대는 ${level.name} 입니다.`);
   };
@@ -1303,6 +1372,9 @@ export default function App() {
                   onMove={handleMove}
                   onPick={handleSquareClick}
                   canPick={canPick}
+                  // 대국 탭에서, 방금 둔 그 국면을 보고 있을 때만 난다.
+                  flyMove={mode === "play" && fly && fly.ply === playCursor ? fly : null}
+                  callout={mode === "play" ? callout : null}
                 />
               </div>
 

@@ -7,7 +7,9 @@ import { useCallback, useRef, useState } from "react";
 import type { Board as BoardMap, Square } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
 import { pieceInfo } from "../../janggi/pieces";
+import type { PieceChar } from "../../janggi/pieces";
 import { toJanggiCoord } from "../../janggi/notation";
+import { CheckCallout } from "./CheckCallout";
 import { PieceBody, PieceDefs } from "./PieceGlyph";
 
 const CELL = 62;
@@ -54,6 +56,17 @@ export interface BoardProps {
    * 생각하는 동안에도, 복기 중에도 그랬다.
    */
   canPick?: (square: Square) => boolean;
+  /**
+   * 방금 둔 수. 있으면 도착한 기물이 출발 자리에서 날아온다.
+   *
+   * 예전에는 기물이 순간이동처럼 도착 자리에 나타났다. 엔진이 둔 수는 특히 어느
+   * 기물이 움직였는지 판을 훑어야 알았다. 끌어서 둔 수는 손으로 이미 옮겼으므로
+   * 부르는 쪽이 넘기지 않는다. 잡힌 기물은 날아오는 동안 제자리에서 사라진다.
+   * key 가 바뀔 때마다 한 번 난다.
+   */
+  flyMove?: { from: Square; to: Square; captured?: PieceChar; key: number } | null;
+  /** 장군·멍군. 판 가운데에 잠깐 떴다 사라진다(CheckCallout). key 가 바뀔 때마다 한 번. */
+  callout?: { text: string; key: number } | null;
 }
 
 export function Board(props: BoardProps) {
@@ -70,6 +83,8 @@ export function Board(props: BoardProps) {
     onMove,
     onPick,
     canPick,
+    flyMove,
+    callout,
   } = props;
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -241,6 +256,13 @@ export function Board(props: BoardProps) {
     // 다만 고른 내 기물로 잡을 수 있는 상대 기물은 누를 곳이라 손가락 커서다.
     const fixed = canPick !== undefined && !canPick(square);
     const takeable = fixed && targetSet.has(square);
+
+    // 방금 도착한 기물이면 출발 자리만큼 거꾸로 밀어 두고 제자리로 날려 보낸다.
+    // 판을 뒤집었으면 posOf 가 이미 뒤집힌 좌표를 주므로 차이도 맞게 나온다.
+    const flying = !dragging && flyMove && flyMove.to === square ? flyMove : null;
+    const from = flying ? posOf(flying.from) : null;
+    const body = <PieceBody piece={piece} radius={r} />;
+
     return (
       <g
         key={square}
@@ -255,7 +277,22 @@ export function Board(props: BoardProps) {
         onPointerDown={(e) => handlePointerDown(e, square)}
         style={{ opacity: drag && drag.from === square && !dragging && !drag.held ? 0.25 : 1 }}
       >
-        <PieceBody piece={piece} radius={r} />
+        {flying && from ? (
+          <g
+            key={flying.key}
+            className="fly"
+            style={
+              {
+                "--fly-x": `${from.x - p.x}px`,
+                "--fly-y": `${from.y - p.y}px`,
+              } as React.CSSProperties
+            }
+          >
+            {body}
+          </g>
+        ) : (
+          body
+        )}
       </g>
     );
   };
@@ -448,7 +485,25 @@ export function Board(props: BoardProps) {
         );
       })}
 
-      {squares.map((s) => renderPiece(s, false))}
+      {/* 날아오는 동안 잡힌 기물은 도착 자리에 남아 있다가 사라진다. */}
+      {flyMove?.captured &&
+        (() => {
+          const p = posOf(flyMove.to);
+          const info = pieceInfo(flyMove.captured);
+          return (
+            <g
+              key={"taken" + flyMove.key}
+              className="taken"
+              transform={`translate(${p.x} ${p.y})`}
+            >
+              <PieceBody piece={flyMove.captured} radius={(CELL / 2) * info.size * 0.94} />
+            </g>
+          );
+        })()}
+
+      {/* 날아오는 기물은 다른 기물 위로 지나가야 해서 맨 나중에 그린다. */}
+      {squares.filter((s) => s !== flyMove?.to).map((s) => renderPiece(s, false))}
+      {flyMove && renderPiece(flyMove.to, false)}
 
       {/* 엔진 추천수(파랑)와 미리보기 수(노랑) */}
       {arrows.map((a) => {
@@ -472,6 +527,10 @@ export function Board(props: BoardProps) {
         <g className="drag-layer">
           {renderPiece(drag.from, true)}
         </g>
+      )}
+
+      {callout && (
+        <CheckCallout key={callout.key} text={callout.text} x={WIDTH / 2} y={HEIGHT / 2} />
       )}
     </svg>
   );

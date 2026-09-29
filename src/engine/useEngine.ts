@@ -120,9 +120,20 @@ export function useAnalysis(
     key: string;
     snap: AnalysisSnapshot;
   } | null>(null);
-  const [legal, setLegal] = useState<Set<string>>(new Set());
-  const [checkers, setCheckers] = useState<string[]>([]);
-  const [probed, setProbed] = useState(false);
+  /*
+   * 합법수·장군도 '어느 국면의 것인지' 꼬리표를 단다.
+   *
+   * 예전에는 probed 를 따로 두고 국면이 바뀌면 effect 에서 false 로 돌렸다.
+   * 그런데 effect 는 그린 뒤에 돈다. 수를 둔 직후 한 번은 probed 가 여전히 true
+   * 이고 legal·checkers 는 앞 국면의 것이었다. 장군·멍군을 외치는 쪽이 그 한 번을
+   * 새 국면의 값으로 읽어서, 엔진이 장군을 피한 수를 "멍군!" 이라고 외쳤다.
+   * 꼬리표가 지금 국면과 맞을 때만 내보내면 그 틈이 없다.
+   */
+  const [probe, setProbe] = useState<{
+    key: string;
+    legal: Set<string>;
+    checkers: string[];
+  } | null>(null);
   // 같은 국면이면 같은 문자열. 이걸로 늦게 도착한 결과를 걸러낸다.
   const key = positionKey(ref);
   const keyRef = useRef(key);
@@ -133,22 +144,17 @@ export function useAnalysis(
   useEffect(() => {
     if (!engine) return;
     let alive = true;
-    setProbed(false);
 
     const timer = window.setTimeout(() => {
       void engine
         .probe(refBox.current)
         .then((r) => {
           if (!alive) return;
-          setLegal(new Set(r.legal));
-          setCheckers(r.checkers);
-          setProbed(true);
+          setProbe({ key, legal: new Set(r.legal), checkers: r.checkers });
         })
         .catch(() => {
           if (!alive) return;
-          setLegal(new Set());
-          setCheckers([]);
-          setProbed(false);
+          setProbe(null);
         });
     }, 60);
 
@@ -187,6 +193,16 @@ export function useAnalysis(
 
   // 지금 국면의 결과일 때만 내보낸다.
   const snapshot = tagged && tagged.key === key ? tagged.snap : null;
+  const probed = probe !== null && probe.key === key;
 
-  return { snapshot, legal, checkers, probed };
+  return {
+    snapshot,
+    legal: probed ? probe.legal : NO_MOVES,
+    checkers: probed ? probe.checkers : NO_CHECKERS,
+    probed,
+  };
 }
+
+// 아직 응답이 없을 때 내보내는 빈 값. 매번 새로 만들면 받는 쪽 useMemo 가 헛돈다.
+const NO_MOVES: Set<string> = new Set();
+const NO_CHECKERS: string[] = [];
