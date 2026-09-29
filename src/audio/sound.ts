@@ -112,10 +112,16 @@ export type MoveSound = "move" | "capture";
 
 let ctx: AudioContext | null = null;
 let noise: AudioBuffer | null = null;
+/** 헤더의 소리 버튼이 켜고 끈다. 꺼 두면 모든 소리가 open() 에서 멈춘다. */
+let enabled = true;
 
-/** 소리를 낼 수 있으면 AudioContext 를, 못 내면 null 을 준다. */
+export function setSoundEnabled(on: boolean): void {
+  enabled = on;
+}
+
+/** 소리를 낼 수 있으면 AudioContext 를, 못 내면(꺼 뒀거나 막혔으면) null 을 준다. */
 function open(): AudioContext | null {
-  if (typeof window === "undefined") return null;
+  if (!enabled || typeof window === "undefined") return null;
   if (!ctx) {
     const Ctor =
       window.AudioContext ??

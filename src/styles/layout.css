@@ -92,9 +92,29 @@
   font-weight: 700;
 }
 
+/* 헤더 오른쪽 끝 묶음: 판 상태("잘못된 판") · 소리 버튼. */
+.top-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 소리 버튼은 아이콘만 있는 40 정사각(터치 44). */
+.top-end button.icon {
+  width: 40px;
+  padding: 0;
+  color: var(--text-sub);
+}
+
+@media (pointer: coarse) {
+  .top-end button.icon {
+    width: 44px;
+  }
+}
+
 /* 판이 규칙에 맞지 않을 때만 뜬다("잘못된 판"). 둘 차례는 대국자 카드가 말한다. */
 .turn-tag {
-  margin-left: auto;
   color: var(--warn);
   font-weight: 600;
 }

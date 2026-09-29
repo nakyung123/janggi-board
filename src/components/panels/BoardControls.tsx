@@ -29,6 +29,11 @@ interface Props {
   last: number;
   /** 지금 판을 건드릴 수 있는지. 한수쉼에만 쓴다. */
   canTouch: boolean;
+  /**
+   * 대국 탭의 판이 끝났는지. 끝난 판은 무를 수 없어서 '무르기·다시' 가 기보
+   * 탭처럼 한 칸씩 오가는 '이전·다음' 이 된다(판은 App 이 잠근다).
+   */
+  finished: boolean;
   onJump: (index: number) => void;
   /** 대국 중의 '무르기'는 한 칸이 아니라 내 차례가 나올 때까지 되감는다. */
   onUndo: () => void;
@@ -39,10 +44,13 @@ interface Props {
 }
 
 export function BoardControls(props: Props) {
-  const { mode, cursor, last, canTouch, onJump, onUndo, onFlip, onPass, passTitle } = props;
+  const { mode, cursor, last, canTouch, finished, onJump, onUndo, onFlip, onPass, passTitle } =
+    props;
 
   const atStart = cursor === 0;
   const atEnd = cursor >= last;
+  // 두는 중인 대국에서만 무르기·다시다. 끝난 판과 기보 탭은 한 칸씩 오간다.
+  const undoing = mode === "play" && !finished;
 
   /*
    * 두 줄로 나눈다.
@@ -68,11 +76,11 @@ export function BoardControls(props: Props) {
         <button
           type="button"
           disabled={atStart}
-          onClick={() => (mode === "play" ? onUndo() : onJump(cursor - 1))}
+          onClick={() => (undoing ? onUndo() : onJump(cursor - 1))}
           title="← 키"
         >
           <ChevronLeft {...ICON} />
-          {mode === "play" ? "무르기" : "이전"}
+          {undoing ? "무르기" : "이전"}
         </button>
         <button
           type="button"
@@ -80,7 +88,7 @@ export function BoardControls(props: Props) {
           onClick={() => onJump(cursor + 1)}
           title="→ 키"
         >
-          {mode === "play" ? "다시" : "다음"}
+          {undoing ? "다시" : "다음"}
           <ChevronRight {...ICON} />
         </button>
         <button

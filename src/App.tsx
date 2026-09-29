@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Volume2, VolumeX } from "lucide-react";
 
 import { Board } from "./components/board/Board";
 import { ModeTabs } from "./components/ModeTabs";
@@ -32,7 +32,7 @@ import {
   reviewDepthById,
 } from "./engine/levels";
 import { useKeyboard } from "./hooks/useKeyboard";
-import { playMoveSound, playPickSound, playTickSound } from "./audio/sound";
+import { playMoveSound, playPickSound, playTickSound, setSoundEnabled } from "./audio/sound";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
@@ -228,6 +228,10 @@ export default function App() {
   const [selected, setSelected] = useState<Square | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // 헤더의 소리 버튼. 소리를 내는 effect 들보다 먼저 선언해 같은 렌더에서 먼저 돈다.
+  const [soundOn, setSoundOn] = usePersisted("soundOn", true, (v) => typeof v === "boolean");
+  useEffect(() => setSoundEnabled(soundOn), [soundOn]);
 
   // --- 대국 ------------------------------------------------------------
   // 예전에는 "watch"(구경) 도 값이었다. 그때 골라둔 사람이 있을 수 있는데,
@@ -567,12 +571,13 @@ export default function App() {
   }, [outcome, games, gameId, playHistory, archiveOf]);
 
   /**
-   * 대국 탭의 판이 끝났는지. 설정 잠금과 새 대국 확인 창이 본다.
+   * 대국 탭의 판이 끝났는지. 판·무르기·설정 잠금과 새 대국 확인 창이 본다.
    *
    * over 는 지금 보고 있는 국면의 판정이라, 외통으로 끝난 판을 '이전' 으로
-   * 되짚으면 false 가 된다. 그 틈에 설정이 풀리면 끝난 판의 급수·시계를 바꿀 수
-   * 있다. 그래서 판 전체로 본다 - 끝나는 순간 목록에 들어간 결과가 있고 수순이
-   * 그대로면 끝난 판이다. 끝난 뒤 무르고 다른 수를 두면 수순이 달라져 풀린다.
+   * 되짚으면 false 가 된다. 그것으로 잠그면 앞 국면에서 판이 풀려 끝난 판을
+   * 이어 둘 수 있다. 그래서 판 전체로 본다 - 끝나는 순간 목록에 들어간 결과가
+   * 있고 수순이 그대로면 끝난 판이다. 잠긴 판은 수순이 바뀌지 않으므로 새
+   * 대국을 누를 때까지 끝난 판으로 남는다.
    */
   const archivedSelf = games.find((g) => g.id === gameId);
   const ended =
@@ -823,8 +828,9 @@ export default function App() {
   /**
    * 판을 만질 수 있는지.
    * 대국 탭에서 내 차례에만, 판이 끝나기 전까지. 기보 탭은 지난 판을 읽기만 한다.
+   * over 가 아니라 ended 를 본다 - 끝난 판을 앞 국면으로 되짚어도 잠겨 있어야 한다.
    */
-  const canTouchBoard = mode === "play" && !over && !engineTurn;
+  const canTouchBoard = mode === "play" && !ended && !engineTurn;
 
   /**
    * 집어 들 수 있는 기물. 눌러서 고르는 것(handleSquareClick)과 같은 조건이다.
@@ -1372,11 +1378,27 @@ export default function App() {
           두 번 나왔고, 폰에서는 이 한 줄 때문에 헤더가 두 줄이 됐다.
           규칙에 맞지 않는 판만 여기서 말한다(headTag 주석).
         */}
-        {headTag && (
-          <span className="turn-tag" title={problems?.join(" ")}>
-            {headTag}
-          </span>
-        )}
+        <div className="top-end">
+          {headTag && (
+            <span className="turn-tag" title={problems?.join(" ")}>
+              {headTag}
+            </span>
+          )}
+          {/* 착수음·초읽기 소리를 한 번에 켜고 끈다. 고른 값은 브라우저에 남는다. */}
+          <button
+            type="button"
+            className="ghost icon"
+            onClick={() => setSoundOn((on) => !on)}
+            aria-label={soundOn ? "소리 끄기" : "소리 켜기"}
+            title={soundOn ? "소리 끄기" : "소리 켜기"}
+          >
+            {soundOn ? (
+              <Volume2 size={20} strokeWidth={2} aria-hidden />
+            ) : (
+              <VolumeX size={20} strokeWidth={2} aria-hidden />
+            )}
+          </button>
+        </div>
         <p className="sr-only" role="status">
           {spoken}
         </p>
@@ -1465,6 +1487,7 @@ export default function App() {
               cursor={cursor}
               last={history.length - 1}
               canTouch={canTouchBoard}
+              finished={mode === "play" && ended}
               onJump={goTo}
               onUndo={undoMove}
               onFlip={flip}
