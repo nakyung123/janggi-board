@@ -528,7 +528,13 @@ node scripts/ladder-selfplay.mjs --from ladder-result.json
 
 ## 구조
 
+무엇을 왜 그렇게 골랐는지, 버그를 어떻게 쫓았는지는 [docs/DECISIONS.md](docs/DECISIONS.md)
+에 따로 적는다. 이 README 는 "지금 어떻게 동작하는가" 를, 그쪽은 "왜 그렇게 됐는가" 와
+"무엇을 버렸는가" 를 맡는다.
+
 ```
+docs/DECISIONS.md             기술 기록 (결정 · 사건 · 되돌린 것)
+
 scripts/fetch-engine.mjs      엔진 파일 준비 (복사 + 신경망 다운로드)
 scripts/verify-engine.mjs     브라우저 없이 엔진 점검
 scripts/ladder-selfplay.mjs   급수 사다리 검증 (자가대국 → 레이팅 → 배치)
