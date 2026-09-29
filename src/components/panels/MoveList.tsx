@@ -105,7 +105,7 @@ export function MoveList(props: Props) {
                           onBlur={() => onHoverMove(null)}
                           title={
                             graded
-                              ? `${SIDE_LABEL[side]} · ${cell.notation} — ${GRADE_LABEL[graded.grade]}`
+                              ? `${SIDE_LABEL[side]} · ${cell.notation} - ${GRADE_LABEL[graded.grade]}`
                               : `${SIDE_LABEL[side]} · ${cell.notation}`
                           }
                         >

@@ -16,11 +16,15 @@ import type { GameStatus } from "../../janggi/status";
 import { outcomeMessage, outcomeOf } from "../../janggi/status";
 import { 을를 } from "../../janggi/korean";
 
-/** 내가 잡는 쪽. watch 는 엔진끼리 두는 것을 구경하는 것. */
-export type MySide = Side | "watch";
+/*
+ * 예전에는 '구경'(엔진끼리 두는 것을 지켜보기)이 세 번째 선택지로 있었다.
+ * 내가 잡을 쪽을 고르는 자리에 '아무 쪽도 안 잡는다' 가 끼어 있어서, 고르는
+ * 줄 전체가 무슨 질문인지 흐려졌다. 엔진끼리 두는 것을 보고 싶으면 분석
+ * 모드에서 최선수를 따라 두면 되므로 잃는 것도 없다.
+ */
 
 /** 결과 카드의 색. 이겼는지 졌는지는 글자로도 적으므로 색은 거들 뿐이다. */
-const 승패 = (winner: Side | null, mine: MySide): string =>
+const 승패 = (winner: Side | null, mine: Side): string =>
   winner === null ? "draw" : winner === mine ? "won" : "lost";
 
 /**
@@ -37,7 +41,7 @@ const VARIANTS: { id: EngineOptions["variant"]; label: string; desc: string }[] 
 ];
 
 interface Props {
-  mySide: MySide;
+  mySide: Side;
   levelId: string;
   /** 대국이 이미 시작됐는지 (수를 한 번이라도 뒀는지) */
   started: boolean;
@@ -56,7 +60,7 @@ interface Props {
   /** 엔진이 지금 생각하고 있는지 */
   thinking: boolean;
   analysisOn: boolean;
-  onMySide: (side: MySide) => void;
+  onMySide: (side: Side) => void;
   onLevel: (id: string) => void;
   onSetup: (side: Side, setup: Setup) => void;
   onNewGame: () => void;
@@ -108,21 +112,14 @@ export function PlayPanel(props: Props) {
             [
               ["cho", "초 楚"],
               ["han", "한 漢"],
-              ["watch", "구경"],
             ] as const
           ).map(([id, label]) => (
             <button
               key={id}
               type="button"
-              className={
-                (mySide === id ? "active " : "") + (id === "watch" ? "" : id)
-              }
+              className={(mySide === id ? "active " : "") + id}
               onClick={() => onMySide(id)}
-              title={
-                id === "watch"
-                  ? "엔진끼리 두는 것을 구경합니다"
-                  : `${을를(SIDE_LABEL[id])} 잡고 둡니다`
-              }
+              title={`${을를(SIDE_LABEL[id])} 잡고 둡니다`}
             >
               {label}
             </button>
@@ -141,7 +138,7 @@ export function PlayPanel(props: Props) {
             return (
               <option key={l.id} value={l.id} title={l.desc}>
                 {l.name}
-                {wait && ` — 한 수 ${wait}`}
+                {wait && ` - 한 수 ${wait}`}
               </option>
             );
           })}
@@ -162,7 +159,7 @@ export function PlayPanel(props: Props) {
             </option>
           ))}
           <option value={CUSTOM_CLOCK_ID}>
-            직접 입력 — {describeClock(customClock)}
+            직접 입력 - {describeClock(customClock)}
           </option>
         </select>
       </div>
@@ -247,7 +244,7 @@ export function PlayPanel(props: Props) {
                   title={
                     started
                       ? "대국을 시작하면 바꿀 수 없습니다"
-                      : `${s.alias} — ${s.desc}`
+                      : `${s.alias} - ${s.desc}`
                   }
                   onClick={() => onSetup(side, s)}
                 >
@@ -329,19 +326,16 @@ export function PlayPanel(props: Props) {
       */}
       {outcome && (
         <div className="play-over">
-          {/* 구경 모드에는 '내' 가 없으니 이기고 지고를 말하지 않는다. */}
-          {mySide !== "watch" && (
-            <p className={"play-over-head " + 승패(outcome.winner, mySide)}>
-              {outcome.winner === null
-                ? "비겼습니다"
-                : outcome.winner === mySide
-                  ? "이겼습니다"
-                  : "졌습니다"}
-            </p>
-          )}
+          <p className={"play-over-head " + 승패(outcome.winner, mySide)}>
+            {outcome.winner === null
+              ? "비겼습니다"
+              : outcome.winner === mySide
+                ? "이겼습니다"
+                : "졌습니다"}
+          </p>
           <p className="muted small">
-            {outcomeMessage(outcome)} {moveCount}수에서 끝났습니다.
-            {mySide !== "watch" && ` 상대는 ${level.name} 이었습니다.`}
+            {outcomeMessage(outcome)} {moveCount}수에서 끝났습니다. 상대는{" "}
+            {level.name} 이었습니다.
           </p>
           <div className="row">
             <button type="button" className="primary" onClick={onReview}>

@@ -138,26 +138,26 @@ const OUTCOME_HOW: Record<OutcomeKind, string> = {
   flag: "시간패",
 };
 
-/** 끝난 사연을 한 줄로. "외통 — 초가 이겼습니다." */
+/** 끝난 사연을 한 줄로. "외통 - 초가 이겼습니다." */
 export function outcomeMessage(o: Outcome): string {
   const how = OUTCOME_HOW[o.kind];
-  if (o.winner === null) return `${how} — 비겼습니다.`;
-  return `${how} — ${이가(SIDE_LABEL[o.winner])} 이겼습니다.`;
+  if (o.winner === null) return `${how} - 비겼습니다.`;
+  return `${how} - ${이가(SIDE_LABEL[o.winner])} 이겼습니다.`;
 }
 
 /** 배너에 띄울 한 줄. 상태마다 말투가 다르다. */
 export function statusMessage(s: GameStatus): string | null {
   switch (s.kind) {
     case "checkmate":
-      return `외통 — ${SIDE_LABEL[s.winner]} 승`;
+      return `외통 - ${SIDE_LABEL[s.winner]} 승`;
     case "stalemate":
-      return `둘 수가 없습니다 — ${SIDE_LABEL[s.winner]} 승`;
+      return `둘 수가 없습니다 - ${SIDE_LABEL[s.winner]} 승`;
     case "check":
       return `${SIDE_LABEL[s.side]} 장군`;
     case "points":
       return s.winner === null
-        ? `${MOVE_LIMIT}수 — 점수가 같아 비겼습니다 (${s.cho} : ${s.han})`
-        : `${MOVE_LIMIT}수 — 점수로 ${SIDE_LABEL[s.winner]} 승 (${s.cho} : ${s.han})`;
+        ? `${MOVE_LIMIT}수 - 점수가 같아 비겼습니다 (${s.cho} : ${s.han})`
+        : `${MOVE_LIMIT}수 - 점수로 ${SIDE_LABEL[s.winner]} 승 (${s.cho} : ${s.han})`;
     case "invalid":
       return "대국으로 성립하지 않는 국면입니다";
     default:

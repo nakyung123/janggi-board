@@ -260,7 +260,7 @@ function buildComment(c: CommentInput): string {
     const piece = loses ? null : lossInPieces(c.loss);
     parts.push(
       piece
-        ? `${c.loss.toFixed(1)}점 손해 — ${piece} 됩니다.`
+        ? `${c.loss.toFixed(1)}점 손해 - ${piece} 됩니다.`
         : `${c.loss.toFixed(1)}점 손해입니다.`
     );
   }

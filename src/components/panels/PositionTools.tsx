@@ -146,7 +146,7 @@ export function PositionTools(props: Props) {
                     key={s.id}
                     type="button"
                     className={current?.id === s.id ? "active" : ""}
-                    title={`${s.alias} — ${s.desc}`}
+                    title={`${s.alias} - ${s.desc}`}
                     onClick={() => onSetup(side, s)}
                   >
                     {s.name}

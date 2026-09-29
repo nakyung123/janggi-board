@@ -91,7 +91,7 @@ describe("성립하지 않는 판", () => {
 describe("배너 문구", () => {
   it("상태마다 다른 말이 나온다", () => {
     expect(statusMessage(gameStatus(입력({ legal: ["e2e2"], checkers: ["e9"] })))).toBe(
-      "외통 — 한 승"
+      "외통 - 한 승"
     );
     expect(statusMessage(gameStatus(입력({ legal: ["e2d2"], checkers: ["e9"] })))).toBe(
       "초 장군"

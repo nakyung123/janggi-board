@@ -60,7 +60,7 @@ export function PlayerBar(props: Props) {
         className="player-score"
         title={
           side === "han"
-            ? "기물 점수 — 한(漢)은 후수라 1.5점 덤을 미리 받습니다"
+            ? "기물 점수 - 한(漢)은 후수라 1.5점 덤을 미리 받습니다"
             : "기물 점수"
         }
       >

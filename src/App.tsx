@@ -11,7 +11,6 @@ import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
 import { PlayPanel } from "./components/panels/PlayPanel";
-import type { MySide } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
 import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
@@ -166,7 +165,7 @@ function isSavedGame(v: unknown): boolean {
 }
 
 export default function App() {
-  const { engine, status, progress, error, evalMode } = useEngine();
+  const { engine, status, progress, error } = useEngine();
 
   const [mode, setMode] = useState<Mode>("play");
 
@@ -196,8 +195,10 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
 
   // --- 대국 ------------------------------------------------------------
-  const [mySide, setMySide] = usePersisted<MySide>("mySide", "cho", (v) =>
-    v === "cho" || v === "han" || v === "watch"
+  // 예전에는 "watch"(구경) 도 값이었다. 그때 골라둔 사람이 있을 수 있는데,
+  // 여기서 받아주지 않으면 usePersisted 가 알아서 기본값(초)으로 되돌린다.
+  const [mySide, setMySide] = usePersisted<Side>("mySide", "cho", (v) =>
+    v === "cho" || v === "han"
   );
   // 저장해 둔 급수가 지금 사다리에 없을 수 있다 (단계를 바꾼 적이 있다).
   const [levelId, setLevelId] = usePersisted(
@@ -312,8 +313,8 @@ export default function App() {
 
   // --- 엔진 차례 --------------------------------------------------------
 
-  const engineSide: "none" | Side | "both" =
-    mode !== "play" ? "none" : mySide === "watch" ? "both" : mySide === "cho" ? "han" : "cho";
+  const engineSide: "none" | Side =
+    mode !== "play" ? "none" : mySide === "cho" ? "han" : "cho";
 
   /**
    * 엔진이 지금 둬야 하는지.
@@ -325,7 +326,7 @@ export default function App() {
     mode === "play" &&
     atTip &&
     !editMode &&
-    (engineSide === "both" || engineSide === position.turn);
+    engineSide === position.turn;
 
   /**
    * 엔진의 실력과 탐색량.
@@ -619,7 +620,7 @@ export default function App() {
    * 일어나지 않고 안내도 없다. 실제로 그래서 고장인 줄 알았다.
    *
    * 그래서 내 차례가 나올 때까지 되감는다. 보통 두 수(내 수 + 엔진 응수)다.
-   * 구경 모드나 분석·복기에서는 한 칸씩 움직이는 것이 맞으므로 그대로 둔다.
+   * 분석·복기에서는 한 칸씩 움직이는 것이 맞으므로 그대로 둔다.
    */
   const undoMove = useCallback(() => {
     setSelected(null);
@@ -627,7 +628,7 @@ export default function App() {
       undoTarget(
         history.map((h) => h.fen),
         c,
-        mode === "play" && mySide !== "watch" ? mySide : null
+        mode === "play" ? mySide : null
       )
     );
   }, [mode, mySide, history]);
@@ -712,7 +713,7 @@ export default function App() {
   const canTouchBoard =
     mode === "analyze"
       ? true
-      : mode === "play" && !over && !engineTurn && mySide !== "watch";
+      : mode === "play" && !over && !engineTurn;
 
   const handleSquareClick = (square: Square) => {
     if (editMode) {
@@ -840,7 +841,6 @@ export default function App() {
   );
 
   const resign = () => {
-    if (mySide === "watch") return;
     setResigned(mySide);
     setNotice("기권했습니다. 복기 탭에서 어디가 갈림길이었는지 볼 수 있습니다.");
   };
@@ -1130,9 +1130,12 @@ export default function App() {
     <div className="app">
       <header className="top">
         <h1>장기 분석판</h1>
-        <span className="badge" title={evalMode ?? ""}>
-          {evalMode?.includes("NNUE") ? "신경망 적용됨" : (evalMode ?? "")}
-        </span>
+        {/*
+          예전에는 여기에 "신경망 적용됨" 배지가 있었다. 만든 쪽에서나 뿌듯한
+          말이지 두는 사람에게는 아무 뜻이 없고, 화면에서 제일 좋은 자리를
+          차지하고 있었다. 신경망이 붙었는지는 useEngine 의 evalMode 로 여전히
+          알 수 있다 — 필요하면 콘솔에서 본다.
+        */}
         <ModeTabs mode={mode} onMode={goMode} canReview={history.length > 1} />
 
         <span className="turn-tag">
@@ -1168,12 +1171,12 @@ export default function App() {
             {/* 분석에서는 띄우지 않는다 — 거기서는 끝난 판도 둘 수 있다. */}
             {mode !== "analyze" && resigned && (
               <div className="banner resign">
-                기권 — {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
+                기권 - {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
               </div>
             )}
             {mode !== "analyze" && flagged && (
               <div className="banner resign">
-                시간패 — {이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.
+                시간패 - {이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.
               </div>
             )}
 
