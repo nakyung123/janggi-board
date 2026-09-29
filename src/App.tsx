@@ -42,7 +42,7 @@ import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
 import { describeMove, splitMove } from "./janggi/notation";
 import type { PieceType, Side } from "./janggi/pieces";
 import { SIDE_LABEL, sideOf } from "./janggi/pieces";
-import { applySetup } from "./janggi/setups";
+import { applySetup, detectSetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
 import { gameStatus, isGameOver, outcomeOf, capturedPieces, scoreBoard } from "./janggi/status";
 import {
@@ -1106,6 +1106,14 @@ export default function App() {
 
   const scores = useMemo(() => scoreBoard(position), [position]);
 
+  // 이 판을 어떤 상차림으로 시작했는지. 대국 탭이 고른 칸을 짚는 데 쓴다.
+  // 지금 국면이 아니라 시작 국면을 본다 - 몇 수 두고 나면 마·상이 움직여서
+  // 지금 판으로는 되읽을 수 없다.
+  const startSetups = useMemo(() => {
+    const board = parseFen(history[0].fen).board;
+    return { cho: detectSetup(board, "cho"), han: detectSetup(board, "han") };
+  }, [history]);
+
   const playerOf = useCallback(
     (side: Side) => ({
       side,
@@ -1312,6 +1320,7 @@ export default function App() {
                   playedFor.current = null;
                 }}
                 onLevel={setLevelId}
+                setups={startSetups}
                 onSetup={(side: Side, setup: Setup) =>
                   startFrom(
                     { ...position, board: applySetup(position.board, side, setup) },

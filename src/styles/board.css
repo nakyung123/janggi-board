@@ -366,9 +366,8 @@
 
 /* 진영 표시. 차례가 아닐 때는 색을 빼서 카드 전체가 가라앉게 둔다. */
 .player-mark {
-  font-family: var(--serif);
   font-size: var(--fs-base);
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
   opacity: 0.5;
 }

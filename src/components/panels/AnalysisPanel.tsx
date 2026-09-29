@@ -3,6 +3,7 @@
 // 엔진이 탐색하는 동안 후보 수순 여러 개를 계속 갱신해서 보여준다.
 // 줄에 마우스를 올리면 그 수가 판에 화살표로 표시되고, 누르면 실제로 둔다.
 
+import { PowerOff } from "lucide-react";
 import type { AnalysisSnapshot } from "../../engine/types";
 import type { Board } from "../../janggi/board";
 import {
@@ -43,7 +44,11 @@ export function AnalysisPanel({
     return (
       <div className="panel analysis">
         <div className="panel-title">분석</div>
-        <p className="muted pad">분석이 꺼져 있습니다.</p>
+        <div className="empty">
+          <PowerOff size={24} strokeWidth={1.75} aria-hidden />
+          <p className="empty-title">분석이 꺼져 있습니다</p>
+          <p>바로 아래 엔진 카드에서 실시간 분석을 켜면 후보수가 나옵니다.</p>
+        </div>
       </div>
     );
   }

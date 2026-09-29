@@ -4,6 +4,7 @@
 // 가운데 가로선이 0(팽팽함)이고, 위로 솟으면 초가, 아래로 처지면 한이 좋다.
 // 어디서 판이 기울었는지 한눈에 보라고 만든 것이라 눈금은 최소로만 둔다.
 
+import { ChartLine } from "lucide-react";
 import type { HistoryEntry } from "./MoveList";
 
 interface Props {
@@ -32,9 +33,11 @@ export function EvalGraph({ history, cursor, onJump }: Props) {
     return (
       <div className="panel graph">
         <div className="panel-title">형세</div>
-        <p className="muted pad">
-          수를 두면 국면마다 평가치가 쌓여 흐름이 그려집니다.
-        </p>
+        <div className="empty">
+          <ChartLine size={24} strokeWidth={1.75} aria-hidden />
+          <p className="empty-title">아직 그릴 흐름이 없습니다</p>
+          <p>수를 두면 국면마다 평가치가 쌓여 흐름이 그려집니다.</p>
+        </div>
       </div>
     );
   }

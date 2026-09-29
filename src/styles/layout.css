@@ -87,9 +87,10 @@
   flex-wrap: wrap;
 }
 
+/* 앱 이름. 패널 제목과 같은 20 이지만 한 단계 굵게 둬서 화면의 이름으로 선다. */
 .top h1 {
   font-size: var(--fs-title);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* 편집 중일 때만 뜬다. 그때는 대국자 카드가 빠져서 이 한 줄이 판의 상태를

@@ -68,3 +68,19 @@ CC BY-SA 3.0 은 변경 사실을 밝힐 것을 요구한다. 원본에서 다�
 OFL 1.1 은 글꼴을 프로그램과 함께 배포하는 것을 허용한다. 글꼴 파일 자체를 따로
 팔 수는 없고, 고쳐서 배포할 때는 "Pretendard" 라는 이름을 쓸 수 없다. 라이선스
 전문은 패키지의 `dist/LICENSE.txt` 에 있다.
+
+---
+
+## 5. 아이콘 — Lucide
+
+- **라이선스**: ISC. 단, 이 앱이 쓰는 화살표 넷(chevron-left·chevron-right·
+  chevrons-left·chevrons-right)은 Feather 에서 온 아이콘이라 MIT 를 따른다.
+- **출처**: https://lucide.dev · https://github.com/lucide-icons/lucide
+- **사용 방식**: npm 패키지 [`lucide-react`](https://www.npmjs.com/package/lucide-react)
+  에서 쓰는 아이콘만 가져온다(판 조작 줄의 처음·이전·다음·끝, 빈 상태 셋).
+  아이콘 모양은 고치지 않았다.
+- **저장소 포함 여부**: **포함하지 않음.** `npm install` 로 받으며, 빌드 결과물에는
+  쓴 아이콘만 들어간다.
+
+ISC·MIT 둘 다 저작권 고지와 허락 문구를 함께 두는 조건으로 사용·수정·배포를
+허용한다. 두 전문 모두 패키지의 `LICENSE` 에 있다.

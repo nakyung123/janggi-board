@@ -10,7 +10,7 @@ import { CLOCK_PRESETS, CUSTOM_CLOCK_ID, describeClock } from "../../janggi/cloc
 import type { ClockSettings } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
-import { SETUPS, randomSetup } from "../../janggi/setups";
+import { SETUPS } from "../../janggi/setups";
 import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
 import { outcomeOf } from "../../janggi/status";
@@ -58,6 +58,8 @@ interface Props {
   analysisOn: boolean;
   onMySide: (side: Side) => void;
   onLevel: (id: string) => void;
+  /** 이 판을 시작한 상차림. 시작 국면이 넷 중 어느 것도 아니면 null. */
+  setups: Record<Side, Setup | null>;
   onSetup: (side: Side, setup: Setup) => void;
   onNewGame: () => void;
   onResign: () => void;
@@ -68,7 +70,7 @@ export function PlayPanel(props: Props) {
   const {
     mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
     clockId, onClock, customClock, onCustomClock, variant, onVariant,
-    onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
+    onMySide, onLevel, setups, onSetup, onNewGame, onResign, onAnalysisOn,
   } = props;
 
   const level = levelById(levelId);
@@ -221,6 +223,15 @@ export function PlayPanel(props: Props) {
           ))}
         </select>
       </div>
+      {/*
+        고른 상차림을 짚어 준다. 예전에는 대국 탭에만 이 표시가 없어서, 무엇을
+        골랐는지 판을 들여다봐야 알았고 버튼 두 줄이 통째로 꺼진 것처럼 보였다.
+        대국이 시작되면 잠기지만 고른 칸은 그대로 남는다.
+
+        '랜덤' 은 뺐다. 누르는 순간 넷 중 하나로 정해져 버려서 고른 칸 표시와
+        겹쳤고(랜덤을 눌렀는데 다른 칸이 켜진다), 한 줄에 다섯을 넣느라 칸이
+        좁아졌다.
+      */}
       <div className="setup-block">
         <span className="label">상차림</span>
         {(["cho", "han"] as Side[]).map((side) => (
@@ -231,6 +242,8 @@ export function PlayPanel(props: Props) {
                 <button
                   key={s.id}
                   type="button"
+                  className={setups[side]?.id === s.id ? "active" : ""}
+                  aria-pressed={setups[side]?.id === s.id}
                   disabled={started}
                   title={
                     started
@@ -242,19 +255,6 @@ export function PlayPanel(props: Props) {
                   {s.name}
                 </button>
               ))}
-              <button
-                type="button"
-                className="setup-random"
-                disabled={started}
-                title={
-                  started
-                    ? "대국을 시작하면 바꿀 수 없습니다"
-                    : "넷 중 하나를 무작위로 고릅니다"
-                }
-                onClick={() => onSetup(side, randomSetup())}
-              >
-                랜덤
-              </button>
             </div>
           </div>
         ))}

@@ -7,7 +7,19 @@
 // 놀고 있었다. 그래서 "판을 키워달라"와 "버튼을 오른쪽으로 빼달라"는 사실
 // 같은 요청이었다. 줄을 옮기니 판이 그만큼 커진다.
 
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import type { Mode } from "../ModeTabs";
+
+/*
+ * 아이콘은 Lucide(선 아이콘, 24 격자). 예전에는 ⇤ ← → ⇥ 를 글자로 넣었는데,
+ * 글꼴마다 화살표 모양과 굵기가 달라 버튼 글자와 따로 놀았다. 선 굵기 2 는
+ * 버튼 글자 굵기(500)와 맞춘 값이다.
+ *
+ * 아이콘은 기보를 오가는 윗줄에만 둔다. '처음·이전·다음·끝' 은 어디서나 같은
+ * 모양으로 통하지만, 판 뒤집기·한수쉼은 그림으로 옮기면 뜻이 흐려진다
+ * (한수쉼을 일시정지로 그리면 시계를 멈추는 버튼으로 읽힌다).
+ */
+const ICON = { size: 20, strokeWidth: 2, "aria-hidden": true } as const;
 
 interface Props {
   mode: Mode;
@@ -42,7 +54,7 @@ export function BoardControls(props: Props) {
    * 것이다. 나눠 놓으면 줄바꿈이 뜻을 갖는다.
    */
   return (
-    <div className="panel board-controls">
+    <div className="board-controls">
       <div className="board-actions">
         <button
           type="button"
@@ -52,7 +64,7 @@ export function BoardControls(props: Props) {
           title="처음으로"
           aria-label="처음으로"
         >
-          ⇤
+          <ChevronsLeft {...ICON} />
         </button>
         <button
           type="button"
@@ -60,7 +72,8 @@ export function BoardControls(props: Props) {
           onClick={() => (mode === "play" ? onUndo() : onJump(cursor - 1))}
           title="← 키"
         >
-          ← {mode === "play" ? "무르기" : "이전"}
+          <ChevronLeft {...ICON} />
+          {mode === "play" ? "무르기" : "이전"}
         </button>
         <button
           type="button"
@@ -68,7 +81,8 @@ export function BoardControls(props: Props) {
           onClick={() => onJump(cursor + 1)}
           title="→ 키"
         >
-          {mode === "play" ? "다시" : "다음"} →
+          {mode === "play" ? "다시" : "다음"}
+          <ChevronRight {...ICON} />
         </button>
         <button
           type="button"
@@ -78,7 +92,7 @@ export function BoardControls(props: Props) {
           title="끝으로"
           aria-label="끝으로"
         >
-          ⇥
+          <ChevronsRight {...ICON} />
         </button>
       </div>
 

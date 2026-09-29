@@ -8,6 +8,7 @@
 // 것을 이리로 옮겼다.
 
 import { useMemo, useRef } from "react";
+import { ListOrdered } from "lucide-react";
 import { moveRows } from "../../janggi/notation";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import type { Side } from "../../janggi/pieces";
@@ -77,7 +78,11 @@ export function MoveList(props: Props) {
         </button>
 
         {rows.length === 0 ? (
-          <p className="muted pad">아직 둔 수가 없습니다.</p>
+          <div className="empty">
+            <ListOrdered size={24} strokeWidth={1.75} aria-hidden />
+            <p className="empty-title">아직 둔 수가 없습니다</p>
+            <p>판에서 기물을 옮기면 한 수씩 여기에 쌓입니다.</p>
+          </div>
         ) : (
           <table className="move-table">
             <tbody>

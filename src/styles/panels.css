@@ -3,20 +3,22 @@
 /* --- 패널 공통 --------------------------------------------------------- */
 
 /*
- * 패널은 흰 카드 한 장이다. 테두리는 거의 안 보일 만큼 옅게 두고, 대신 아주
- * 얕은 그림자로 바탕에서 한 겹 띄운다. 선으로 가두는 대신 그림자로 띄우는
- * 쪽이 화면이 조용하다.
+ * 패널은 한지 카드 한 장이다. 선으로 가두지 않고 아주 얕은 그림자로 바탕에서
+ * 한 겹 띄운다. 테두리와 그림자를 둘 다 두면 경계가 두 겹이 된다.
+ * 테두리를 아예 지우지 않고 투명으로 남기는 건 고대비 모드 때문이다. 윈도우
+ * 고대비에서는 그림자가 사라지고 투명 테두리가 선으로 그려져 칸이 보인다.
  */
 .panel {
   background: var(--panel);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   padding: var(--pad-panel);
   box-shadow: var(--shadow-card);
 }
 
 /* 제목 아래 줄은 뺐다. 카드가 이미 경계를 말하고 있어서 한 겹 더 그으면
-   칸이 잘게 쪼개져 보인다. 사이는 여백으로만 벌린다. */
+   칸이 잘게 쪼개져 보인다. 사이는 여백으로만 벌린다. 제목→내용 16 은 줄 사이
+   12 보다 넓어서 제목이 내용 묶음 밖에 선다. */
 .panel-title {
   display: flex;
   align-items: center;
@@ -24,7 +26,16 @@
   font-weight: 600;
   font-size: var(--fs-title);
   color: var(--text);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+/*
+ * 주 행동 줄(새 대국, 복기 시작처럼 채운 버튼이 든 줄)은 위 설정 묶음과
+ * 24 를 띄운다. 줄 사이가 전부 12 였을 때는 '설정' 과 '시작' 이 한 덩어리로
+ * 읽혔고, 그 틈을 선으로 메우고 있었다.
+ */
+.panel .row:has(> button.primary) {
+  margin-top: 24px;
 }
 
 .panel-meta {
@@ -115,13 +126,11 @@
  *
  * 예전에는 고른 칸을 색으로 칠했다. 초를 고르면 초록, 한을 고르면 빨강,
  * 나머지는 파랑. 그러다 보니 설정 몇 줄에 색이 서너 개 떠서 정작 판 위의
- * 초·한 색이 묻혔다. 이제는 반대로 간다. 홈이 옅은 회색이고 고른 칸만 흰
- * 알약으로 떠오른다. 색은 글자에만 남기니, 화면에서 초록과 빨강이 보이면
- * 그건 늘 진영을 뜻한다.
- */
-/*
- * 분절 버튼의 홈은 4 안쪽에 32 짜리 칸이 든다. 합쳐 40 이라 옆의 셀렉트·
- * 버튼과 높이가 같다.
+ * 초·한 색이 묻혔다. 이제는 반대로 간다. 홈이 한 톤 짙은 한지색이고 고른
+ * 칸만 밝은 알약으로 떠오른다. 색은 글자에만 남기니, 화면에서 초록과
+ * 빨강이 보이면 그건 늘 진영을 뜻한다.
+ *
+ * 홈은 4 안쪽에 32 짜리 칸이 든다. 합쳐 40 이라 옆의 셀렉트·버튼과 높이가 같다.
  */
 .seg {
   display: flex;
@@ -132,7 +141,10 @@
   border-radius: var(--radius-sm);
 }
 
-.seg.wide {
+/* 폼 줄의 분절 버튼은 셀렉트처럼 줄 끝까지 찬다. 예전에는 '초 楚 / 한 漢'
+   만 글자 폭으로 짧게 끝나서, 바로 아래 셀렉트들과 오른쪽 끝이 어긋났다. */
+.seg.wide,
+.row > .seg {
   flex: 1;
 }
 
@@ -158,6 +170,12 @@
   color: var(--ink);
   font-weight: 600;
   box-shadow: var(--shadow-raise);
+}
+
+/* 잠긴 칸(대국이 시작된 뒤의 상차림)은 글자만 뺀다. 고른 칸은 잠겨도 먹색
+   그대로 남아 '이걸로 두고 있다' 를 계속 말한다. */
+.seg button:disabled:not(.active) {
+  color: var(--disabled);
 }
 
 /*
@@ -195,12 +213,11 @@
 
 /*
  * 상차림. 폭이 넓은 컨트롤이라 라벨을 옆이 아니라 위에 둔다(FEN 칸과 같다).
+ * 위아래 선을 긋던 것을 24 여백으로 바꿨다. 줄 사이 12 의 두 배라 선 없이도
+ * 따로 떨어진 묶음으로 읽힌다.
  */
 .setup-block {
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 12px 0;
-  margin: 12px 0;
+  margin: 24px 0;
 }
 
 .setup-block > .label {
@@ -216,11 +233,11 @@
 }
 
 /*
- * 네 가지 상차림은 같은 폭으로 한 줄에, 랜덤은 그 끝에 글자만큼.
+ * 네 가지 상차림을 같은 폭으로 한 줄에.
  *
- * 예전에는 다섯 개가 저마다 글자 폭대로 늘어나다 3+2 로 접혔다. 두 줄째가
- * 가운데 몰려 있어 어느 칸이 어느 칸 밑인지 줄이 맞지 않았다. 버튼 안쪽
- * 여백을 4 로 줄여야 16px 글자 넷이 400 칸 한 줄에 들어간다.
+ * 예전에는 랜덤까지 다섯 개가 저마다 글자 폭대로 늘어나다 3+2 로 접혔다.
+ * 두 줄째가 가운데 몰려 있어 어느 칸이 어느 칸 밑인지 줄이 맞지 않았다.
+ * 버튼 안쪽 여백을 4 로 줄여야 16px 글자 넷이 폰 폭에서도 한 줄에 들어간다.
  * 셀렉트로 바꾸는 것도 따져 봤지만, 셀렉트는 이미 고른 값을 다시 골라도
  * 아무 일이 없어서 '같은 상차림으로 되돌리기' 가 사라진다.
  */
@@ -233,22 +250,6 @@
 .setup-row .seg button {
   flex: 1 1 0;
   padding: 0 4px;
-}
-
-.setup-row .seg button.setup-random {
-  flex: none;
-  padding: 0 8px;
-}
-
-/* 폰 폭에서는 넷만으로 한 줄이 찬다. 랜덤은 다음 줄에 폭을 다 써서 둔다. */
-@media (max-width: 420px) {
-  .setup-row .seg {
-    flex-wrap: wrap;
-  }
-
-  .setup-row .seg button.setup-random {
-    flex: 1 1 100%;
-  }
 }
 
 .score-tag {
@@ -335,7 +336,6 @@
 }
 
 .pv-moves {
-  font-family: var(--serif);
   font-size: var(--fs-base);
   color: var(--text);
   overflow: hidden;
@@ -346,6 +346,32 @@
 .pv-legend {
   margin-top: 8px;
   font-size: var(--fs-base);
+}
+
+/* --- 빈 상태 ----------------------------------------------------------- */
+/*
+ * 아직 보여줄 것이 없을 때(기보·형세·분석 꺼짐). 아이콘 + 무엇이 없는지 +
+ * 어떻게 하면 생기는지. 예전에는 회색 문장 한 줄뿐이라 '고장' 인지 '아직' 인지
+ * 구별이 안 됐다. 아이콘은 선 굵기를 버튼 아이콘(2)보다 얇게 둬서 조용히 선다.
+ */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 8px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty svg {
+  color: var(--disabled);
+  margin-bottom: 4px;
+}
+
+.empty-title {
+  color: var(--text-sub);
+  font-weight: 600;
 }
 
 /* --- 기보 -------------------------------------------------------------- */
@@ -361,8 +387,12 @@
   font-size: var(--fs-base);
 }
 
+/* 지금 시작 국면을 보고 있다는 표시. 기보 칸의 '보고 있는 수' 와 같은 말투
+   (한 톤 짙은 바탕)로 맞춘다. 예전 먹색 테두리는 전체 폭 버튼이라 채운 버튼
+   '새 대국' 만큼 눈을 끌었다. */
 .move-start.active {
-  border-color: var(--ink);
+  background: var(--panel-2);
+  border-color: var(--line-strong);
 }
 
 .move-table {
@@ -401,12 +431,20 @@
   background: transparent;
   border-color: transparent;
   border-radius: var(--radius-xs);
-  font-family: var(--serif);
   font-size: var(--fs-base);
   font-weight: 400;
   letter-spacing: 0;
   text-align: left;
   padding: 4px 8px;
+}
+
+/* 기보 칸도 눌러서 그 수로 가는 버튼이다. 마우스에서는 목록 줄 높이(32)를
+   따르지만 손가락으로는 44 가 필요하다. 목록은 제 칸 안에서 스크롤하니
+   길어져도 판은 줄지 않는다. (위 min-height: 0 보다 뒤에 있어야 이긴다.) */
+@media (pointer: coarse) {
+  .move-cell {
+    min-height: 44px;
+  }
 }
 
 .move-cell.cho {
@@ -595,18 +633,18 @@ textarea.fen-input:focus {
 
 /* --- 판 조작 줄 --------------------------------------------------------- */
 /*
- * 판 아래에 있던 버튼 줄을 오른쪽 칸 맨 위로 옮긴 카드다(BoardControls.tsx).
- * 제목을 달지 않는다 - 버튼 여섯 개가 스스로를 설명하고, 제목 한 줄이 이
- * 카드 높이를 절반쯤 더 늘린다.
+ * 판 아래에 있던 버튼 줄을 오른쪽 칸 맨 위로 옮긴 것이다(BoardControls.tsx).
  *
- * 두 줄이 같은 폭을 꽉 채운다. 윗줄은 처음·끝(화살표만이라 40 정사각)과
+ * 카드에 담지 않고 바탕 위에 도구 줄로 둔다. 카드 세 장(판 조작·대국·기보)이
+ * 같은 무게로 쌓여 있으면 어느 것이 이 화면의 중심인지 드러나지 않았다.
+ * 판 조작은 설정이 아니라 판에 딸린 손잡이라 카드 한 겹을 벗긴다. 버튼이
+ * 저마다 테두리를 가지고 있어 카드 없이도 한 줄로 읽힌다.
+ *
+ * 두 줄이 같은 폭을 꽉 채운다. 윗줄은 처음·끝(아이콘만이라 40 정사각)과
  * 무르기·다시(나머지를 반씩), 아랫줄은 판 뒤집기·한수쉼을 반씩. 예전에는
  * 버튼마다 글자 폭대로 서서 두 줄의 오른쪽 끝이 들쭉날쭉했고, 판 뒤집기만
  * 테두리 없는 버튼이라 한 카드 안에 버튼 모양이 두 가지였다.
  */
-.board-controls {
-  padding: 12px;
-}
 
 .board-controls .board-actions {
   flex-wrap: nowrap;
