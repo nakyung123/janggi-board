@@ -272,56 +272,6 @@
   pointer-events: none;
 }
 
-/* --- 대국 상태 배너 ---------------------------------------------------- */
-
-.status-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid;
-  box-shadow: var(--shadow-card);
-  font-size: var(--fs-base);
-}
-
-.status-text {
-  font-weight: 600;
-}
-
-.status-detail {
-  color: var(--muted);
-  font-size: var(--fs-base);
-}
-
-.status-banner.check {
-  background: var(--han-soft);
-  border-color: var(--han-soft-line);
-  color: var(--han-strong);
-}
-
-/* 대국이 끝났다는 알림은 어느 편 이야기도 아니라 무채색으로 둔다. */
-.status-banner.over {
-  background: var(--panel);
-  border-color: var(--line-strong);
-  color: var(--text);
-}
-
-.status-banner.invalid {
-  background: var(--warn-soft);
-  border-color: var(--warn-soft-line);
-  color: var(--warn);
-}
-
-/* 배너 안의 버튼(무르기)은 배너 높이를 늘리지 않게 작게 둔다. */
-.status-banner button {
-  margin-left: auto;
-  min-height: 32px;
-  padding: 0 12px;
-}
-
 /* --- 대국자 카드 -------------------------------------------------------- */
 /*
  * 판 위아래에 한 장씩. 둘 차례인 쪽만 흰 바탕으로 띄우고 나머지는 눌러둔다.
@@ -503,6 +453,44 @@
 
 .player-turn {
   white-space: nowrap;
+}
+
+/*
+ * 장군·승패. '둘 차례' 자리에 대신 선다.
+ *
+ * 예전에는 판 위 배너였는데, 뜰 때마다 판이 줄었다 늘었다 했다. 카드는 높이가
+ * 38 로 박혀 있고 이 칸은 시계 칸과 같은 28 이라, 무엇이 떠도 카드가 자라지 않는다.
+ */
+.player-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 장군은 지금 막아야 하는 일이라 칸을 채워 띄운다. 궁의 붉은 테두리와 같은 편이다. */
+.player-tag.check {
+  padding: 0 8px;
+  border-radius: var(--radius-xs);
+  background: var(--han-soft);
+  color: var(--han-strong);
+}
+
+/* 이긴 쪽은 진영색. 색이 보이면 누구 편인지를 말한다는 규칙 그대로다. */
+.player-bar.cho .player-tag.win {
+  color: var(--cho);
+}
+
+.player-bar.han .player-tag.win {
+  color: var(--han);
+}
+
+/* 진 쪽과 비긴 쪽은 먹. 끝난 판의 카드는 눌러둔 색이라 글자만 먹으로 세운다. */
+.player-tag.lose,
+.player-tag.draw {
+  color: var(--text);
 }
 
 .sr-only {

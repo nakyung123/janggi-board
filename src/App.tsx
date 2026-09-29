@@ -16,7 +16,6 @@ import { PlayPanel } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
 import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
-import { StatusBanner } from "./components/StatusBanner";
 
 import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
@@ -41,10 +40,19 @@ import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
 import { describeMove, splitMove } from "./janggi/notation";
 import type { PieceType, Side } from "./janggi/pieces";
-import { SIDE_LABEL, sideOf } from "./janggi/pieces";
+import { sideOf } from "./janggi/pieces";
 import { applySetup, detectSetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
-import { gameStatus, isGameOver, outcomeOf, capturedPieces, scoreBoard } from "./janggi/status";
+import {
+  gameStatus,
+  isGameOver,
+  outcomeOf,
+  outcomeMessage,
+  capturedPieces,
+  scoreBoard,
+  sideTag,
+  statusMessage,
+} from "./janggi/status";
 import {
   CLOCK_PRESETS,
   CUSTOM_CLOCK_ID,
@@ -64,7 +72,6 @@ import { buildRecord, downloadRecord, parseRecord } from "./janggi/record";
 import type { RecordPlayer, RecordResult } from "./janggi/record";
 import { bestArrowOf, runReview } from "./janggi/review";
 import type { ReviewProgress, ReviewedMove } from "./janggi/review";
-import { 이가 } from "./janggi/korean";
 
 const initialHistory: HistoryEntry[] = [
   { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
@@ -446,6 +453,18 @@ export default function App() {
    */
   const showOver = over && mode !== "analyze";
 
+  /**
+   * 대국자 카드와 화면 읽기 프로그램에 알릴 결과.
+   *
+   * 분석에서는 기권·시간패를 뺀다. 둘은 '대국' 에 붙는 결과라 국면을 보는
+   * 곳에는 해당되지 않는다(바로 위 주석). 외통·수몰·점수는 지금 국면의
+   * 판정이라 분석에서도 그대로 말한다.
+   */
+  const shownOutcome = useMemo(
+    () => (mode === "analyze" ? outcomeOf(gstatus, null, null) : outcome),
+    [mode, gstatus, outcome]
+  );
+
   /*
    * 두던 판을 남긴다.
    *
@@ -593,10 +612,8 @@ export default function App() {
 
   useEffect(() => {
     const out = flaggedSide(clocks);
-    if (out && !flagged) {
-      setFlagged(out);
-      setNotice(`${SIDE_LABEL[out]} 시간패입니다.`);
-    }
+    // 알림은 띄우지 않는다. 결과 팝업·대국자 카드·시계 칸이 이미 같은 말을 한다.
+    if (out && !flagged) setFlagged(out);
   }, [clocks, flagged]);
 
   // 엔진 차례가 되면 탐색이 끝나는 대로 그 수를 둔다.
@@ -1132,9 +1149,33 @@ export default function App() {
       clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
       // 막대 길이를 재려면 '전체가 얼마였는지'가 있어야 한다.
       settings: mode === "play" && clockSettings.enabled ? clockSettings : null,
+      // 장군·승패. 예전의 판 위 배너 대신 여기서 말한다(sideTag 주석).
+      tag: sideTag(gstatus, shownOutcome, side),
     }),
-    [mySide, level.name, scores, position, showOver, engineTurn, mode, clockSettings.enabled, clocks]
+    [
+      mySide, level.name, scores, position, showOver, engineTurn, mode,
+      clockSettings.enabled, clocks, gstatus, shownOutcome,
+    ]
   );
+
+  /*
+   * 헤더 오른쪽에 거는 판 상태. 편집 중이거나 판이 규칙에 맞지 않을 때만 뜬다.
+   *
+   * '성립하지 않는 국면' 은 예전에 판 위 배너였다. 배너가 뜨면 판이 그만큼
+   * 줄어서, 높이가 늘 같은 헤더 줄로 옮겼다. 무엇이 틀렸는지는 국면 카드의
+   * 경고 목록(편집 중에도, 보기에서도 뜬다)과 이 표시의 툴팁이 말한다.
+   *
+   * 말은 짧아야 한다. 폰(390)에서 앱 이름과 탭 옆에 남는 자리가 71px 이라
+   * "판 편집 중 · 성립하지 않는 국면" 을 붙였더니 헤더가 두 줄이 되며 판이
+   * 38px 내려갔다. 배너를 없앤 까닭이 그대로 되살아난 셈이다. 그래서 편집
+   * 중에는 "판 편집 중" 만 두고(바로 옆 편집 패널이 경고를 보여준다), 편집을
+   * 마친 뒤에도 틀린 판이면 "잘못된 판"(57px) 을 건다.
+   */
+  const problems = gstatus.kind === "invalid" ? gstatus.problems : null;
+  const headTag = editMode ? "판 편집 중" : problems ? "잘못된 판" : null;
+
+  // 눈으로는 대국자 카드와 헤더가 말하는 것을 화면 읽기 프로그램에 한 줄로 알린다.
+  const spoken = shownOutcome ? outcomeMessage(shownOutcome) : (statusMessage(gstatus) ?? "");
 
   // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
   const checkedKing = useMemo(() => {
@@ -1209,32 +1250,29 @@ export default function App() {
           있어서 한 화면에 두 번 나왔고, 폰에서는 이 한 줄 때문에 헤더가 두
           줄이 됐다. '복기 중' 도 바로 옆 탭이 이미 말한다. 편집 중만 남긴다 -
           그때는 대국자 카드가 빠져서 판의 상태를 말할 곳이 여기뿐이다.
+          규칙에 맞지 않는 판도 여기서 말한다(headTag 주석).
         */}
-        {editMode && <span className="turn-tag">판 편집 중</span>}
+        {headTag && (
+          <span className="turn-tag" title={problems?.join(" ")}>
+            {headTag}
+          </span>
+        )}
+        <p className="sr-only" role="status">
+          {spoken}
+        </p>
       </header>
-
-      {notice && <div className="notice">{notice}</div>}
 
       <main className="layout">
         <section className="board-col">
           <div className="table" ref={tableRef}>
-            <StatusBanner
-              status={gstatus}
-              canUndo={cursor > 0 && !editMode}
-              onUndo={undoMove}
-            />
-
-            {/* 분석에서는 띄우지 않는다 — 거기서는 끝난 판도 둘 수 있다. */}
-            {mode !== "analyze" && resigned && (
-              <div className="banner resign">
-                기권 - {이가(SIDE_LABEL[resigned === "cho" ? "han" : "cho"])} 이겼습니다.
-              </div>
-            )}
-            {mode !== "analyze" && flagged && (
-              <div className="banner resign">
-                시간패 - {이가(SIDE_LABEL[flagged === "cho" ? "han" : "cho"])} 이겼습니다.
-              </div>
-            )}
+            {/*
+              판 위에는 아무것도 끼우지 않는다. 예전에는 장군·외통·기권·시간패·
+              성립하지 않는 국면을 여기 배너로 띄웠는데, 판 크기가 남은 높이로
+              정해지는 탓에 배너가 뜰 때마다 판이 50px 남짓 줄었다 늘었다 했다.
+              장군이 걸릴 때마다 그랬다. 이제 장군·승패는 대국자 카드가,
+              성립하지 않는 국면은 헤더가 말한다. 배너의 '한 수 무르기' 는
+              오른쪽 위 무르기 버튼과 같은 일이라 따로 두지 않는다.
+            */}
 
             {/*
               대국자 카드는 편집 중을 빼고 어디서나 그린다.
@@ -1435,6 +1473,15 @@ export default function App() {
             </>
           )}
         </section>
+
+        {/*
+          알림. 예전에는 헤더 아래 한 줄을 차지해서, 뜰 때와 4초 뒤 사라질 때
+          화면 전체가 두 번 아래위로 움직였다. 이제 자리를 차지하지 않고
+          오른쪽 칸 아래에 떴다가 사라진다. 판은 가리지 않는다.
+        */}
+        <div className="toast" role="status">
+          {notice}
+        </div>
       </main>
 
       {/*

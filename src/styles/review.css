@@ -149,16 +149,6 @@ button.primary.danger:hover:not(:disabled) {
   margin-bottom: 8px;
 }
 
-.banner.resign {
-  margin-bottom: 8px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  font-size: var(--fs-base);
-  font-weight: 600;
-}
-
 /* --- 복기 진행률 ------------------------------------------------------- */
 
 .review-bar {

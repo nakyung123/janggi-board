@@ -145,7 +145,7 @@ export function outcomeMessage(o: Outcome): string {
   return `${how} - ${이가(SIDE_LABEL[o.winner])} 이겼습니다.`;
 }
 
-/** 배너에 띄울 한 줄. 상태마다 말투가 다르다. */
+/** 화면 읽기 프로그램에 알릴 한 줄. 상태마다 말투가 다르다. */
 export function statusMessage(s: GameStatus): string | null {
   switch (s.kind) {
     case "checkmate":
@@ -163,6 +163,47 @@ export function statusMessage(s: GameStatus): string | null {
     default:
       return null;
   }
+}
+
+/** 대국자 카드의 '둘 차례' 자리에 대신 서는 말. */
+export interface SideTag {
+  text: string;
+  tone: "check" | "win" | "lose" | "draw";
+}
+
+/** 진 쪽 카드에 적을 말. 어떻게 졌는지까지 적는다. */
+const LOSE_TAG: Record<OutcomeKind, string> = {
+  checkmate: "외통패",
+  stalemate: "패",
+  points: "점수패",
+  resign: "기권패",
+  flag: "시간패",
+};
+
+/**
+ * 대국자 카드에 붙일 표시.
+ *
+ * 예전에는 장군과 대국 결과를 판 위 배너로 띄웠다. 배너가 뜰 때마다 판이 그
+ * 높이만큼 줄었다 늘었다 해서, 높이가 박힌 카드의 '둘 차례' 자리로 옮겼다.
+ * 장군을 맞은 쪽은 늘 둘 차례라 그 자리가 곧 알릴 자리다.
+ *
+ * 끝난 판이면 결과가 먼저다. 외통도 장군이지만 그때 할 말은 '외통패' 다.
+ */
+export function sideTag(
+  status: GameStatus,
+  outcome: Outcome | null,
+  side: Side
+): SideTag | null {
+  if (outcome) {
+    if (outcome.winner === null) return { text: "무승부", tone: "draw" };
+    return outcome.winner === side
+      ? { text: "승", tone: "win" }
+      : { text: LOSE_TAG[outcome.kind], tone: "lose" };
+  }
+  if (status.kind === "check" && status.side === side) {
+    return { text: "장군", tone: "check" };
+  }
+  return null;
 }
 
 export interface ScoreBoard {

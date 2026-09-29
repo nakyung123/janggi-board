@@ -15,6 +15,7 @@ import {
   outcomeMessage,
   outcomeOf,
   scoreBoard,
+  sideTag,
   statusMessage,
 } from "./status";
 import type { GameStatus } from "./status";
@@ -88,7 +89,7 @@ describe("성립하지 않는 판", () => {
   });
 });
 
-describe("배너 문구", () => {
+describe("상태 문구", () => {
   it("상태마다 다른 말이 나온다", () => {
     expect(statusMessage(gameStatus(입력({ legal: ["e2e2"], checkers: ["e9"] })))).toBe(
       "외통 - 한 승"
@@ -98,7 +99,7 @@ describe("배너 문구", () => {
     );
   });
 
-  it("대국 중에는 배너가 없다", () => {
+  it("대국 중에는 알릴 말이 없다", () => {
     expect(statusMessage(gameStatus(입력({ legal: ["a4a5"] })))).toBeNull();
   });
 });
@@ -233,5 +234,44 @@ describe("대국이 어떻게 끝났나", () => {
     expect(outcomeMessage({ kind: "flag", winner: "cho" })).toContain("시간패");
     expect(outcomeMessage({ kind: "resign", winner: "cho" })).toContain("기권");
     expect(outcomeMessage({ kind: "points", winner: "cho" })).toContain(String(MOVE_LIMIT));
+  });
+});
+
+// 대국자 카드 표시
+//
+// 판 위 배너가 하던 말을 카드의 '둘 차례' 자리가 넘겨받았다. 이 자리 말고는
+// 장군과 결과를 알리는 곳이 없으므로, 한쪽이라도 빠지면 화면이 아무 말도 안 한다.
+describe("대국자 카드 표시", () => {
+  const 진행중: GameStatus = { kind: "playing" };
+  const 초장군: GameStatus = { kind: "check", side: "cho", by: ["e9"] };
+
+  it("장군은 맞은 쪽에만 붙는다", () => {
+    expect(sideTag(초장군, null, "cho")).toEqual({ text: "장군", tone: "check" });
+    expect(sideTag(초장군, null, "han")).toBeNull();
+  });
+
+  it("대국 중에는 아무것도 없다", () => {
+    expect(sideTag(진행중, null, "cho")).toBeNull();
+    expect(sideTag(진행중, null, "han")).toBeNull();
+  });
+
+  it("끝나면 이긴 쪽은 승, 진 쪽은 어떻게 졌는지", () => {
+    const 기권 = { kind: "resign", winner: "han" } as const;
+    expect(sideTag(진행중, 기권, "han")).toEqual({ text: "승", tone: "win" });
+    expect(sideTag(진행중, 기권, "cho")).toEqual({ text: "기권패", tone: "lose" });
+    expect(sideTag(진행중, { kind: "flag", winner: "cho" }, "han")?.text).toBe("시간패");
+    expect(sideTag(진행중, { kind: "points", winner: "cho" }, "han")?.text).toBe("점수패");
+  });
+
+  it("외통은 장군이 아니라 결과로 적는다", () => {
+    // 외통 국면에서도 장군은 걸려 있다. 결과가 먼저여야 '장군' 이 남지 않는다.
+    const 외통 = { kind: "checkmate", winner: "han" } as const;
+    expect(sideTag(초장군, 외통, "cho")).toEqual({ text: "외통패", tone: "lose" });
+  });
+
+  it("비기면 양쪽 다 무승부", () => {
+    const 비김 = { kind: "points", winner: null } as const;
+    expect(sideTag(진행중, 비김, "cho")?.text).toBe("무승부");
+    expect(sideTag(진행중, 비김, "han")?.text).toBe("무승부");
   });
 });

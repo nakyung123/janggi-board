@@ -577,19 +577,6 @@ textarea.fen-input:focus {
   border-color: var(--ink);
 }
 
-/* --- 알림 --------------------------------------------------------------- */
-
-.notice {
-  margin-bottom: 12px;
-  padding: 8px 16px;
-  border-radius: var(--radius);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-card);
-  font-size: var(--fs-base);
-  color: var(--text);
-}
-
 /* 시계 직접 입력.
    프리셋에 없는 조합("15분 + 40초 5회")을 맞출 때만 펼쳐진다. 숫자 칸이
    셋이라 줄이 길어지므로 좁아지면 접어 내린다. */

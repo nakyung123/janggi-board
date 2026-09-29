@@ -9,6 +9,7 @@ import { clockRatio, clockView } from "../../janggi/clock";
 import type { PieceChar, Side } from "../../janggi/pieces";
 import { SIDE_LABEL, charOf } from "../../janggi/pieces";
 import type { PieceType } from "../../janggi/pieces";
+import type { SideTag } from "../../janggi/status";
 import { PieceBody } from "./PieceGlyph";
 
 interface Props {
@@ -29,6 +30,8 @@ interface Props {
   clock: SideClock | null;
   /** 막대 길이를 재려면 '전체가 얼마였는지'를 알아야 한다. 시계와 같이 온다. */
   settings: ClockSettings | null;
+  /** 장군·승패. 있으면 '둘 차례' 자리에 대신 선다. */
+  tag: SideTag | null;
 }
 
 export function PlayerBar(props: Props) {
@@ -36,6 +39,8 @@ export function PlayerBar(props: Props) {
   const view = clock ? clockView(clock) : null;
   const ratio = clock && settings ? clockRatio(clock, settings) : null;
   const opponent: Side = side === "cho" ? "han" : "cho";
+  // 시간패는 시계 칸이 이미 "시간패" 로 바뀌어 있다. 같은 카드에 두 번 적지 않는다.
+  const tag = view?.flagged && props.tag?.tone === "lose" ? null : props.tag;
 
   return (
     <div className={"player-bar " + side + (active ? " active" : "")}>
@@ -96,7 +101,11 @@ export function PlayerBar(props: Props) {
       )}
 
       {thinking && active && <span className="player-thinking" aria-label="생각 중" />}
-      {!thinking && active && <span className="player-turn muted small">둘 차례</span>}
+      {tag ? (
+        <span className={"player-tag " + tag.tone}>{tag.text}</span>
+      ) : (
+        !thinking && active && <span className="player-turn muted small">둘 차례</span>
+      )}
       <span className="sr-only">{SIDE_LABEL[side]}</span>
 
       {/*
