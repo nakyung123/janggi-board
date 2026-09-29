@@ -577,39 +577,6 @@ textarea.fen-input:focus {
   border-color: var(--ink);
 }
 
-/* 시계 직접 입력.
-   프리셋에 없는 조합("15분 + 40초 5회")을 맞출 때만 펼쳐진다. 숫자 칸이
-   셋이라 줄이 길어지므로 좁아지면 접어 내린다. */
-/* 시계 직접 입력은 시계 셀렉트에 딸린 줄이라 값 쪽 세로선에서 시작한다. */
-.clock-custom {
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  padding-left: calc(var(--label-w) + 12px);
-}
-
-.clock-byoyomi {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.clock-custom label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.clock-custom input {
-  width: 4.2em;
-  padding: 0 8px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  color: var(--text);
-}
-
 /* 고른 급수가 어떤 상대인지. 드롭다운 바로 아래, 드롭다운과 같은 세로선에
    붙여 딸린 설명으로 읽히게 한다. 예전에는 라벨 칸 왼쪽 끝에서 시작해서
    라벨의 설명처럼 보였다. 앞의 .row 가 아래 여백을 가지므로 위는 당긴다. */

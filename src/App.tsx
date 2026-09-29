@@ -11,6 +11,7 @@ import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
 import { BoardControls } from "./components/panels/BoardControls";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { GameOverDialog } from "./components/GameOverDialog";
 import { PlayPanel } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
@@ -55,12 +56,9 @@ import {
 } from "./janggi/status";
 import {
   CLOCK_PRESETS,
-  CUSTOM_CLOCK_ID,
   DEFAULT_CLOCK_ID,
-  resolveClock,
+  clockPresetById,
   withFlagged,
-  clampCustomClock,
-  DEFAULT_CUSTOM_CLOCK,
   commitMove,
   flaggedSide,
   initialClocks,
@@ -99,17 +97,6 @@ function applyMove(pos: Position, from: Square, to: Square): Position {
  * localStorage 는 사람이 직접 고칠 수 있고 예전 판에서 남긴 값도 들어 있다.
  * 여기서 걸러내면 이상한 값이 들어가도 다음 실행에 저절로 낫는다.
  */
-function isClockSettings(v: unknown): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  const c = v as Record<string, unknown>;
-  return (
-    typeof c.enabled === "boolean" &&
-    typeof c.mainSeconds === "number" &&
-    typeof c.byoyomiSeconds === "number" &&
-    typeof c.byoyomiCount === "number"
-  );
-}
-
 function isEnginePrefs(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const p = v as Record<string, unknown>;
@@ -227,39 +214,28 @@ export default function App() {
   const [flagged, setFlagged] = useState<Side | null>(
     savedGame && savedGame.history.length > 1 ? savedGame.flagged : null
   );
+  // 예전에 골라 둔 10분·20분·직접 입력은 여기서 걸러져 기본값(5분)으로 간다.
   const [clockId, setClockId] = usePersisted(
     "clockId",
     DEFAULT_CLOCK_ID,
-    (v) =>
-      typeof v === "string" &&
-      (v === CUSTOM_CLOCK_ID || CLOCK_PRESETS.some((c) => c.id === v))
-  );
-  /** 직접 입력을 골랐을 때 쓰는 값. 프리셋으로 돌아가도 그대로 남는다. */
-  const [customClock, setCustomClock] = usePersisted(
-    "customClock",
-    DEFAULT_CUSTOM_CLOCK,
-    isClockSettings
+    (v) => typeof v === "string" && CLOCK_PRESETS.some((c) => c.id === v)
   );
   /*
-   * 반드시 메모해야 한다.
+   * 참조가 바뀌지 않아야 한다.
    *
-   * 직접 입력일 때 resolveClock 은 clampCustomClock 으로 매번 새 객체를 만든다.
-   * 그 값이 아래 '엔진이 쓸 시간' effect 의 의존성에 들어 있어서, 메모하지
-   * 않으면 렌더마다 effect 가 돈다. 시계는 200ms 마다 깎이므로 예산이 계속
-   * 바뀌고 → searchLimits → optionsKey → 탐색이 멈췄다 다시 시작한다.
-   * 그래서 직접 입력 시계를 고르면 엔진이 한 수도 두지 못했다.
+   * 이 값이 아래 '엔진이 쓸 시간' effect 의 의존성에 들어 있다. 렌더마다 새
+   * 객체가 되면 탐색이 멈췄다 다시 시작해 엔진이 한 수도 못 둔다 - 직접 입력
+   * 시계가 있던 때 실제로 그랬다. clockPresetById 는 목록 속 객체를 그대로
+   * 돌려주므로 괜찮다.
    */
-  const clockSettings = useMemo(
-    () => resolveClock(clockId, customClock),
-    [clockId, customClock]
-  );
+  const clockSettings = clockPresetById(clockId);
   // 되살린 판이 시간패로 끝난 것이면 그 쪽 시계를 다 쓴 모습으로 채운다.
   // 시계만 가득 찬 채 "시간패" 배너가 뜨면 앞뒤가 맞지 않는다.
   const [clocks, setClocks] = useState<ClockState>(() =>
     withFlagged(initialClocks(clockSettings), flagged)
   );
-  /** 두는 동안 훈수를 볼지. 기본은 꺼둔다 — 켜두면 대국이 아니라 받아쓰기가 된다. */
-  const [hintOn, setHintOn] = usePersisted("hintOn", false, (v) => typeof v === "boolean");
+  // '두는 동안 훈수 보기' 는 뺐다. 켜 두면 대국이 아니라 받아쓰기가 되고,
+  // 엔진이 권하는 수는 판이 끝난 뒤 복기에서 본다.
   const level = levelById(levelId);
 
   // --- 편집 (분석 모드) -------------------------------------------------
@@ -411,7 +387,7 @@ export default function App() {
   /** 복기 중에는 실시간 분석을 세워둔다. 같은 엔진을 둘이 나눠 쓸 수는 없다. */
   const analysisEnabled =
     !reviewRunning &&
-    (mode === "play" ? hintOn || engineTurn : mode === "analyze" ? analysisOn : false);
+    (mode === "play" ? engineTurn : mode === "analyze" ? analysisOn : false);
 
   const { snapshot, legal, checkers, probed } = useAnalysis(
     engine,
@@ -680,8 +656,8 @@ export default function App() {
         first: () => goTo(0),
         last: () => goTo(history.length - 1),
         flip: () => setFlipped((f) => !f),
-        toggleAnalysis: () =>
-          mode === "play" ? setHintOn((h) => !h) : setAnalysisOn((a) => !a),
+        // 대국에서는 켤 분석이 없다(훈수 보기를 뺐다).
+        toggleAnalysis: mode === "analyze" ? () => setAnalysisOn((a) => !a) : undefined,
       }),
       [cursor, goTo, history.length, mode]
     ),
@@ -753,6 +729,21 @@ export default function App() {
     mode === "analyze"
       ? true
       : mode === "play" && !over && !engineTurn;
+
+  /**
+   * 집어 들 수 있는 기물. 눌러서 고르는 것(handleSquareClick)과 같은 조건이다.
+   * 판을 만질 수 있고, 둘 차례인 쪽의 기물이고, 갈 곳이 있어야 한다.
+   * 대국에서 엔진 차례면 canTouchBoard 가 막으므로 곧 '내 기물만' 이다.
+   */
+  const canPick = (square: Square) => {
+    const piece = position.board[square];
+    return (
+      canTouchBoard &&
+      piece !== undefined &&
+      sideOf(piece) === position.turn &&
+      legalFrom.has(square)
+    );
+  };
 
   const handleSquareClick = (square: Square) => {
     if (editMode) {
@@ -880,11 +871,21 @@ export default function App() {
   );
 
   const resign = () => {
-    // 기권하면 결과 팝업이 뜨고, 거기에 '복기 보기'가 있다. 예전에는 여기서
+    // 기권하면 결과 팝업이 뜨고, 거기에 '기보 보기'가 있다. 예전에는 여기서
     // 머리말 알림으로 "복기 탭에서 볼 수 있습니다" 를 띄웠는데, 팝업·판 위
     // 배너까지 셋이 같은 말을 하게 됐다.
     setResigned(mySide);
   };
+
+  /*
+   * 되돌릴 수 없는 두 동작(새 대국·기권)은 창을 띄워 한 번 더 묻는다.
+   *
+   * 예전에는 창 대신 '새 대국' 버튼이 그 자리에서 "기보를 지우고 시작" 으로
+   * 바뀌었다. 창이 흐름을 끊는다고 봤는데, 버튼 글자가 바뀌는 것은 눈에 덜
+   * 띄어서 묻는 줄 모르고 지나쳤고, 기권은 아예 묻지 않았다. 둘 다 누르는
+   * 순간 판이 끝나는 동작이라 한 곳에서 같은 모양으로 묻는다.
+   */
+  const [asking, setAsking] = useState<"new" | "resign" | null>(null);
 
   // --- 기보 저장·불러오기 -----------------------------------------------
 
@@ -1049,11 +1050,11 @@ export default function App() {
     // 복기 중에는 "이랬어야 했다" 를 그린다.
     if (mode === "review") return bestArrowOf(currentReview);
     if (hoverArrow) return null;
-    // 대국 중에는 훈수를 켰을 때만 최선수를 보여준다.
-    if (mode === "play" && !hintOn) return null;
+    // 대국 중에는 최선수를 그리지 않는다. 엔진이 제 수를 찾는 중인 값이다.
+    if (mode === "play") return null;
     const first = snapshot?.lines[0]?.pv[0];
     return first ? arrowOf(first) : null;
-  }, [mode, currentReview, hoverArrow, hintOn, snapshot]);
+  }, [mode, currentReview, hoverArrow, snapshot]);
 
   const lastMove = useMemo(() => {
     if (editMode || !entry.move) return null;
@@ -1298,6 +1299,7 @@ export default function App() {
                 onMove={handleMove}
                 onRemove={handleRemove}
                 onPick={handleSquareClick}
+                canPick={canPick}
               />
             </div>
 
@@ -1336,14 +1338,9 @@ export default function App() {
                 flagged={flagged}
                 clockId={clockId}
                 onClock={setClockId}
-                customClock={customClock}
-                onCustomClock={(patch) =>
-                  setCustomClock((c) => clampCustomClock({ ...c, ...patch }))
-                }
                 variant={prefs.variant}
                 onVariant={(v) => setPrefs((o) => ({ ...o, variant: v }))}
                 thinking={thinking}
-                analysisOn={hintOn}
                 onMySide={(s) => {
                   setMySide(s);
                   /*
@@ -1365,24 +1362,9 @@ export default function App() {
                     "시작"
                   )
                 }
-                onNewGame={newGame}
-                onResign={resign}
-                onAnalysisOn={setHintOn}
+                onNewGame={() => (started ? setAsking("new") : newGame())}
+                onResign={() => setAsking("resign")}
               />
-
-              {hintOn && (
-                <AnalysisPanel
-                  snapshot={snapshot}
-                  board={position.board}
-                  enabled={analysisEnabled}
-                  onHoverLine={setHover}
-                  onPlayLine={(move) => {
-                    if (!canTouchBoard) return;
-                    const { from, to } = splitMove(move);
-                    if (from && to) pushMove(from, to);
-                  }}
-                />
-              )}
             </>
           )}
 
@@ -1455,9 +1437,9 @@ export default function App() {
 
           {!editMode && (
             <>
-              {/* 대국 중 형세 그래프는 엔진 평가를 그대로 흘리는 것이라
-                  훈수를 켰을 때만 띄운다. */}
-              {(mode !== "play" || hintOn) && (
+              {/* 대국 중에는 형세 그래프를 띄우지 않는다. 엔진 평가를 그대로
+                  흘리는 것이라 훈수와 같다. */}
+              {mode !== "play" && (
                 <EvalGraph history={history} cursor={cursor} onJump={goTo} />
               )}
               <MoveList
@@ -1492,17 +1474,38 @@ export default function App() {
         <GameOverDialog
           outcome={outcome}
           mySide={mySide}
-          moveCount={history.length - 1}
-          levelName={level.name}
           onReview={() => {
             setResultOpen(false);
             goMode("review");
           }}
-          onNewGame={() => {
-            setResultOpen(false);
+          onClose={() => setResultOpen(false)}
+        />
+      )}
+
+      {asking === "new" && (
+        <ConfirmDialog
+          title="새 대국을 시작할까요?"
+          message="두던 판의 기보가 지워집니다."
+          confirmLabel="새 대국"
+          danger
+          onConfirm={() => {
+            setAsking(null);
             newGame();
           }}
-          onClose={() => setResultOpen(false)}
+          onCancel={() => setAsking(null)}
+        />
+      )}
+      {asking === "resign" && (
+        <ConfirmDialog
+          title="기권할까요?"
+          message="이 판은 기권패로 끝납니다."
+          confirmLabel="기권"
+          danger
+          onConfirm={() => {
+            setAsking(null);
+            resign();
+          }}
+          onCancel={() => setAsking(null)}
         />
       )}
     </div>

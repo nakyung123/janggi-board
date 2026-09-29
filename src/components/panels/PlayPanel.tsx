@@ -3,11 +3,9 @@
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
 // 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
 
-import { useEffect, useState } from "react";
 import { LEVELS, levelById, levelWaitLabel } from "../../engine/levels";
 import type { EngineOptions } from "../../engine/types";
-import { CLOCK_PRESETS, CUSTOM_CLOCK_ID, describeClock } from "../../janggi/clock";
-import type { ClockSettings } from "../../janggi/clock";
+import { CLOCK_PRESETS, describeClock } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import { SETUPS } from "../../janggi/setups";
@@ -48,14 +46,10 @@ interface Props {
   flagged: Side | null;
   clockId: string;
   onClock: (id: string) => void;
-  /** 직접 입력으로 맞춰 둔 시계 값 */
-  customClock: ClockSettings;
-  onCustomClock: (patch: Partial<ClockSettings>) => void;
   variant: EngineOptions["variant"];
   onVariant: (v: EngineOptions["variant"]) => void;
   /** 엔진이 지금 생각하고 있는지 */
   thinking: boolean;
-  analysisOn: boolean;
   onMySide: (side: Side) => void;
   onLevel: (id: string) => void;
   /** 이 판을 시작한 상차림. 시작 국면이 넷 중 어느 것도 아니면 null. */
@@ -63,33 +57,18 @@ interface Props {
   onSetup: (side: Side, setup: Setup) => void;
   onNewGame: () => void;
   onResign: () => void;
-  onAnalysisOn: (on: boolean) => void;
 }
 
 export function PlayPanel(props: Props) {
   const {
-    mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
-    clockId, onClock, customClock, onCustomClock, variant, onVariant,
-    onMySide, onLevel, setups, onSetup, onNewGame, onResign, onAnalysisOn,
+    mySide, levelId, started, status, resigned, flagged, thinking,
+    clockId, onClock, variant, onVariant,
+    onMySide, onLevel, setups, onSetup, onNewGame, onResign,
   } = props;
 
   const level = levelById(levelId);
-  /** 끝났는지, 끝났다면 어떻게. 결과 카드와 기권 버튼이 이 하나를 본다. */
+  /** 끝났는지, 끝났다면 어떻게. 기권 버튼이 이 하나를 본다. */
   const outcome = outcomeOf(status, resigned, flagged);
-
-  /*
-   * '새 대국' 은 되돌릴 수 없다. 두던 기보가 그대로 사라지고, 복기할 수 있었던
-   * 판도 같이 날아간다. 그래서 두던 판이 있을 때만 한 번 더 묻는다.
-   *
-   * 확인 창(modal)을 띄우지 않고 버튼이 그 자리에서 바뀐다. 창은 흐름을 끊고,
-   * 습관이 붙으면 읽지 않고 누르게 된다.
-   */
-  const [confirmNew, setConfirmNew] = useState(false);
-
-  // 판이 바뀌면(새 대국을 눌렀거나 무르기로 처음에 왔거나) 묻던 것을 접는다.
-  useEffect(() => {
-    if (!started) setConfirmNew(false);
-  }, [started]);
 
   return (
     <div className="panel play">
@@ -143,66 +122,27 @@ export function PlayPanel(props: Props) {
       */}
       <p className="muted small level-desc">{level.desc}</p>
 
+      {/*
+        시계는 두 가지라 셀렉트 대신 분절 버튼이다. 펼쳐 봐야 둘뿐인 것을
+        접어 둘 까닭이 없다. 5분의 초읽기(30초 3회)는 툴팁이 말한다.
+      */}
       <div className="row">
         <span className="label">시계</span>
-        <select value={clockId} onChange={(e) => onClock(e.target.value)}>
+        <div className="seg">
           {CLOCK_PRESETS.map((c) => (
-            <option key={c.id} value={c.id}>
+            <button
+              key={c.id}
+              type="button"
+              className={clockId === c.id ? "active" : ""}
+              aria-pressed={clockId === c.id}
+              title={describeClock(c)}
+              onClick={() => onClock(c.id)}
+            >
               {c.name}
-            </option>
+            </button>
           ))}
-          <option value={CUSTOM_CLOCK_ID}>
-            직접 입력 - {describeClock(customClock)}
-          </option>
-        </select>
-      </div>
-
-      {clockId === CUSTOM_CLOCK_ID && (
-        <div className="row clock-custom">
-          <label>
-            제한시간
-            <input
-              type="number"
-              min={0}
-              max={180}
-              value={Math.round(customClock.mainSeconds / 60)}
-              onChange={(e) =>
-                onCustomClock({ mainSeconds: Number(e.target.value) * 60 })
-              }
-            />
-            분
-          </label>
-          {/* 초읽기는 길이와 회수가 한 덩어리다. 따로 떨어지면 "5회" 가 무엇의
-              회수인지 알 수 없어서 묶어 둔다. */}
-          <span className="clock-byoyomi">
-            <label>
-              초읽기
-              <input
-                type="number"
-                min={0}
-                max={300}
-                value={customClock.byoyomiSeconds}
-                onChange={(e) =>
-                  onCustomClock({ byoyomiSeconds: Number(e.target.value) })
-                }
-              />
-              초
-            </label>
-            <label>
-              <input
-                type="number"
-                min={0}
-                max={20}
-                value={customClock.byoyomiCount}
-                onChange={(e) =>
-                  onCustomClock({ byoyomiCount: Number(e.target.value) })
-                }
-              />
-              회
-            </label>
-          </span>
         </div>
-      )}
+      </div>
 
       <div className="row">
         <span className="label">규칙</span>
@@ -260,32 +200,11 @@ export function PlayPanel(props: Props) {
         ))}
       </div>
 
+      {/* 두던 판이 있으면 App 이 확인 창(ConfirmDialog)으로 한 번 더 묻는다. */}
       <div className="row">
-        {confirmNew ? (
-          <>
-            <button
-              type="button"
-              className="primary danger"
-              onClick={() => {
-                setConfirmNew(false);
-                onNewGame();
-              }}
-            >
-              기보를 지우고 시작
-            </button>
-            <button type="button" className="ghost" onClick={() => setConfirmNew(false)}>
-              취소
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="primary"
-            onClick={() => (started ? setConfirmNew(true) : onNewGame())}
-          >
-            새 대국
-          </button>
-        )}
+        <button type="button" className="primary" onClick={onNewGame}>
+          새 대국
+        </button>
         <button
           type="button"
           className="ghost"
@@ -297,15 +216,6 @@ export function PlayPanel(props: Props) {
           기권
         </button>
       </div>
-
-      <label className="row toggle">
-        <input
-          type="checkbox"
-          checked={analysisOn}
-          onChange={(e) => onAnalysisOn(e.target.checked)}
-        />
-        <span>두는 동안 훈수 보기</span>
-      </label>
 
       {/*
         대국이 끝났을 때 결과는 화면 가운데 팝업(GameOverDialog)이 말한다.

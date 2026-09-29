@@ -19,12 +19,7 @@ interface Props {
   outcome: Outcome;
   /** 내가 잡은 쪽. 이겼는지 졌는지는 이걸 봐야 안다. */
   mySide: Side;
-  /** 몇 수에서 끝났는지 */
-  moveCount: number;
-  /** 상대 급수 이름 */
-  levelName: string;
   onReview: () => void;
-  onNewGame: () => void;
   onClose: () => void;
 }
 
@@ -33,12 +28,11 @@ const 승패 = (winner: Side | null, mine: Side): string =>
   winner === null ? "draw" : winner === mine ? "won" : "lost";
 
 export function GameOverDialog(props: Props) {
-  const { outcome, mySide, moveCount, levelName, onReview, onNewGame, onClose } =
-    props;
+  const { outcome, mySide, onReview, onClose } = props;
 
   const firstRef = useRef<HTMLButtonElement>(null);
 
-  // 뜨자마자 '복기 보기'에 초점을 준다. 키보드만 쓰는 사람이 탭을 여러 번
+  // 뜨자마자 '기보 보기'에 초점을 준다. 키보드만 쓰는 사람이 탭을 여러 번
   // 눌러 찾아 들어오지 않아도 되고, 엔터로 바로 복기로 넘어간다.
   useEffect(() => {
     firstRef.current?.focus();
@@ -62,9 +56,9 @@ export function GameOverDialog(props: Props) {
 
   return (
     // 바깥을 눌러도 닫힌다. 창을 처음 보는 사람이 가장 먼저 해보는 동작이다.
-    <div className="result-backdrop" onClick={onClose}>
+    <div className="dialog-backdrop" onClick={onClose}>
       <div
-        className="result-dialog"
+        className="dialog result"
         role="dialog"
         aria-modal="true"
         aria-labelledby="result-head"
@@ -74,19 +68,19 @@ export function GameOverDialog(props: Props) {
         <p id="result-head" className={"result-head " + 승패(outcome.winner, mySide)}>
           {head}
         </p>
-        <p className="result-detail muted">
-          {outcomeMessage(outcome)}
-        </p>
-        <p className="result-detail muted small">
-          {moveCount}수에서 끝났습니다. 상대는 {levelName}이었습니다.
-        </p>
+        {/*
+          어떻게 끝났는지 한 줄만 둔다. "N수에서 끝났습니다. 상대는 16급" 줄도
+          있었는데, 수는 기보에서 보이고 상대는 방금까지 마주 앉아 있던 쪽이다.
+        */}
+        <p className="dialog-body muted">{outcomeMessage(outcome)}</p>
 
-        <div className="result-buttons">
+        {/*
+          버튼은 둘. '새 대국' 도 있었지만 끝난 판을 곧바로 지우는 길이 결과
+          창에 있을 까닭이 없다. 새로 두려면 대국 패널의 새 대국을 누른다.
+        */}
+        <div className="dialog-buttons">
           <button ref={firstRef} type="button" className="primary" onClick={onReview}>
-            복기 보기
-          </button>
-          <button type="button" onClick={onNewGame}>
-            새 대국
+            기보 보기
           </button>
           <button type="button" className="ghost" onClick={onClose}>
             닫기

@@ -30,16 +30,21 @@ export interface ClockPreset extends ClockSettings {
   name: string;
 }
 
+/*
+ * 시계는 두 가지뿐이다.
+ *
+ * 예전에는 3분·5분·10분·20분에 직접 입력까지 여섯 갈래였다. 고를 것이 많으면
+ * 처음 온 사람은 무엇이 보통인지 모른다. 실제로 쓰는 길이는 5분대 하나라
+ * '시계를 쓴다 / 안 쓴다' 로 줄였다. 이름은 짧게 "5분" 이고, 초읽기까지 적은
+ * 전체 설명은 describeClock 이 버튼 툴팁으로 준다.
+ *
+ * 예전에 저장해 둔 id(normal·long·custom 같은 것)는 clockPresetById 가
+ * 기본값으로 떨군다.
+ */
 export const CLOCK_PRESETS: ClockPreset[] = [
   { id: "off", name: "시계 없음", enabled: false, mainSeconds: 0, byoyomiSeconds: 0, byoyomiCount: 0 },
-  { id: "blitz", name: "3분 + 30초 3회", enabled: true, mainSeconds: 180, byoyomiSeconds: 30, byoyomiCount: 3 },
-  { id: "five", name: "5분 + 30초 3회", enabled: true, mainSeconds: 300, byoyomiSeconds: 30, byoyomiCount: 3 },
-  { id: "normal", name: "10분 + 30초 3회", enabled: true, mainSeconds: 600, byoyomiSeconds: 30, byoyomiCount: 3 },
-  { id: "long", name: "20분 + 1분 5회", enabled: true, mainSeconds: 1200, byoyomiSeconds: 60, byoyomiCount: 5 },
+  { id: "five", name: "5분", enabled: true, mainSeconds: 300, byoyomiSeconds: 30, byoyomiCount: 3 },
 ];
-
-/** 직접 입력을 고른 상태. 값은 프리셋이 아니라 따로 들고 있는 것을 쓴다. */
-export const CUSTOM_CLOCK_ID = "custom";
 
 /*
  * 기본은 5분 + 30초 3회.
@@ -51,29 +56,7 @@ export const CUSTOM_CLOCK_ID = "custom";
  */
 export const DEFAULT_CLOCK_ID = "five";
 
-/** 직접 입력의 처음 값. 프리셋에 없는 조합을 맞추고 싶을 때 시작점이다. */
-export const DEFAULT_CUSTOM_CLOCK: ClockSettings = {
-  enabled: true,
-  mainSeconds: 900,
-  byoyomiSeconds: 40,
-  byoyomiCount: 5,
-};
-
-/** 초읽기 없이 제한시간만 쓸 수도 있어야 해서 회수 0을 허용한다. */
-export function clampCustomClock(c: ClockSettings): ClockSettings {
-  const main = Math.max(0, Math.min(180 * 60, Math.round(c.mainSeconds)));
-  const byo = Math.max(0, Math.min(300, Math.round(c.byoyomiSeconds)));
-  const count = Math.max(0, Math.min(20, Math.round(c.byoyomiCount)));
-  return {
-    // 제한시간도 초읽기도 없으면 시계를 켜 둘 이유가 없다.
-    enabled: main > 0 || (byo > 0 && count > 0),
-    mainSeconds: main,
-    byoyomiSeconds: byo,
-    byoyomiCount: byo > 0 ? count : 0,
-  };
-}
-
-/** "15분 + 40초 5회" 처럼 읽기 좋게. */
+/** "5분 + 30초 3회" 처럼 읽기 좋게. */
 export function describeClock(c: ClockSettings): string {
   if (!c.enabled) return "시계 없음";
   const parts: string[] = [];
@@ -309,14 +292,4 @@ export function clockView(c: SideClock): ClockView {
     // 초읽기가 없는 설정이면 제한시간 끝이 곧 시간패라 여기서도 센다.
     countdown: c.periods === 0 ? countdownOf(c.mainMs) : null,
   };
-}
-
-/**
- * 고른 시계가 프리셋인지 직접 입력인지 가려서 실제 값을 돌려준다.
- *
- * 부르는 쪽이 매번 "직접 입력이면…" 을 따지면 한 군데만 빠뜨려도 시계가
- * 어긋난다. 해석은 여기 한 곳에서만 한다.
- */
-export function resolveClock(id: string, custom: ClockSettings): ClockSettings {
-  return id === CUSTOM_CLOCK_ID ? clampCustomClock(custom) : clockPresetById(id);
 }

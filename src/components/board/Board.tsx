@@ -50,6 +50,14 @@ export interface BoardProps {
    * 옮기는데, 그때가 정작 아무 표시도 없는 순간이었다.
    */
   onPick?: (square: Square) => void;
+  /**
+   * 이 기물을 집어 들 수 있는지. 없으면 전부 들린다(편집 모드).
+   *
+   * 예전에는 눌러서 고르는 것만 막혀 있고 끌기는 아무 기물이나 들렸다. 초를
+   * 잡고 있는데 한의 차가 손에 딸려 오고, 놓으면 제자리로 돌아갔다. 엔진이
+   * 생각하는 동안에도, 복기 중에도 그랬다.
+   */
+  canPick?: (square: Square) => boolean;
 }
 
 export function Board(props: BoardProps) {
@@ -67,6 +75,7 @@ export function Board(props: BoardProps) {
     onMove,
     onRemove,
     onPick,
+    canPick,
   } = props;
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -77,6 +86,11 @@ export function Board(props: BoardProps) {
     outside: boolean;
     /** 이번에 누르면서 기물을 골랐는지. 뗄 때 도로 놓지 않으려고 기억한다. */
     picked: boolean;
+    /**
+     * 들 수 없는 기물을 누른 것. 기물은 제자리에 두고 '누름' 으로만 넘긴다.
+     * 고른 내 기물로 잡으려고 상대 기물을 누른 것일 수 있어서 누름 자체는 살린다.
+     */
+    held: boolean;
   } | null>(null);
 
   // 화면 좌표 ↔ 교차점 --------------------------------------------------
@@ -135,6 +149,11 @@ export function Board(props: BoardProps) {
     }
     const { x, y } = locate(e);
 
+    if (!editMode && canPick && !canPick(square)) {
+      setDrag({ from: square, x, y, outside: false, picked: false, held: true });
+      return;
+    }
+
     /*
      * 누르는 순간 기물을 골라 갈 곳을 띄운다.
      *
@@ -146,11 +165,11 @@ export function Board(props: BoardProps) {
       !editMode && selected !== square && !targets.includes(square);
     if (picked) onPick?.(square);
 
-    setDrag({ from: square, x, y, outside: false, picked });
+    setDrag({ from: square, x, y, outside: false, picked, held: false });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!drag) return;
+    if (!drag || drag.held) return;
     const { square, x, y } = locate(e);
     setDrag({ ...drag, x, y, outside: square === null });
   };
@@ -160,6 +179,12 @@ export function Board(props: BoardProps) {
     const { square } = locate(e);
     const from = drag.from;
     setDrag(null);
+
+    // 들 수 없는 기물은 그 자리에서 뗐을 때만 누른 것으로 친다.
+    if (drag.held) {
+      if (square === from) onSquareClick(from);
+      return;
+    }
 
     if (!square) {
       // 판 밖으로 끌어냈다 — 편집 모드에서는 기물을 치우는 동작이다.
@@ -224,14 +249,23 @@ export function Board(props: BoardProps) {
     const p = dragging && drag ? { x: drag.x, y: drag.y } : posOf(square);
     const r = (CELL / 2) * info.size * 0.94;
 
+    // 들 수 없는 기물은 손 모양 커서도 주지 않는다. 쥐어질 것처럼 보이면 안 된다.
+    // 다만 고른 내 기물로 잡을 수 있는 상대 기물은 누를 곳이라 손가락 커서다.
+    const fixed = !editMode && canPick !== undefined && !canPick(square);
+    const takeable = fixed && targetSet.has(square);
     return (
       <g
         key={square}
         data-piece={square}
-        className={"piece" + (dragging ? " dragging" : "")}
+        className={
+          "piece" +
+          (dragging ? " dragging" : "") +
+          (fixed ? " fixed" : "") +
+          (takeable ? " takeable" : "")
+        }
         transform={`translate(${p.x} ${p.y})`}
         onPointerDown={(e) => handlePointerDown(e, square)}
-        style={{ opacity: drag && drag.from === square && !dragging ? 0.25 : 1 }}
+        style={{ opacity: drag && drag.from === square && !dragging && !drag.held ? 0.25 : 1 }}
       >
         <PieceBody piece={piece} radius={r} />
       </g>
@@ -287,6 +321,18 @@ export function Board(props: BoardProps) {
           <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
         </radialGradient>
         {/*
+          도착 자리는 더 크고 진하게. 같은 발광을 쓰면 기물이 가운데를 덮어
+          가장자리의 옅은 테두리만 남았다 - 출발 자리는 잘 보이는데 도착은 어디인지
+          몰랐다. 기물 둘레로 한참 번지게 하고, 70% 까지 거의 불투명하게 둔다.
+          시안 넷(진영색 테·진영색 번짐 포함)을 나란히 놓고 골랐다. 색을 쓰면
+          '잡을 수 있는 칸' 의 붉은 테나 장군 경고로 읽혔다.
+        */}
+        <radialGradient id="lastGlowTo">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="72%" stopColor="#ffffff" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </radialGradient>
+        {/*
           발광은 교차점을 중심으로 한 원이라, 가장자리 줄에서는 판 밖까지
           번진다. 판 모양 그대로 잘라내지 않으면 나무판 바깥 페이지 바탕에
           흰 반달이 찍힌다.
@@ -322,15 +368,20 @@ export function Board(props: BoardProps) {
       {/* 직전 수 표시 */}
       {lastMove && (
         <g clipPath="url(#boardClip)">
-          {[lastMove.from, lastMove.to].map((s) => {
+          {(
+            [
+              [lastMove.from, "from", 0.6],
+              [lastMove.to, "to", 0.8],
+            ] as const
+          ).map(([s, end, size]) => {
             const p = posOf(s);
             return (
               <circle
-                key={"last" + s}
-                className="last-move"
+                key={"last" + end}
+                className={"last-move " + end}
                 cx={p.x}
                 cy={p.y}
-                r={CELL * 0.6}
+                r={CELL * size}
               />
             );
           })}
@@ -428,8 +479,8 @@ export function Board(props: BoardProps) {
         );
       })}
 
-      {/* 끌고 있는 기물은 맨 위에 다시 그린다. */}
-      {drag && (
+      {/* 끌고 있는 기물은 맨 위에 다시 그린다. 들 수 없는 기물은 끌리지 않는다. */}
+      {drag && !drag.held && (
         <g className={drag.outside ? "drag-layer removing" : "drag-layer"}>
           {renderPiece(drag.from, true)}
         </g>

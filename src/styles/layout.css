@@ -349,14 +349,17 @@
   }
 }
 
-/* --- 대국 결과 팝업 ----------------------------------------------------- */
+/* --- 가운데 창: 대국 결과·확인 ------------------------------------------ */
 /*
- * 판이 끝나는 순간 화면 가운데에 한 번 뜬다(GameOverDialog.tsx).
+ * 대국 결과(GameOverDialog.tsx)는 판이 끝나는 순간 화면 가운데에 한 번 뜬다.
  * 이기고 지는 것이 이 앱에서 가장 큰 사건이라 눈이 가 있는 곳에서 말한다.
  * 대신 닫을 수 있다 - 끝난 판을 다시 놓아보는 것도 이 도구의 쓸모다.
+ *
+ * 새 대국·기권을 묻는 창(ConfirmDialog.tsx)도 같은 틀을 쓴다. 가운데 창이
+ * 두 모양이면 어느 쪽이 더 중요한지 괜히 따지게 된다.
  */
 
-.result-backdrop {
+.dialog-backdrop {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -366,10 +369,10 @@
   padding: 16px;
   /* 판을 완전히 가리지 않는다. 방금 무슨 일이 있었는지 뒤로 보여야 한다. */
   background: rgba(0, 0, 0, 0.32);
-  animation: result-in 0.14s ease-out;
+  animation: dialog-in 0.14s ease-out;
 }
 
-.result-dialog {
+.dialog {
   width: 100%;
   max-width: 340px;
   background: var(--panel);
@@ -378,6 +381,14 @@
   box-shadow: 0 8px 12px rgba(16, 24, 40, 0.08), 0 24px 56px rgba(16, 24, 40, 0.18);
   padding: 20px;
   text-align: center;
+}
+
+/* 묻는 창의 제목. 결과보다 한 단계 낮은 20 이다 - 판이 끝난 게 아니라
+   끝낼지 묻는 중이다. */
+.dialog-title {
+  font-size: var(--fs-title);
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 .result-head {
@@ -401,12 +412,15 @@
   color: var(--muted);
 }
 
-.result-detail {
+.dialog-body {
   margin-bottom: 4px;
 }
 
-/* 복기 보기가 첫 자리다. 진 다음에 제일 알고 싶은 것이 '어디서 틀렸나' 다. */
-.result-buttons {
+/*
+ * 결과 창은 기보 보기가 첫 자리다. 진 다음에 제일 알고 싶은 것이 '어디서
+ * 틀렸나' 다. 묻는 창은 되돌릴 수 없는 쪽이 앞이지만 초점은 취소에 있다.
+ */
+.dialog-buttons {
   display: flex;
   gap: 8px;
   justify-content: center;
@@ -414,7 +428,7 @@
   margin-top: 16px;
 }
 
-@keyframes result-in {
+@keyframes dialog-in {
   from {
     opacity: 0;
   }
@@ -425,7 +439,7 @@
 
 /* 동작 줄이기를 켠 사람에게는 나타나는 것만 보여주고 움직이지 않는다. */
 @media (prefers-reduced-motion: reduce) {
-  .result-backdrop {
+  .dialog-backdrop {
     animation: none;
   }
 }
