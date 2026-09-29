@@ -33,6 +33,7 @@ export interface ClockPreset extends ClockSettings {
 export const CLOCK_PRESETS: ClockPreset[] = [
   { id: "off", name: "시계 없음", enabled: false, mainSeconds: 0, byoyomiSeconds: 0, byoyomiCount: 0 },
   { id: "blitz", name: "3분 + 30초 3회", enabled: true, mainSeconds: 180, byoyomiSeconds: 30, byoyomiCount: 3 },
+  { id: "five", name: "5분 + 30초 3회", enabled: true, mainSeconds: 300, byoyomiSeconds: 30, byoyomiCount: 3 },
   { id: "normal", name: "10분 + 30초 3회", enabled: true, mainSeconds: 600, byoyomiSeconds: 30, byoyomiCount: 3 },
   { id: "long", name: "20분 + 1분 5회", enabled: true, mainSeconds: 1200, byoyomiSeconds: 60, byoyomiCount: 5 },
 ];
@@ -40,7 +41,15 @@ export const CLOCK_PRESETS: ClockPreset[] = [
 /** 직접 입력을 고른 상태. 값은 프리셋이 아니라 따로 들고 있는 것을 쓴다. */
 export const CUSTOM_CLOCK_ID = "custom";
 
-export const DEFAULT_CLOCK_ID = "normal";
+/*
+ * 기본은 5분 + 30초 3회.
+ *
+ * 예전 기본은 10분이었는데, 한 판에 스무 분 넘게 잡아먹는다. 처음 들어와서
+ * 한 판 두고 나가는 흐름에 맞지 않는다. 카카오 장기가 쓰는 5분대가 실제로
+ * 사람들이 두는 길이다. 제한시간이 끝나도 초읽기로 넘어가므로 갑자기
+ * 시간패하지는 않는다.
+ */
+export const DEFAULT_CLOCK_ID = "five";
 
 /** 직접 입력의 처음 값. 프리셋에 없는 조합을 맞추고 싶을 때 시작점이다. */
 export const DEFAULT_CUSTOM_CLOCK: ClockSettings = {
@@ -79,8 +88,15 @@ export function describeClock(c: ClockSettings): string {
   return parts.join(" + ") || "시계 없음";
 }
 
+/*
+ * 모르는 id 면 기본값으로 떨어진다. 예전에는 CLOCK_PRESETS[2] 라고 적혀
+ * 있었는데, 목록 가운데에 하나를 끼워 넣자 뜻이 조용히 바뀌었다. 자리로
+ * 가리키면 목록을 손댈 때마다 이런 일이 생긴다.
+ */
 export const clockPresetById = (id: string): ClockPreset =>
-  CLOCK_PRESETS.find((p) => p.id === id) ?? CLOCK_PRESETS[2];
+  CLOCK_PRESETS.find((p) => p.id === id) ??
+  CLOCK_PRESETS.find((p) => p.id === DEFAULT_CLOCK_ID) ??
+  CLOCK_PRESETS[0];
 
 export interface SideClock {
   /** 남은 제한시간 (ms) */
@@ -226,6 +242,22 @@ export function formatMain(ms: number): string {
 /** 초읽기는 남은 초만 큼직하게 센다. */
 export const formatByoyomi = (ms: number): string =>
   String(Math.ceil(Math.max(0, ms) / 1000));
+
+/**
+ * 남은 시간의 비율 (0~1). 줄어드는 막대의 길이다.
+ *
+ * 숫자만 있으면 "얼마나 남았나"를 읽어서 계산해야 한다. 막대는 보면 바로
+ * 안다. 제한시간 중에는 제한시간 전체에 대한 비율, 초읽기 중에는 그 회
+ * 전체에 대한 비율이라 - 초읽기에서는 한 수 둘 때마다 막대가 도로 찬다.
+ * 그게 초읽기가 실제로 하는 일이라 눈으로 그대로 보인다.
+ */
+export function clockRatio(c: SideClock, s: ClockSettings): number {
+  if (c.flagged) return 0;
+  const full = (c.inByoyomi ? s.byoyomiSeconds : s.mainSeconds) * 1000;
+  if (full <= 0) return 0;
+  const left = c.inByoyomi ? c.byoyomiMs : c.mainMs;
+  return Math.max(0, Math.min(1, left / full));
+}
 
 export interface ClockView {
   text: string;

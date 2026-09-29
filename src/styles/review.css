@@ -151,40 +151,6 @@ button.primary.danger:hover:not(:disabled) {
   margin-bottom: 8px;
 }
 
-/* 대국이 끝났을 때 뜨는 카드. 결과를 말하고, 다음에 할 일로 데려간다. */
-.play-over {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  background: var(--panel-2);
-  border: 1px solid var(--line-strong);
-  color: var(--text);
-}
-
-.play-over-head {
-  margin: 0 0 4px;
-  font-size: var(--fs-xl);
-  font-weight: 700;
-}
-
-/* 이겼는지 졌는지는 글자만 보고도 알아야 한다. 색은 거들 뿐이라
-   비긴 경우까지 세 가지를 모두 말로 적는다. */
-.play-over-head.won {
-  color: var(--cho);
-}
-
-.play-over-head.lost {
-  color: var(--han);
-}
-
-.play-over-head.draw {
-  color: var(--muted);
-}
-
-.play-over .row {
-  margin: 10px 0 0;
-}
-
 .banner.resign {
   margin-bottom: 10px;
   padding: 9px 13px;

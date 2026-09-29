@@ -11,6 +11,7 @@ import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
 import { BoardControls } from "./components/panels/BoardControls";
+import { GameOverDialog } from "./components/GameOverDialog";
 import { PlayPanel } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
 import { PositionTools } from "./components/panels/PositionTools";
@@ -431,6 +432,11 @@ export default function App() {
     [position, legal, checkers, probed, cursor, pointsRule]
   );
   const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
+  /** 끝났다면 어떻게 끝났는지. 다섯 갈래를 outcomeOf 한곳에서 받는다. */
+  const outcome = useMemo(
+    () => outcomeOf(gstatus, resigned, flagged),
+    [gstatus, resigned, flagged]
+  );
   /**
    * 대국이 끝난 것으로 '보여줄지'.
    *
@@ -471,6 +477,21 @@ export default function App() {
   useEffect(() => {
     if (showOver) setSelected(null);
   }, [showOver]);
+
+  /*
+   * 결과 팝업.
+   *
+   * '지금 끝난 판인지'가 아니라 '방금 끝났는지'를 본다. 앞의 것으로 하면
+   * 새로고침해서 끝난 판을 되살릴 때마다 이미 아는 결과가 다시 튀어나오고,
+   * 복기하러 들어올 때마다 창을 닫아야 한다. 그래서 대국이 끝나는 '순간'만
+   * 잡는다 - 처음 그릴 때의 over 는 이미 본 것으로 치고 넘어간다.
+   */
+  const [resultOpen, setResultOpen] = useState(false);
+  const wasOver = useRef(over);
+  useEffect(() => {
+    if (over && !wasOver.current) setResultOpen(true);
+    wasOver.current = over;
+  }, [over]);
 
   // --- 수 두기 ----------------------------------------------------------
 
@@ -842,8 +863,10 @@ export default function App() {
   );
 
   const resign = () => {
+    // 기권하면 결과 팝업이 뜨고, 거기에 '복기 보기'가 있다. 예전에는 여기서
+    // 머리말 알림으로 "복기 탭에서 볼 수 있습니다" 를 띄웠는데, 팝업·판 위
+    // 배너까지 셋이 같은 말을 하게 됐다.
     setResigned(mySide);
-    setNotice("기권했습니다. 복기 탭에서 어디가 갈림길이었는지 볼 수 있습니다.");
   };
 
   // --- 기보 저장·불러오기 -----------------------------------------------
@@ -1068,6 +1091,8 @@ export default function App() {
       // 시계는 대국에서만 돈다. 복기·분석에서 남은 시간을 보여주면 아직
       // 대국 중인 것처럼 읽힌다.
       clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
+      // 막대 길이를 재려면 '전체가 얼마였는지'가 있어야 한다.
+      settings: mode === "play" && clockSettings.enabled ? clockSettings : null,
     }),
     [mySide, level.name, scores, position, showOver, engineTurn, mode, clockSettings.enabled, clocks]
   );
@@ -1274,8 +1299,6 @@ export default function App() {
                 onNewGame={newGame}
                 onResign={resign}
                 onAnalysisOn={setHintOn}
-                moveCount={history.length - 1}
-                onReview={() => goMode("review")}
               />
 
               {hintOn && (
@@ -1382,6 +1405,28 @@ export default function App() {
           )}
         </section>
       </main>
+
+      {/*
+        결과 팝업. 대국에서만 뜬다 - 분석·복기에서 끝난 국면을 불러올 때마다
+        창이 뜨면 그게 곧 방해다.
+      */}
+      {mode === "play" && resultOpen && outcome && (
+        <GameOverDialog
+          outcome={outcome}
+          mySide={mySide}
+          moveCount={history.length - 1}
+          levelName={level.name}
+          onReview={() => {
+            setResultOpen(false);
+            goMode("review");
+          }}
+          onNewGame={() => {
+            setResultOpen(false);
+            newGame();
+          }}
+          onClose={() => setResultOpen(false)}
+        />
+      )}
     </div>
   );
 }

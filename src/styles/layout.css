@@ -257,3 +257,84 @@
     overflow: visible;
   }
 }
+
+/* --- 대국 결과 팝업 ----------------------------------------------------- */
+/*
+ * 판이 끝나는 순간 화면 가운데에 한 번 뜬다(GameOverDialog.tsx).
+ * 이기고 지는 것이 이 앱에서 가장 큰 사건이라 눈이 가 있는 곳에서 말한다.
+ * 대신 닫을 수 있다 - 끝난 판을 다시 놓아보는 것도 이 도구의 쓸모다.
+ */
+
+.result-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* 판을 완전히 가리지 않는다. 방금 무슨 일이 있었는지 뒤로 보여야 한다. */
+  background: rgba(24, 24, 27, 0.32);
+  animation: result-in 0.14s ease-out;
+}
+
+.result-dialog {
+  width: 100%;
+  max-width: 340px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 12px rgba(16, 24, 40, 0.08), 0 24px 56px rgba(16, 24, 40, 0.18);
+  padding: 20px;
+  text-align: center;
+}
+
+.result-head {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+/* 이겼는지 졌는지는 글자만 보고도 알아야 한다. 색은 거들 뿐이라
+   비긴 경우까지 세 가지를 모두 말로 적는다. */
+.result-head.won {
+  color: var(--cho);
+}
+
+.result-head.lost {
+  color: var(--han);
+}
+
+.result-head.draw {
+  color: var(--muted);
+}
+
+.result-detail {
+  margin-bottom: 3px;
+}
+
+/* 복기 보기가 첫 자리다. 진 다음에 제일 알고 싶은 것이 '어디서 틀렸나' 다. */
+.result-buttons {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+@keyframes result-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 동작 줄이기를 켠 사람에게는 나타나는 것만 보여주고 움직이지 않는다. */
+@media (prefers-reduced-motion: reduce) {
+  .result-backdrop {
+    animation: none;
+  }
+}

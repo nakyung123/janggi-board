@@ -171,7 +171,7 @@ describe("화면에 띄우는 값", () => {
 
 describe("시계 설정 목록", () => {
   it("모르는 id 는 기본값으로 떨어진다", () => {
-    expect(clockPresetById("없는-설정").id).toBe("normal");
+    expect(clockPresetById("없는-설정").id).toBe("five");
   });
 
   it("시계 없음 설정은 꺼져 있다", () => {

@@ -4,8 +4,8 @@
 //   누가 어느 쪽을 잡았는지 · 기물 점수 · 잡아낸 기물 · 남은 시간
 // 둘 차례인 쪽만 밝게 띄워서, 판을 보다가 고개를 들면 바로 알 수 있게 한다.
 
-import type { SideClock } from "../../janggi/clock";
-import { clockView } from "../../janggi/clock";
+import type { ClockSettings, SideClock } from "../../janggi/clock";
+import { clockRatio, clockView } from "../../janggi/clock";
 import type { PieceChar, Side } from "../../janggi/pieces";
 import { SIDE_LABEL, charOf } from "../../janggi/pieces";
 import type { PieceType } from "../../janggi/pieces";
@@ -27,11 +27,14 @@ interface Props {
   thinking?: boolean;
   /** 시계를 안 쓰면 null */
   clock: SideClock | null;
+  /** 막대 길이를 재려면 '전체가 얼마였는지'를 알아야 한다. 시계와 같이 온다. */
+  settings: ClockSettings | null;
 }
 
 export function PlayerBar(props: Props) {
-  const { side, name, kind, score, captured, active, thinking, clock } = props;
+  const { side, name, kind, score, captured, active, thinking, clock, settings } = props;
   const view = clock ? clockView(clock) : null;
+  const ratio = clock && settings ? clockRatio(clock, settings) : null;
   const opponent: Side = side === "cho" ? "han" : "cho";
 
   return (
@@ -95,6 +98,25 @@ export function PlayerBar(props: Props) {
       {thinking && active && <span className="player-thinking" aria-label="생각 중" />}
       {!thinking && active && <span className="player-turn muted small">둘 차례</span>}
       <span className="sr-only">{SIDE_LABEL[side]}</span>
+
+      {/*
+        줄어드는 시간 막대. 카드 아래 모서리에 깔린다.
+        숫자는 읽어서 계산해야 하지만 막대는 보면 안다. 둘 차례가 아닌 쪽도
+        그려둔다 - 상대에게 얼마나 남았는지가 내 수를 정하는 값이다.
+        읽어주는 것은 숫자 쪽이 하므로 여기는 화면에서만 뜻이 있다.
+      */}
+      {ratio !== null && (
+        <span
+          className={
+            "clock-bar" +
+            (view?.inByoyomi ? " byoyomi" : "") +
+            (view?.urgent ? " urgent" : "")
+          }
+          aria-hidden="true"
+        >
+          <i style={{ width: `${ratio * 100}%` }} />
+        </span>
+      )}
     </div>
   );
 }

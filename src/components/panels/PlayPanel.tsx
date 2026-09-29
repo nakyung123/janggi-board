@@ -13,7 +13,7 @@ import { SIDE_LABEL } from "../../janggi/pieces";
 import { SETUPS, randomSetup } from "../../janggi/setups";
 import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
-import { outcomeMessage, outcomeOf } from "../../janggi/status";
+import { outcomeOf } from "../../janggi/status";
 import { 을를 } from "../../janggi/korean";
 
 /*
@@ -22,10 +22,6 @@ import { 을를 } from "../../janggi/korean";
  * 줄 전체가 무슨 질문인지 흐려졌다. 엔진끼리 두는 것을 보고 싶으면 분석
  * 모드에서 최선수를 따라 두면 되므로 잃는 것도 없다.
  */
-
-/** 결과 카드의 색. 이겼는지 졌는지는 글자로도 적으므로 색은 거들 뿐이다. */
-const 승패 = (winner: Side | null, mine: Side): string =>
-  winner === null ? "draw" : winner === mine ? "won" : "lost";
 
 /**
  * 규칙.
@@ -66,10 +62,6 @@ interface Props {
   onNewGame: () => void;
   onResign: () => void;
   onAnalysisOn: (on: boolean) => void;
-  /** 지금까지 둔 수. 끝난 뒤 "몇 수 만이었다" 를 적는 데 쓴다. */
-  moveCount: number;
-  /** 복기 탭으로 넘어간다 */
-  onReview: () => void;
 }
 
 export function PlayPanel(props: Props) {
@@ -77,7 +69,6 @@ export function PlayPanel(props: Props) {
     mySide, levelId, started, status, resigned, flagged, thinking, analysisOn,
     clockId, onClock, customClock, onCustomClock, variant, onVariant,
     onMySide, onLevel, onSetup, onNewGame, onResign, onAnalysisOn,
-    moveCount, onReview,
   } = props;
 
   const level = levelById(levelId);
@@ -316,34 +307,11 @@ export function PlayPanel(props: Props) {
       </label>
 
       {/*
-        대국이 끝났을 때.
-        예전에는 한 줄짜리 문장이었고 외통·기권·시간패만 알아봤다. 수몰과 200수
-        점수로 끝나면 판은 멈췄는데 아무 말도 없었다. 이제 다섯 갈래를 outcomeOf
-        한곳에서 받는다.
-
-        "복기 탭에서 볼 수 있습니다" 라고 적어두기만 했더니 탭을 직접 찾아가야
-        했다. 진 다음에 제일 알고 싶은 것이 '어디서 틀렸나' 이므로 버튼으로 낸다.
+        대국이 끝났을 때 결과는 화면 가운데 팝업(GameOverDialog)이 말한다.
+        여기에도 결과 카드가 있었는데, 판 위 배너까지 셋이 같은 말을 하고
+        있었다. 이 칸은 '이 판을 어떻게 둘까'를 정하는 곳이지 결과를 알리는
+        곳이 아니다. outcome 은 기권 버튼을 잠그는 데만 남는다.
       */}
-      {outcome && (
-        <div className="play-over">
-          <p className={"play-over-head " + 승패(outcome.winner, mySide)}>
-            {outcome.winner === null
-              ? "비겼습니다"
-              : outcome.winner === mySide
-                ? "이겼습니다"
-                : "졌습니다"}
-          </p>
-          <p className="muted small">
-            {outcomeMessage(outcome)} {moveCount}수에서 끝났습니다. 상대는{" "}
-            {level.name} 이었습니다.
-          </p>
-          <div className="row">
-            <button type="button" className="primary" onClick={onReview}>
-              복기 보기
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
