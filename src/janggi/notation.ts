@@ -105,53 +105,6 @@ export function describeLine(moves: string[], start: Board): string[] {
   return out;
 }
 
-/** 평가 점수를 사람이 읽는 문자열로. 항상 초(楚) 시점이다. */
-export function formatScore(score: number, mate: number | null): string {
-  if (mate !== null) {
-    if (mate === 0) return "외통";
-    return `${mate > 0 ? "+" : "-"}M${Math.abs(mate)}`;
-  }
-  const sign = score > 0 ? "+" : "";
-  return sign + score.toFixed(2);
-}
-
-/**
- * 평가 점수를 초(楚)가 이길 확률로.
- *
- * "+1.20" 보다 "62%" 가 훨씬 잘 읽힌다. 점수는 기물 몇 점을 앞선다는 뜻이라
- * 장기를 오래 둔 사람에게만 감이 오는데, 확률은 처음 보는 사람도 안다.
- *
- * 계수 K 는 어림값이다. 제대로 맞추려면 "이 점수에서 시작한 판이 실제로 몇 번
- * 이겼는가" 를 수천 판 모아야 하는데 장기에는 그런 공개 자료가 없다.
- *
- * 대신 척도만 실제로 재서 맞췄다. 시작 국면에서 한의 차 하나를 뺀 판
- * (기물 점수로 11.5점 차)을 엔진에게 물으면 +9.6 이 나온다. 즉 엔진의 1.0 은
- * 장기 점수 약 1.2 점이다. 그 자리가 85% 로 나오도록 K 를 잡았다 — 차 하나를
- * 그냥 앞선 판은 거의 이겼지만 아직 둘 것이 남은 판이라는 뜻이다.
- *
- * 실측이 아니라 눈금 맞추기일 뿐이므로 화면에서도 단정적으로 쓰지 않는다.
- */
-const WIN_PROB_K = 0.18;
-
-export function winProbability(score: number, mate: number | null): number {
-  if (mate !== null) {
-    if (mate === 0) return 0;
-    return mate > 0 ? 1 : 0;
-  }
-  return 1 / (1 + Math.exp(-WIN_PROB_K * score));
-}
-
-/** 이길 확률을 "62%" 로. side 를 주면 그 진영 시점으로 뒤집는다. */
-export function formatWinProbability(
-  score: number,
-  mate: number | null,
-  side: "cho" | "han" = "cho"
-): string {
-  const p = winProbability(score, mate);
-  const mine = side === "cho" ? p : 1 - p;
-  return `${Math.round(mine * 100)}%`;
-}
-
 /**
  * 기보 한 줄 — 초·한 한 수씩 짝지은 것.
  * cho·han 은 기보(history) 에서의 자리. 비어 있으면 null.

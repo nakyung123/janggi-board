@@ -46,14 +46,6 @@
   stroke-width: 1.5;
 }
 
-.board text.coord {
-  fill: #8a6636;
-  font-size: var(--fs-base);
-  font-weight: 600;
-  text-anchor: middle;
-  dominant-baseline: middle;
-}
-
 /* --- 기물 -------------------------------------------------------------- */
 /*
  * 세 겹으로 입체를 낸다. 옆면(두께) → 빗면 → 윗면 순으로 겹친다.
@@ -262,18 +254,18 @@
  * 상차림 줄의 진영 글자(초·한). 판 편집 팔레트에서 쓰던 이름을 그대로 쓴다.
  * 팔레트는 분석 탭과 함께 뺐다.
  */
-.palette-side {
+.setup-side {
   width: 24px;
   flex: none;
   font-weight: 600;
   font-size: var(--fs-base);
 }
 
-.palette-side.cho {
+.setup-side.cho {
   color: var(--cho);
 }
 
-.palette-side.han {
+.setup-side.han {
   color: var(--han);
 }
 
@@ -310,7 +302,7 @@
  * 판을 보다가 고개를 들었을 때 누구 차례인지 색으로 바로 읽히는 것이 목적이다.
  */
 
-.player-bar {
+.player-card {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -328,17 +320,17 @@
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
-.player-bar.active {
+.player-card.active {
   background: var(--panel);
   color: var(--text);
   box-shadow: var(--shadow-card);
 }
 
-.player-bar.active.cho {
+.player-card.active.cho {
   border-color: var(--cho);
 }
 
-.player-bar.active.han {
+.player-card.active.han {
   border-color: var(--han);
 }
 
@@ -350,15 +342,15 @@
   opacity: 0.5;
 }
 
-.player-bar.active .player-mark {
+.player-card.active .player-mark {
   opacity: 1;
 }
 
-.player-bar.active .player-mark.cho {
+.player-card.active .player-mark.cho {
   color: var(--cho);
 }
 
-.player-bar.active .player-mark.han {
+.player-card.active .player-mark.han {
   color: var(--han);
 }
 
@@ -440,7 +432,7 @@
   letter-spacing: 0;
 }
 
-.player-bar.active .player-clock {
+.player-card.active .player-clock {
   background: var(--panel-2);
 }
 
@@ -495,7 +487,7 @@
 }
 
 /*
- * 오른쪽 칸의 두 줄 카드(PlayerBar layout="stacked").
+ * 오른쪽 칸의 두 줄 카드(PlayerCard layout="stacked").
  *
  *   윗줄: 진영 · 이름 · 차례/장군/승패 ········ 시계
  *   아랫줄: 시간 막대(시계를 끄면 잡아낸 기물) ··· 점수
@@ -504,7 +496,7 @@
  * 칸은 400 이라 한 줄에 넣으면 잡은 기물 칸이 두세 알 폭으로 줄어든다. 두 줄로
  * 나누면서 가장 자주 보는 것(누구 차례, 남은 시간)을 윗줄에 모았다.
  */
-.player-bar.stacked {
+.player-card.stacked {
   display: grid;
   grid-template-columns: auto auto 1fr auto;
   grid-template-areas:
@@ -517,15 +509,15 @@
   min-height: 0;
 }
 
-.player-bar.stacked .player-mark {
+.player-card.stacked .player-mark {
   grid-area: mark;
 }
 
-.player-bar.stacked .player-name {
+.player-card.stacked .player-name {
   grid-area: name;
 }
 
-.player-bar.stacked .player-status {
+.player-card.stacked .player-status {
   grid-area: status;
   justify-self: start;
 }
@@ -535,22 +527,22 @@
  * "73.5점 덤 1.5" 처럼 점수가 길면 칸이 시계보다 넓어진다. 그대로 두면 시계가
  * 넓어진 칸의 왼쪽에 붙어 카드 가운데쯤에 떠 보인다.
  */
-.player-bar.stacked .player-clock {
+.player-card.stacked .player-clock {
   grid-area: clock;
   justify-self: end;
 }
 
 /* 잡은 기물이 없어도 아랫줄 높이는 그대로 둔다. 한 알 잡을 때마다 카드가 자라면 안 된다. */
-.player-bar.stacked .player-captured {
+.player-card.stacked .player-captured {
   grid-area: bar;
   min-height: 22px;
 }
 
-.player-bar.stacked .time-bar {
+.player-card.stacked .time-bar {
   grid-area: bar;
 }
 
-.player-bar.stacked .player-score {
+.player-card.stacked .player-score {
   grid-area: score;
   justify-self: end;
 }
@@ -579,11 +571,11 @@
 }
 
 /* 이긴 쪽은 진영색. 색이 보이면 누구 편인지를 말한다는 규칙 그대로다. */
-.player-bar.cho .player-tag.win {
+.player-card.cho .player-tag.win {
   color: var(--cho);
 }
 
-.player-bar.han .player-tag.win {
+.player-card.han .player-tag.win {
   color: var(--han);
 }
 
@@ -621,7 +613,7 @@
 }
 
 /*
- * 줄어드는 시간 막대. 시계가 도는 동안 잡은 기물 자리에 선다(PlayerBar 주석).
+ * 줄어드는 시간 막대. 시계가 도는 동안 잡은 기물 자리에 선다(PlayerCard 주석).
  *
  * 예전에는 카드 아래 모서리에 4px 로 깔려 있었다. 카드에 자리를 따로 내주지
  * 않으려던 것인데(판이 그만큼 줄어든다), 가늘어서 대국 중에 있는 줄도 몰랐다.
@@ -640,7 +632,7 @@
 }
 
 /* 한 줄 카드(폰)에서는 잡은 기물이 쓰던 가운데 남는 폭을 다 쓴다. */
-.player-bar.row .time-bar {
+.player-card.row .time-bar {
   flex: 1;
 }
 
@@ -658,15 +650,15 @@
   opacity: 0.4;
 }
 
-.player-bar.active .time-bar i {
+.player-card.active .time-bar i {
   opacity: 1;
 }
 
-.player-bar.cho .time-bar i {
+.player-card.cho .time-bar i {
   background: var(--cho);
 }
 
-.player-bar.han .time-bar i {
+.player-card.han .time-bar i {
   background: var(--han);
 }
 
@@ -684,7 +676,7 @@
  * 밖으로 넘친다.
  */
 @container players (min-height: 320px) {
-  .player-bar.stacked {
+  .player-card.stacked {
     grid-template-rows: auto 1fr auto;
     grid-template-areas:
       "mark name status status"
@@ -693,36 +685,36 @@
     padding: 12px 16px;
   }
 
-  .player-bar.stacked .player-clock {
+  .player-card.stacked .player-clock {
     justify-self: start;
     gap: 12px;
     padding: 4px 12px;
   }
 
-  .player-bar.stacked .player-clock b,
-  .player-bar.stacked .player-clock.byoyomi b,
-  .player-bar.stacked .player-clock.counting b {
+  .player-card.stacked .player-clock b,
+  .player-card.stacked .player-clock.byoyomi b,
+  .player-card.stacked .player-clock.counting b {
     font-size: var(--fs-clock);
     font-weight: 600;
     line-height: 1.2;
   }
 
-  .player-bar.stacked .player-clock.flagged b {
+  .player-card.stacked .player-clock.flagged b {
     font-size: var(--fs-title);
   }
 
-  .player-bar.stacked .byoyomi-dots {
+  .player-card.stacked .byoyomi-dots {
     font-size: var(--fs-title);
   }
 
-  .player-bar.stacked .player-captured {
+  .player-card.stacked .player-captured {
     grid-area: clock;
     flex-wrap: wrap;
     align-content: center;
     gap: 4px;
   }
 
-  .player-bar.stacked .captured-piece {
+  .player-card.stacked .captured-piece {
     width: 28px;
     height: 28px;
   }

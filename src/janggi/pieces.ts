@@ -14,8 +14,6 @@ export type PieceChar =
   | "R" | "N" | "B" | "A" | "K" | "C" | "P"
   | "r" | "n" | "b" | "a" | "k" | "c" | "p";
 
-export const PIECE_TYPES: PieceType[] = ["k", "r", "c", "n", "b", "a", "p"];
-
 export const sideOf = (ch: PieceChar): Side =>
   ch === ch.toUpperCase() ? "cho" : "han";
 

@@ -45,7 +45,7 @@ interface Props {
   layout?: "row" | "stacked";
 }
 
-export function PlayerBar(props: Props) {
+export function PlayerCard(props: Props) {
   const { side, name, kind, score, captured, active, thinking, clock, settings } = props;
   const view = clock ? clockView(clock) : null;
   const ratio = clock && settings ? clockRatio(clock, settings) : null;
@@ -55,7 +55,7 @@ export function PlayerBar(props: Props) {
   const layout = props.layout ?? "row";
 
   return (
-    <div className={"player-bar " + layout + " " + side + (active ? " active" : "")}>
+    <div className={"player-card " + layout + " " + side + (active ? " active" : "")}>
       <span className={"player-mark " + side}>
         {side === "cho" ? "초 楚" : "한 漢"}
       </span>

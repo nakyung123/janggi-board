@@ -11,9 +11,9 @@
 // 처럼 어떻게 끝났는지를 계속 들고 있다.
 
 import { useEffect, useRef } from "react";
-import type { Side } from "../janggi/pieces";
-import type { Outcome } from "../janggi/status";
-import { outcomeMessage } from "../janggi/status";
+import type { Side } from "../../janggi/pieces";
+import type { Outcome } from "../../janggi/status";
+import { outcomeMessage } from "../../janggi/status";
 
 interface Props {
   outcome: Outcome;

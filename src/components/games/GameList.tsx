@@ -10,10 +10,10 @@
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
-import { parseFen } from "../janggi/board";
-import { pageItems, resultTag, whenLabel } from "../janggi/archive";
-import type { ArchivedGame } from "../janggi/archive";
-import { MiniBoard } from "./board/MiniBoard";
+import { parseFen } from "../../janggi/board";
+import { pageItems, resultTag, whenLabel } from "../../janggi/archive";
+import type { ArchivedGame } from "../../janggi/archive";
+import { MiniBoard } from "./MiniBoard";
 
 interface Props {
   games: ArchivedGame[];

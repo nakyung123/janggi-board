@@ -14,7 +14,7 @@ import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
 import { outcomeOf } from "../../janggi/status";
 import { 을를 } from "../../janggi/korean";
-import { Dropdown } from "../Dropdown";
+import { Dropdown } from "../common/Dropdown";
 
 /*
  * 예전에는 '구경'(엔진끼리 두는 것을 지켜보기)이 세 번째 선택지로 있었다.
@@ -205,7 +205,7 @@ export function PlayPanel(props: Props) {
         <span className="label">상차림</span>
         {(["cho", "han"] as Side[]).map((side) => (
           <div key={side} className="row setup-row">
-            <span className={"palette-side " + side}>{SIDE_LABEL[side]}</span>
+            <span className={"setup-side " + side}>{SIDE_LABEL[side]}</span>
             <div className="seg">
               {SETUPS.map((s) => (
                 <button

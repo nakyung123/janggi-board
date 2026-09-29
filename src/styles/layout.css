@@ -218,7 +218,7 @@
 }
 
 /* 판과 나란히 서야 하는 것. 폰에서 판 위아래에 붙는 대국자 카드. */
-.table > .player-bar {
+.table > .player-card {
   width: var(--board-w, 100%);
   max-width: 100%;
   flex: none;
@@ -299,7 +299,7 @@
     container: players / size;
   }
 
-  .side-col.play .players > .player-bar {
+  .side-col.play .players > .player-card {
     flex: 1 1 0;
     min-height: 76px;
   }
@@ -603,7 +603,7 @@
   }
 
   /* 좁은 화면에서는 판이 폭을 꽉 채우므로 잰 값을 쓰지 않는다. */
-  .table > .player-bar {
+  .table > .player-card {
     width: 100%;
   }
 

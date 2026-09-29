@@ -8,7 +8,7 @@
 // 같은 요청이었다. 줄을 옮기니 판이 그만큼 커진다.
 
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import type { Mode } from "../ModeTabs";
+import type { Mode } from "../layout/ModeTabs";
 
 /*
  * 아이콘은 Lucide(선 아이콘, 24 격자). 예전에는 ⇤ ← → ⇥ 를 글자로 넣었는데,

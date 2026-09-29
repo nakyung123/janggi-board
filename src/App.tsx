@@ -2,18 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Volume2, VolumeX } from "lucide-react";
 
 import { Board } from "./components/board/Board";
-import { ModeTabs } from "./components/ModeTabs";
-import type { Mode } from "./components/ModeTabs";
-import { EvalGraph } from "./components/panels/EvalGraph";
-import { MoveList } from "./components/panels/MoveList";
-import type { HistoryEntry } from "./components/panels/MoveList";
-import { BoardControls } from "./components/panels/BoardControls";
-import { ConfirmDialog } from "./components/ConfirmDialog";
-import { GameList } from "./components/GameList";
-import { GameOverDialog } from "./components/GameOverDialog";
-import { PlayPanel } from "./components/panels/PlayPanel";
-import { PlayerBar } from "./components/board/PlayerBar";
-import { ReviewPanel } from "./components/panels/ReviewPanel";
+import { ModeTabs } from "./components/layout/ModeTabs";
+import type { Mode } from "./components/layout/ModeTabs";
+import { EvalGraph } from "./components/games/EvalGraph";
+import { MoveList } from "./components/games/MoveList";
+import type { HistoryEntry } from "./components/games/MoveList";
+import { BoardControls } from "./components/board/BoardControls";
+import { ConfirmDialog } from "./components/common/ConfirmDialog";
+import { GameList } from "./components/games/GameList";
+import { GameOverDialog } from "./components/play/GameOverDialog";
+import { PlayPanel } from "./components/play/PlayPanel";
+import { PlayerCard } from "./components/board/PlayerCard";
+import { ReviewPanel } from "./components/games/ReviewPanel";
 
 import { readStored, safeStore, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
@@ -1265,7 +1265,7 @@ export default function App() {
         settings: mode === "play" && clockSettings.enabled ? clockSettings : null,
         // 장군·승패. 예전의 판 위 배너 대신 여기서 말한다(sideTag 주석).
         tag: sideTag(gstatus, shownOutcome, side),
-        // 넓은 화면은 오른쪽 칸의 두 줄 카드, 폰은 판 위아래의 한 줄(PlayerBar 주석).
+        // 넓은 화면은 오른쪽 칸의 두 줄 카드, 폰은 판 위아래의 한 줄(PlayerCard 주석).
         layout: (narrow ? "row" : "stacked") as "row" | "stacked",
       };
     },
@@ -1425,11 +1425,11 @@ export default function App() {
                 배너를 여기 띄웠는데, 판 크기가 남은 높이로 정해지는 탓에 배너가
                 뜰 때마다 판이 50px 남짓 줄었다 늘었다 했다.
 
-                대국자 카드도 넓은 화면에서는 오른쪽 칸으로 갔다(PlayerBar 주석).
+                대국자 카드도 넓은 화면에서는 오른쪽 칸으로 갔다(PlayerCard 주석).
                 판 위아래 두 장이 세로 92px 을 가져가고 있었다. 폰은 오른쪽 칸이
                 판 아래로 내려가서 카드를 판 위아래에 그대로 둔다.
               */}
-              {narrow && <PlayerBar {...playerOf(topSide)} />}
+              {narrow && <PlayerCard {...playerOf(topSide)} />}
 
               <div className="board-stage">
                 <Board
@@ -1451,7 +1451,7 @@ export default function App() {
                 />
               </div>
 
-              {narrow && <PlayerBar {...playerOf(bottomSide)} />}
+              {narrow && <PlayerCard {...playerOf(bottomSide)} />}
             </div>
           </section>
 
@@ -1477,8 +1477,8 @@ export default function App() {
             {/* 상대가 위, 내가 아래 - 판과 같은 순서로 포갠다. */}
             {!narrow && (
               <div className="players">
-                <PlayerBar {...playerOf(topSide)} />
-                <PlayerBar {...playerOf(bottomSide)} />
+                <PlayerCard {...playerOf(topSide)} />
+                <PlayerCard {...playerOf(bottomSide)} />
               </div>
             )}
 

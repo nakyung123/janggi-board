@@ -11,7 +11,7 @@ import type { Board as BoardMap } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
 import { pieceInfo } from "../../janggi/pieces";
 import type { PieceChar } from "../../janggi/pieces";
-import { PieceBody } from "./PieceGlyph";
+import { PieceBody } from "../board/PieceGlyph";
 
 // 큰 판과 같은 비율이어야 목록의 판이 큰 판을 줄인 것으로 읽힌다(Board.tsx).
 const CELL = 62;
