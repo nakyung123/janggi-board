@@ -1,8 +1,11 @@
 // 평가치 그래프
 //
-// 수를 둘 때마다 그 국면의 평가치를 기보에 적어두고, 그걸 이어 그린다.
+// 복기가 국면마다 적어 둔 평가치를 이어 그린다. 기보 탭에서 연 판에만 뜬다.
 // 가운데 가로선이 0(팽팽함)이고, 위로 솟으면 초가, 아래로 처지면 한이 좋다.
 // 어디서 판이 기울었는지 한눈에 보라고 만든 것이라 눈금은 최소로만 둔다.
+//
+// 예전에는 실시간 분석이 돌 때마다 점수가 쌓였다. 분석 탭과 훈수를 빼면서
+// 대국 중에는 점수를 매기지 않으므로, 복기를 돌려야 그래프가 생긴다.
 
 import { ChartLine } from "lucide-react";
 import type { HistoryEntry } from "./MoveList";
@@ -36,7 +39,7 @@ export function EvalGraph({ history, cursor, onJump }: Props) {
         <div className="empty">
           <ChartLine size={24} strokeWidth={1.75} aria-hidden />
           <p className="empty-title">아직 그릴 흐름이 없습니다</p>
-          <p>수를 두면 국면마다 평가치가 쌓여 흐름이 그려집니다.</p>
+          <p>복기를 돌리면 국면마다 평가치가 매겨져 흐름이 그려집니다.</p>
         </div>
       </div>
     );

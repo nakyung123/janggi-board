@@ -34,6 +34,18 @@ export function splitMove(move: string): { from: string; to: string } {
   return { from: m[1], to: m[2] };
 }
 
+/**
+ * 판에 화살표로 그릴 수 있는 수. 한수쉼(제자리)이나 읽을 수 없는 수는 null.
+ * 분석 패널에 있던 것을 분석을 빼면서 이리로 옮겼다. 기보에 마우스를 올린
+ * 수를 판에 띄우는 데 쓴다.
+ */
+export function arrowOf(move: string | null): { from: string; to: string } | null {
+  if (!move) return null;
+  const { from, to } = splitMove(move);
+  if (!from || !to || from === to) return null;
+  return { from, to };
+}
+
 export interface MoveNotation {
   /** 기보용 짧은 표기. 예) 03馬84 */
   short: string;

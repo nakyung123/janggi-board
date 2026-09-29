@@ -11,8 +11,6 @@ export interface Shortcuts {
   first: () => void;
   last: () => void;
   flip: () => void;
-  /** 켤 분석이 없는 화면에서는 비워 둔다. 그때 스페이스는 가로채지 않는다. */
-  toggleAnalysis?: () => void;
 }
 
 /** 지금 타이핑 중인지. FEN 칸에서 방향키를 누를 때 판이 움직이면 곤란하다. */
@@ -52,9 +50,8 @@ export function useKeyboard(shortcuts: Shortcuts, enabled = true) {
         case "f":
         case "F":
           return run(shortcuts.flip);
-        case " ":
-          if (shortcuts.toggleAnalysis) return run(shortcuts.toggleAnalysis);
-          return;
+        // 스페이스는 분석을 켜고 끄던 키였다. 분석을 빼면서 가로채지 않는다 -
+        // 초점이 간 버튼을 누르는 브라우저 기본 동작으로 돌아간다.
       }
     };
 

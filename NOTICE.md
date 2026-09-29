@@ -77,8 +77,8 @@ OFL 1.1 은 글꼴을 프로그램과 함께 배포하는 것을 허용한다. �
   chevrons-left·chevrons-right)은 Feather 에서 온 아이콘이라 MIT 를 따른다.
 - **출처**: https://lucide.dev · https://github.com/lucide-icons/lucide
 - **사용 방식**: npm 패키지 [`lucide-react`](https://www.npmjs.com/package/lucide-react)
-  에서 쓰는 아이콘만 가져온다(판 조작 줄의 처음·이전·다음·끝, 빈 상태 셋).
-  아이콘 모양은 고치지 않았다.
+  에서 쓰는 아이콘만 가져온다(판 조작 줄의 처음·이전·다음·끝, 기보 탭의 '목록'
+  버튼, 빈 상태 셋 - 기보 목록·형세·수 목록). 아이콘 모양은 고치지 않았다.
 - **저장소 포함 여부**: **포함하지 않음.** `npm install` 로 받으며, 빌드 결과물에는
   쓴 아이콘만 들어간다.
 

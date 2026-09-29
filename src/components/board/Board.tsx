@@ -26,22 +26,18 @@ const HEIGHT = (RANKS - 1) * CELL + MARGIN * 2;
 export interface BoardProps {
   board: BoardMap;
   flipped: boolean;
-  /** 편집 모드에서는 아무 교차점이나 집고 놓을 수 있다. */
-  editMode: boolean;
   selected: Square | null;
   /** 지금 고른 기물이 갈 수 있는 곳 */
   targets: Square[];
   lastMove: { from: Square; to: Square } | null;
   /** 엔진이 첫손에 꼽는 수. 파란 화살표. */
   bestMove: { from: Square; to: Square } | null;
-  /** 분석 줄에 마우스를 올려 미리 보는 수. 노란 화살표라 최선수와 헷갈리지 않는다. */
+  /** 기보의 수에 마우스를 올려 미리 보는 수. 노란 화살표라 최선수와 헷갈리지 않는다. */
   hoverMove?: { from: Square; to: Square } | null;
   /** 장군을 맞은 궁의 자리 */
   checkedKing?: Square | null;
   onSquareClick: (square: Square) => void;
   onMove: (from: Square, to: Square) => void;
-  /** 편집 모드에서 기물을 판 밖으로 끌어내면 지운다. */
-  onRemove?: (square: Square) => void;
   /**
    * 기물을 집어 들었다. 갈 곳을 띄우는 데 쓴다.
    *
@@ -51,7 +47,7 @@ export interface BoardProps {
    */
   onPick?: (square: Square) => void;
   /**
-   * 이 기물을 집어 들 수 있는지. 없으면 전부 들린다(편집 모드).
+   * 이 기물을 집어 들 수 있는지. 없으면 전부 들린다.
    *
    * 예전에는 눌러서 고르는 것만 막혀 있고 끌기는 아무 기물이나 들렸다. 초를
    * 잡고 있는데 한의 차가 손에 딸려 오고, 놓으면 제자리로 돌아갔다. 엔진이
@@ -64,7 +60,6 @@ export function Board(props: BoardProps) {
   const {
     board,
     flipped,
-    editMode,
     selected,
     targets,
     lastMove,
@@ -73,7 +68,6 @@ export function Board(props: BoardProps) {
     checkedKing,
     onSquareClick,
     onMove,
-    onRemove,
     onPick,
     canPick,
   } = props;
@@ -83,7 +77,6 @@ export function Board(props: BoardProps) {
     from: Square;
     x: number;
     y: number;
-    outside: boolean;
     /** 이번에 누르면서 기물을 골랐는지. 뗄 때 도로 놓지 않으려고 기억한다. */
     picked: boolean;
     /**
@@ -149,8 +142,8 @@ export function Board(props: BoardProps) {
     }
     const { x, y } = locate(e);
 
-    if (!editMode && canPick && !canPick(square)) {
-      setDrag({ from: square, x, y, outside: false, picked: false, held: true });
+    if (canPick && !canPick(square)) {
+      setDrag({ from: square, x, y, picked: false, held: true });
       return;
     }
 
@@ -158,20 +151,18 @@ export function Board(props: BoardProps) {
      * 누르는 순간 기물을 골라 갈 곳을 띄운다.
      *
      * 이미 고른 기물의 '갈 곳' 을 누른 것이면 집어 드는 게 아니라 거기로 두려는
-     * 것이므로 건드리지 않는다. 편집 모드에서도 건드리지 않는다 — 붓이 들려
-     * 있으면 집어 들기 전에 그 칸을 칠해버린다.
+     * 것이므로 건드리지 않는다.
      */
-    const picked =
-      !editMode && selected !== square && !targets.includes(square);
+    const picked = selected !== square && !targets.includes(square);
     if (picked) onPick?.(square);
 
-    setDrag({ from: square, x, y, outside: false, picked, held: false });
+    setDrag({ from: square, x, y, picked, held: false });
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!drag || drag.held) return;
-    const { square, x, y } = locate(e);
-    setDrag({ ...drag, x, y, outside: square === null });
+    const { x, y } = locate(e);
+    setDrag({ ...drag, x, y });
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -186,11 +177,8 @@ export function Board(props: BoardProps) {
       return;
     }
 
-    if (!square) {
-      // 판 밖으로 끌어냈다 — 편집 모드에서는 기물을 치우는 동작이다.
-      if (editMode) onRemove?.(from);
-      return;
-    }
+    // 판 밖으로 끌어냈으면 제자리로 돌아간다.
+    if (!square) return;
     if (square === from) {
       // 누르면서 방금 고른 것이면 그대로 둔다. 여기서 또 부르면 고르자마자
       // 도로 놓여서, 끌지 않고 한 번 누른 경우에 갈 곳이 번쩍이고 사라진다.
@@ -251,7 +239,7 @@ export function Board(props: BoardProps) {
 
     // 들 수 없는 기물은 손 모양 커서도 주지 않는다. 쥐어질 것처럼 보이면 안 된다.
     // 다만 고른 내 기물로 잡을 수 있는 상대 기물은 누를 곳이라 손가락 커서다.
-    const fixed = !editMode && canPick !== undefined && !canPick(square);
+    const fixed = canPick !== undefined && !canPick(square);
     const takeable = fixed && targetSet.has(square);
     return (
       <g
@@ -450,7 +438,7 @@ export function Board(props: BoardProps) {
             r={CELL * 0.46}
             fill="transparent"
             data-square={s}
-            className={targetSet.has(s) || editMode ? "hit active" : "hit"}
+            className={targetSet.has(s) ? "hit active" : "hit"}
             onPointerUp={() => {
               if (!drag) onSquareClick(s);
             }}
@@ -481,7 +469,7 @@ export function Board(props: BoardProps) {
 
       {/* 끌고 있는 기물은 맨 위에 다시 그린다. 들 수 없는 기물은 끌리지 않는다. */}
       {drag && !drag.held && (
-        <g className={drag.outside ? "drag-layer removing" : "drag-layer"}>
+        <g className="drag-layer">
           {renderPiece(drag.from, true)}
         </g>
       )}

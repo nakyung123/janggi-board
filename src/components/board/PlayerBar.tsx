@@ -1,8 +1,13 @@
 // 대국자 카드
 //
-// 판 위아래에 한 장씩 붙는다. 한국 장기 앱들이 쓰는 배치 그대로다.
 //   누가 어느 쪽을 잡았는지 · 기물 점수 · 잡아낸 기물 · 남은 시간
 // 둘 차례인 쪽만 밝게 띄워서, 판을 보다가 고개를 들면 바로 알 수 있게 한다.
+//
+// 넓은 화면에서는 오른쪽 칸 맨 위에 두 장이 포개진다(상대 위, 나 아래 - 판과
+// 같은 순서). 예전에는 판 위아래에 한 장씩 붙었는데, 판 폭만큼 긴 줄에 이름은
+// 왼쪽 끝, 시계는 오른쪽 끝이라 눈이 오가야 했고, 두 장이 판에서 세로 92px 을
+// 가져갔다. 폰은 오른쪽 칸이 판 아래로 내려가서 옮기면 판에서 멀어지므로 예전
+// 자리(판 위아래 한 줄)를 쓴다. 두 모양을 layout 으로 가른다.
 
 import type { ClockSettings, SideClock } from "../../janggi/clock";
 import { clockRatio, clockView } from "../../janggi/clock";
@@ -32,6 +37,11 @@ interface Props {
   settings: ClockSettings | null;
   /** 장군·승패. 있으면 '둘 차례' 자리에 대신 선다. */
   tag: SideTag | null;
+  /**
+   * row: 판 위아래에 붙는 한 줄(폰). stacked: 오른쪽 칸의 두 줄 카드.
+   * 두 줄에서는 윗줄이 누구·차례·시계, 아랫줄이 잡은 기물·점수다.
+   */
+  layout?: "row" | "stacked";
 }
 
 export function PlayerBar(props: Props) {
@@ -41,9 +51,10 @@ export function PlayerBar(props: Props) {
   const opponent: Side = side === "cho" ? "han" : "cho";
   // 시간패는 시계 칸이 이미 "시간패" 로 바뀌어 있다. 같은 카드에 두 번 적지 않는다.
   const tag = view?.flagged && props.tag?.tone === "lose" ? null : props.tag;
+  const layout = props.layout ?? "row";
 
   return (
-    <div className={"player-bar " + side + (active ? " active" : "")}>
+    <div className={"player-bar " + layout + " " + side + (active ? " active" : "")}>
       <span className={"player-mark " + side}>
         {side === "cho" ? "초 楚" : "한 漢"}
       </span>
@@ -100,12 +111,15 @@ export function PlayerBar(props: Props) {
         </span>
       )}
 
-      {thinking && active && <span className="player-thinking" aria-label="생각 중" />}
-      {tag ? (
-        <span className={"player-tag " + tag.tone}>{tag.text}</span>
-      ) : (
-        !thinking && active && <span className="player-turn muted small">둘 차례</span>
-      )}
+      {/* 차례·생각 중·장군·승패. 두 줄 카드에서는 이름 바로 옆으로 간다. */}
+      <span className="player-status">
+        {thinking && active && <span className="player-thinking" aria-label="생각 중" />}
+        {tag ? (
+          <span className={"player-tag " + tag.tone}>{tag.text}</span>
+        ) : (
+          !thinking && active && <span className="player-turn muted small">둘 차례</span>
+        )}
+      </span>
       <span className="sr-only">{SIDE_LABEL[side]}</span>
 
       {/*

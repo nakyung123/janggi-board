@@ -3,11 +3,14 @@
 // 한 수씩 눌러 그 시점 국면으로 되돌아갈 수 있다. 되돌아간 뒤 다른 수를 두면
 // 그 지점부터 기보가 새로 이어진다.
 //
-// 복기를 돌린 뒤에는 수마다 등급 기호가 붙는다. 저장·불러오기 버튼도 여기 있다.
-// 기보를 보다가 저장하고 싶어지는 것이 자연스러운 순서라, 국면 패널에 있던
-// 것을 이리로 옮겼다.
+// 복기를 돌린 뒤에는 수마다 등급 기호가 붙는다. 파일로 저장하는 버튼도 여기
+// 있다. 기보를 보다가 저장하고 싶어지는 것이 자연스러운 순서다.
+//
+// 기보 탭에서 연 판에만 붙는다. 대국 탭에도 있었는데, 두는 중에 수 목록을 볼
+// 일이 드물고(무르기·다시는 판 조작 줄에 있다) 끝난 판은 기보 탭에서 본다.
+// 불러오기는 한 판이 아니라 목록에 넣는 일이라 기보 목록(GameList)으로 갔다.
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { ListOrdered } from "lucide-react";
 import { moveRows } from "../../janggi/notation";
 import { SIDE_LABEL } from "../../janggi/pieces";
@@ -41,12 +44,10 @@ interface Props {
    */
   onHoverMove: (move: string | null) => void;
   onSave: () => void;
-  onLoad: (file: File) => void;
 }
 
 export function MoveList(props: Props) {
-  const { history, cursor, reviewed, canSave, onJump, onHoverMove, onSave, onLoad } = props;
-  const fileRef = useRef<HTMLInputElement>(null);
+  const { history, cursor, reviewed, canSave, onJump, onHoverMove, onSave } = props;
 
   const gradeOf = (index: number) =>
     reviewed?.find((r) => r.index === index) ?? null;
@@ -139,26 +140,8 @@ export function MoveList(props: Props) {
           disabled={!canSave}
           title={canSave ? "기보를 파일로 저장합니다" : "저장할 수가 없습니다"}
         >
-          저장
+          파일로 저장
         </button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={() => fileRef.current?.click()}
-        >
-          불러오기
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) onLoad(file);
-            e.target.value = ""; // 같은 파일을 다시 골라도 동작하게
-          }}
-        />
       </div>
     </div>
   );

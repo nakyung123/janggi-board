@@ -1,7 +1,7 @@
 // 대국 설정
 //
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
-// 상차림을 어떻게 할지. 스레드·해시 같은 것은 분석 모드에 있다.
+// 상차림을 어떻게 할지. 스레드·해시 같은 엔진 설정은 화면에 두지 않는다.
 
 import { LEVELS, levelById, levelWaitLabel } from "../../engine/levels";
 import type { EngineOptions } from "../../engine/types";

@@ -1,24 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft } from "lucide-react";
 
 import { Board } from "./components/board/Board";
-import { PiecePalette } from "./components/board/PiecePalette";
-import type { Brush } from "./components/board/PiecePalette";
 import { ModeTabs } from "./components/ModeTabs";
 import type { Mode } from "./components/ModeTabs";
-import { AnalysisPanel, arrowOf } from "./components/panels/AnalysisPanel";
-import { EngineControls } from "./components/panels/EngineControls";
 import { EvalGraph } from "./components/panels/EvalGraph";
 import { MoveList } from "./components/panels/MoveList";
 import type { HistoryEntry } from "./components/panels/MoveList";
 import { BoardControls } from "./components/panels/BoardControls";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { GameList } from "./components/GameList";
 import { GameOverDialog } from "./components/GameOverDialog";
 import { PlayPanel } from "./components/panels/PlayPanel";
 import { PlayerBar } from "./components/board/PlayerBar";
-import { PositionTools } from "./components/panels/PositionTools";
 import { ReviewPanel } from "./components/panels/ReviewPanel";
 
-import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
+import { readStored, safeStore, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useAnalysis, useEngine } from "./engine/useEngine";
 import type { EngineOptions, PositionRef, SearchLimits } from "./engine/types";
 import { forgetIfMoved, positionKey } from "./engine/types";
@@ -39,14 +36,13 @@ import { playMoveSound, playPickSound } from "./audio/sound";
 
 import type { Board as BoardMap, Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
-import { describeMove, splitMove } from "./janggi/notation";
+import { arrowOf, describeMove, splitMove } from "./janggi/notation";
 import type { PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
 import { applySetup, detectSetup } from "./janggi/setups";
 import type { Setup } from "./janggi/setups";
 import {
   gameStatus,
-  isGameOver,
   outcomeOf,
   outcomeMessage,
   capturedPieces,
@@ -54,6 +50,7 @@ import {
   sideTag,
   statusMessage,
 } from "./janggi/status";
+import type { Outcome } from "./janggi/status";
 import {
   CLOCK_PRESETS,
   DEFAULT_CLOCK_ID,
@@ -69,7 +66,9 @@ import type { ClockState } from "./janggi/clock";
 import { buildRecord, downloadRecord, parseRecord } from "./janggi/record";
 import type { RecordPlayer, RecordResult } from "./janggi/record";
 import { bestArrowOf, runReview } from "./janggi/review";
-import type { ReviewProgress, ReviewedMove } from "./janggi/review";
+import type { ReviewProgress } from "./janggi/review";
+import { newGameId, readArchive, resultTag, upsertGame, whenLabel } from "./janggi/archive";
+import type { ArchivedGame, ArchivedResult } from "./janggi/archive";
 
 const initialHistory: HistoryEntry[] = [
   { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
@@ -91,6 +90,8 @@ function applyMove(pos: Position, from: Square, to: Square): Position {
   };
 }
 
+const VARIANTS = ["janggi", "janggimodern", "janggitraditional"];
+
 /**
  * 저장해 둔 값이 지금도 쓸 수 있는 모양인지.
  *
@@ -100,12 +101,11 @@ function applyMove(pos: Position, from: Square, to: Square): Position {
 function isEnginePrefs(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const p = v as Record<string, unknown>;
-  const variants = ["janggi", "janggimodern", "janggitraditional"];
   return (
     typeof p.threads === "number" && p.threads >= 1 && p.threads <= 16 &&
     typeof p.hashMb === "number" && p.hashMb >= 16 &&
     typeof p.multiPV === "number" && p.multiPV >= 1 && p.multiPV <= 8 &&
-    typeof p.variant === "string" && variants.includes(p.variant)
+    typeof p.variant === "string" && VARIANTS.includes(p.variant)
   );
 }
 
@@ -141,6 +141,11 @@ function isSide(v: unknown): boolean {
  * 이어서 열면 시계는 새로 찬다.
  */
 interface SavedGame {
+  /**
+   * 이 판의 이름표. 끝난 판을 기보 목록에 넣을 때 쓴다 - 같은 판이 두 번
+   * 들어와도 한 줄로 바뀌게. 목록이 생기기 전에 저장된 판에는 없다.
+   */
+  id?: string;
   history: HistoryEntry[];
   cursor: number;
   resigned: Side | null;
@@ -151,6 +156,7 @@ function isSavedGame(v: unknown): boolean {
   if (typeof v !== "object" || v === null) return false;
   const g = v as Record<string, unknown>;
   return (
+    (g.id === undefined || typeof g.id === "string") &&
     isHistory(g.history) &&
     typeof g.cursor === "number" &&
     g.cursor >= 0 &&
@@ -160,31 +166,62 @@ function isSavedGame(v: unknown): boolean {
   );
 }
 
+/** 폰처럼 좁은 화면인지. layout.css 의 900 과 같은 경계다. */
+const NARROW = "(max-width: 900px)";
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
+/**
+ * 기보 목록을 남긴다. 저장 공간이 차면 오래된 판부터 덜어내고 다시 남긴다.
+ * 남긴 목록을 돌려준다. 저장소가 아예 없으면(사생활 보호 모드) 손대지 않는다 -
+ * 그때 덜어내면 지금 화면의 목록까지 비워진다.
+ */
+function storeArchive(list: ArchivedGame[]): ArchivedGame[] {
+  if (!safeStore()) return list;
+  let kept = list;
+  while (kept.length > 0 && !writeStored("games", kept)) kept = kept.slice(0, -1);
+  return kept;
+}
+
 export default function App() {
   const { engine, status, progress, error } = useEngine();
 
   const [mode, setMode] = useState<Mode>("play");
+  const narrow = useNarrow();
 
   /*
    * 두던 판을 되살린다.
    *
    * 새로고침하거나 폰에서 앱을 잠깐 나갔다 오면 기보가 통째로 사라졌다.
-   * 한 판 두던 중이면 그게 제일 아깝다.
-   *
-   * 다만 '실제로 두던 판' 일 때만 되살린다(한 수라도 둔 것). 분석에서 국면만
-   * 만지다 나갔는데 다음에 열었을 때 그 이상한 판이 대국판으로 떠 있으면
-   * 영문을 모른다.
+   * 한 판 두던 중이면 그게 제일 아깝다. 한 수라도 둔 판일 때만 되살린다.
    */
-  const savedGame = useMemo(
-    () => readStored<SavedGame | null>("game", null, isSavedGame),
-    []
+  const savedGame = useMemo(() => {
+    const g = readStored<SavedGame | null>("game", null, isSavedGame);
+    return g && g.history.length > 1 ? g : null;
+  }, []);
+
+  /*
+   * 판은 둘이다. 대국 탭의 두던 판(play*)과 기보 탭에서 연 지난 판(openGame).
+   *
+   * 예전에는 기보가 하나뿐이라 세 탭이 나눠 썼다. 분석에서 수순을 짚어 보면 그게
+   * 대국 기보에 섞였고, 복기는 방금 둔 판만 볼 수 있었다. 이제 두던 판은 대국
+   * 탭만 만지고, 기보 탭은 목록에서 고른 판을 따로 들고 본다. 아래의 history·
+   * cursor 는 '지금 화면에 떠 있는 판' 이라 탭에 따라 둘 중 하나를 가리킨다.
+   */
+  const [playHistory, setPlayHistory] = useState<HistoryEntry[]>(
+    savedGame ? savedGame.history : initialHistory
   );
-  const [history, setHistory] = useState<HistoryEntry[]>(
-    savedGame && savedGame.history.length > 1 ? savedGame.history : initialHistory
-  );
-  const [cursor, setCursor] = useState(
-    savedGame && savedGame.history.length > 1 ? savedGame.cursor : 0
-  );
+  const [playCursor, setPlayCursor] = useState(savedGame ? savedGame.cursor : 0);
+  const [gameId, setGameId] = useState(() => savedGame?.id ?? newGameId());
   const [flipped, setFlipped] = usePersisted("flipped", false, (v) => typeof v === "boolean");
   const [selected, setSelected] = useState<Square | null>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -202,18 +239,14 @@ export default function App() {
     DEFAULT_LEVEL_ID,
     (v) => typeof v === "string" && LEVELS.some((l) => l.id === v)
   );
-  const [resigned, setResigned] = useState<Side | null>(
-    savedGame && savedGame.history.length > 1 ? savedGame.resigned : null
-  );
+  const [resigned, setResigned] = useState<Side | null>(savedGame ? savedGame.resigned : null);
   /**
    * 시간패한 쪽.
    *
    * 기권과 마찬가지로 되살린다. 되살리지 않았을 때는 시간패로 진 판을
    * 새로고침하면 패배가 사라지고 그대로 이어서 둘 수 있었다.
    */
-  const [flagged, setFlagged] = useState<Side | null>(
-    savedGame && savedGame.history.length > 1 ? savedGame.flagged : null
-  );
+  const [flagged, setFlagged] = useState<Side | null>(savedGame ? savedGame.flagged : null);
   // 예전에 골라 둔 10분·20분·직접 입력은 여기서 걸러져 기본값(5분)으로 간다.
   const [clockId, setClockId] = usePersisted(
     "clockId",
@@ -230,26 +263,16 @@ export default function App() {
    */
   const clockSettings = clockPresetById(clockId);
   // 되살린 판이 시간패로 끝난 것이면 그 쪽 시계를 다 쓴 모습으로 채운다.
-  // 시계만 가득 찬 채 "시간패" 배너가 뜨면 앞뒤가 맞지 않는다.
+  // 시계만 가득 찬 채 "시간패" 가 적혀 있으면 앞뒤가 맞지 않는다.
   const [clocks, setClocks] = useState<ClockState>(() =>
     withFlagged(initialClocks(clockSettings), flagged)
   );
   // '두는 동안 훈수 보기' 는 뺐다. 켜 두면 대국이 아니라 받아쓰기가 되고,
-  // 엔진이 권하는 수는 판이 끝난 뒤 복기에서 본다.
+  // 엔진이 권하는 수는 판이 끝난 뒤 기보 탭의 복기에서 본다.
   const level = levelById(levelId);
 
-  // --- 편집 (분석 모드) -------------------------------------------------
-  // 편집 모드는 기보와 따로 논다. 편집하는 동안 판은 draft 에만 반영하고,
-  // 편집을 끝낼 때 비로소 기보를 정한다. 이렇게 해야 "편집 한 번 눌렀다가
-  // 두던 판이 날아가는" 일이 없다.
-  const [draft, setDraft] = useState<Position | null>(null);
-  const editMode = draft !== null;
-  const [brush, setBrush] = useState<Brush>(null);
-
-  // --- 분석 설정 --------------------------------------------------------
-  const [analysisOn, setAnalysisOn] = usePersisted(
-    "analysisOn", true, (v) => typeof v === "boolean"
-  );
+  // 엔진 설정. 스레드·해시 슬라이더가 있던 분석 탭을 뺐으므로 처음 값 그대로
+  // 쓴다. 규칙(variant)은 대국 패널이 바꾼다.
   const [prefs, setPrefs] = usePersisted<Omit<EngineOptions, "skill">>(
     "enginePrefs",
     {
@@ -260,8 +283,24 @@ export default function App() {
     },
     isEnginePrefs
   );
-  // 기본값은 3초. 무제한은 코어를 계속 붙잡고 있어서 기본으로 두기엔 부담스럽다.
-  const [limits, setLimits] = useState<SearchLimits>({ movetimeMs: 3000 });
+
+  // --- 지난 판 ----------------------------------------------------------
+  const [games, setGames] = useState<ArchivedGame[]>(() =>
+    readArchive(readStored<unknown>("games", []))
+  );
+  useEffect(() => {
+    const kept = storeArchive(games);
+    if (kept.length !== games.length) setGames(kept);
+  }, [games]);
+
+  /** 기보 탭에서 연 판. null 이면 목록을 보여준다. */
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [viewCursor, setViewCursor] = useState(0);
+  /** 연 판은 그 판을 둔 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 설정은 건드리지 않는다. */
+  const [viewFlipped, setViewFlipped] = useState(false);
+  const openGame =
+    mode === "games" && openId ? (games.find((g) => g.id === openId) ?? null) : null;
+  const listView = mode === "games" && !openGame;
 
   // --- 복기 -------------------------------------------------------------
   const [reviewDepthId, setReviewDepthId] = usePersisted(
@@ -269,32 +308,41 @@ export default function App() {
     DEFAULT_REVIEW_DEPTH_ID,
     (v) => typeof v === "string" && REVIEW_DEPTHS.some((d) => d.id === v)
   );
-  const [reviewed, setReviewed] = useState<ReviewedMove[] | null>(null);
   const [reviewRunning, setReviewRunning] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<ReviewProgress | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const cancelReview = useRef(false);
 
+  // --- 지금 화면에 떠 있는 판 ---------------------------------------------
+  const history = openGame ? openGame.history : playHistory;
+  const cursor = openGame ? Math.min(viewCursor, openGame.history.length - 1) : playCursor;
+  const setCursor = openGame ? setViewCursor : setPlayCursor;
+  const reviewed = openGame?.reviewed ?? null;
+  const boardFlipped = openGame ? viewFlipped : flipped;
+
   const entry = history[cursor];
-  const played = useMemo(() => parseFen(entry.fen), [entry.fen]);
-  const position = draft ?? played;
-  const started = history.length > 1;
+  const position = useMemo(() => parseFen(entry.fen), [entry.fen]);
+  /** 대국 탭의 판에 한 수라도 뒀는지. 시계와 새 대국 확인이 본다. */
+  const started = playHistory.length > 1;
+  /** 연 판은 그 판의 규칙으로 본다. 빅장·수 반복 판정이 규칙마다 다르다. */
+  const variant = (
+    openGame && VARIANTS.includes(openGame.variant) ? openGame.variant : prefs.variant
+  ) as EngineOptions["variant"];
 
   /**
    * 엔진에 넘길 국면. 지금 FEN 만 주면 안 되고 수순을 함께 줘야 한다.
    * 장기의 장군반복 금지·빅장 판정이 "어떻게 여기까지 왔는가"를 보기 때문이다.
-   * 편집 중에는 수순이랄 게 없으니 고친 판 자체를 시작 국면으로 준다.
    */
-  const positionRef: PositionRef = useMemo(() => {
-    if (draft) return { startFen: toFen(draft), moves: [] };
-    return {
+  const positionRef: PositionRef = useMemo(
+    () => ({
       startFen: history[0].fen,
       moves: history
         .slice(1, cursor + 1)
         .map((h) => h.move)
         .filter((m): m is string => Boolean(m)),
-    };
-  }, [draft, history, cursor]);
+    }),
+    [history, cursor]
+  );
 
   // --- 엔진 차례 --------------------------------------------------------
 
@@ -307,17 +355,8 @@ export default function App() {
    * 기보를 잘라먹으면 곤란하다.
    */
   const atTip = cursor === history.length - 1;
-  const engineTurn =
-    mode === "play" &&
-    atTip &&
-    !editMode &&
-    engineSide === position.turn;
+  const engineTurn = mode === "play" && atTip && engineSide === position.turn;
 
-  /**
-   * 엔진의 실력과 탐색량.
-   * 엔진이 둘 차례면 급수대로 약하게, 사람이 둘 차례(=훈수)면 전력으로 본다.
-   * 훈수까지 약한 엔진이 내놓으면 도움이 안 된다.
-   */
   /**
    * 엔진이 이번 수에 쓸 수 있는 시간.
    *
@@ -339,28 +378,30 @@ export default function App() {
     setMoveBudget(Math.round(moveBudgetMs(clocksRef.current[position.turn], clockSettings)));
   }, [engineTurn, position.turn, entry.fen, clockSettings]);
 
+  /**
+   * 엔진의 탐색량. 엔진은 제 차례에만 돈다(훈수·분석을 뺐다).
+   * 급수대로 노드를 걸고, 시계를 쓰면 남은 시간도 함께 건다. 엔진은 둘 중
+   * 먼저 닿는 쪽에서 멈추므로, 시간이 넉넉하면 급수대로 노드를 다 쓰고
+   * 쫓기면 일찍 끊는다.
+   *
+   * 시계를 껐을 때도 상한은 있어야 한다. '시간 제한 없음'은 사람이 무제한이라는
+   * 뜻이지 엔진까지 무제한이라는 뜻이 아니다. 높은 급수는 노드가 수백만이라
+   * 상한이 없으면 한 수에 분 단위로 기다리게 된다.
+   */
   const searchLimits: SearchLimits = useMemo(() => {
-    if (mode !== "play") return limits;
-    if (!engineTurn) return { movetimeMs: 2000 };
-    const byNodes = limitsOf(level);
-    // 시계를 쓰면 남은 시간도 함께 건다. 엔진은 둘 중 먼저 닿는 쪽에서 멈추므로,
-    // 시간이 넉넉하면 급수대로 노드를 다 쓰고 쫓기면 일찍 끊는다.
-    //
-    // 시계를 껐을 때도 상한은 있어야 한다. '시간 제한 없음'은 사람이 무제한이라는
-    // 뜻이지 엔진까지 무제한이라는 뜻이 아니다. 높은 급수는 노드가 수백만이라
-    // 상한이 없으면 한 수에 분 단위로 기다리게 된다.
     const cap = moveBudget > 0 ? moveBudget : ENGINE_MOVE_CAP_MS;
-    return { ...byNodes, movetimeMs: cap };
-  }, [mode, engineTurn, level, limits, moveBudget]);
+    return { ...limitsOf(level), movetimeMs: cap };
+  }, [level, moveBudget]);
 
   const options: EngineOptions = useMemo(
     () => ({
       ...prefs,
-      // 대국 중 훈수는 후보수 하나면 충분하다. 넓게 보면 느려질 뿐이다.
-      multiPV: mode === "play" ? 1 : prefs.multiPV,
-      skill: mode === "play" && engineTurn ? level.skill : 20,
+      variant,
+      // 엔진은 제 수 하나만 고른다. 후보를 넓게 보면 느려질 뿐이다.
+      multiPV: 1,
+      skill: engineTurn ? level.skill : 20,
     }),
-    [prefs, mode, engineTurn, level.skill]
+    [prefs, variant, engineTurn, level.skill]
   );
 
   const optionsKey = useMemo(
@@ -384,10 +425,8 @@ export default function App() {
     if (engine && !reviewRunning) void engine.setOptions(options);
   }, [engine, options, reviewRunning]);
 
-  /** 복기 중에는 실시간 분석을 세워둔다. 같은 엔진을 둘이 나눠 쓸 수는 없다. */
-  const analysisEnabled =
-    !reviewRunning &&
-    (mode === "play" ? engineTurn : mode === "analyze" ? analysisOn : false);
+  /** 복기 중에는 탐색을 세워둔다. 같은 엔진을 둘이 나눠 쓸 수는 없다. */
+  const analysisEnabled = !reviewRunning && engineTurn;
 
   const { snapshot, legal, checkers, probed } = useAnalysis(
     engine,
@@ -400,7 +439,7 @@ export default function App() {
   // --- 대국 상태 --------------------------------------------------------
 
   // 전통 규칙에는 점수제가 없어서 수 제한으로 갈리지 않는다.
-  const pointsRule = prefs.variant !== "janggitraditional";
+  const pointsRule = variant !== "janggitraditional";
   const gstatus = useMemo(
     () =>
       gameStatus({
@@ -414,32 +453,34 @@ export default function App() {
       }),
     [position, legal, checkers, probed, cursor, pointsRule]
   );
-  const over = isGameOver(gstatus) || resigned !== null || flagged !== null;
-  /** 끝났다면 어떻게 끝났는지. 다섯 갈래를 outcomeOf 한곳에서 받는다. */
-  const outcome = useMemo(
-    () => outcomeOf(gstatus, resigned, flagged),
-    [gstatus, resigned, flagged]
-  );
-  /**
-   * 대국이 끝난 것으로 '보여줄지'.
-   *
-   * 분석은 국면을 보는 곳이라 대국 결과가 해당되지 않는다. 거기서는 끝난 판도
-   * 둘 수 있으므로(canTouchBoard 주석 참고), 둘 수 있는 판 위에 "기권 — 한이
-   * 이겼습니다" 가 떠 있으면 앞뒤가 맞지 않는다.
-   */
-  const showOver = over && mode !== "analyze";
 
   /**
-   * 대국자 카드와 화면 읽기 프로그램에 알릴 결과.
-   *
-   * 분석에서는 기권·시간패를 뺀다. 둘은 '대국' 에 붙는 결과라 국면을 보는
-   * 곳에는 해당되지 않는다(바로 위 주석). 외통·수몰·점수는 지금 국면의
-   * 판정이라 분석에서도 그대로 말한다.
+   * 대국 탭의 판이 끝났는지, 끝났다면 어떻게. 다섯 갈래를 outcomeOf 한곳에서 받는다.
+   * 기보 탭에서는 null 이다 - 그때 gstatus 는 연 판의 국면이고, 기권·시간패는
+   * 두던 판의 것이라 둘을 섞으면 안 된다.
    */
-  const shownOutcome = useMemo(
-    () => (mode === "analyze" ? outcomeOf(gstatus, null, null) : outcome),
-    [mode, gstatus, outcome]
+  const outcome = useMemo(
+    () => (mode === "play" ? outcomeOf(gstatus, resigned, flagged) : null),
+    [mode, gstatus, resigned, flagged]
   );
+  const over = outcome !== null;
+
+  /**
+   * 기보 탭에서 연 판의 결과. 마지막 수에 가 있을 때만 카드에 적는다 - 중간
+   * 국면에 "기권패" 가 붙어 있으면 그 국면에서 기권한 것처럼 읽힌다.
+   * 중단한 판, 끝나지 않은 채 저장된 파일은 적을 결과가 없다.
+   */
+  const viewOutcome: Outcome | null = useMemo(() => {
+    if (!openGame || !atTip) return null;
+    const { kind, winner } = openGame.result;
+    if (kind === "abandoned") return null;
+    return { kind, winner };
+  }, [openGame, atTip]);
+
+  /** 대국자 카드와 화면 읽기 프로그램에 알릴 결과. */
+  const shownOutcome = mode === "play" ? outcome : viewOutcome;
+  /** 끝난 판이면 두 카드를 다 눌러 둔다(둘 차례가 없다). */
+  const showOver = shownOutcome !== null;
 
   /*
    * 두던 판을 남긴다.
@@ -447,25 +488,25 @@ export default function App() {
    * 수를 둘 때마다 한 번씩이라 잦지 않다. 시계는 넣지 않는다 — 100ms 마다
    * 바뀌어서 저장이 폭주하고, 새로고침한 동안 시간이 흘렀는지도 알 수 없다.
    *
-   * 편집 중(draft)에는 남기지 않는다. 고치다 만 판이 다음에 대국판으로
-   * 떠 있으면 곤란하다.
-   *
-   * 대국 탭에서 둔 것만 남긴다. 기보는 세 탭이 함께 쓰는 하나뿐이라, 이걸
-   * 가려내지 않으면 분석에서 수순을 짚어본 것까지 '내 대국' 으로 저장된다.
-   * 다음에 열었을 때 둔 적 없는 수가 대국 기보에 들어 있으면 영문을 모른다.
+   * 예전에는 '대국 탭에서 둔 것만' 걸러 남겨야 했다. 기보가 하나뿐이라 분석에서
+   * 짚어 본 수까지 섞였기 때문이다. 이제 대국 탭의 판은 따로 들고 있어서 그대로
+   * 남기면 된다.
    */
   useEffect(() => {
-    if (draft !== null || mode !== "play") return;
-    writeStored("game", { history, cursor, resigned, flagged } satisfies SavedGame);
-  }, [history, cursor, resigned, flagged, draft, mode]);
+    writeStored("game", {
+      id: gameId,
+      history: playHistory,
+      cursor: playCursor,
+      resigned,
+      flagged,
+    } satisfies SavedGame);
+  }, [gameId, playHistory, playCursor, resigned, flagged]);
 
   /*
    * 대국이 끝나면 골라둔 기물을 놓는다.
    *
    * 기물을 하나 고른 채로 기권하면 선택 링과 갈 곳 점이 판에 그대로 남았다.
-   * "한이 이겼습니다" 배너 아래에서 아직 둘 수 있는 것처럼 보인다. 실제로는
-   * 막혀 있어서 눌러도 아무 일이 없으니 더 헷갈린다.
-   *
+   * 아직 둘 수 있는 것처럼 보이는데 실제로는 막혀 있어서 더 헷갈린다.
    * 끝나는 길이 넷(기권·시간패·외통·200수 점수)이라 각각 손보는 대신
    * '끝났는가' 하나만 보고 지운다.
    */
@@ -473,20 +514,48 @@ export default function App() {
     if (showOver) setSelected(null);
   }, [showOver]);
 
+  // --- 끝난 판을 목록에 남기기 ---------------------------------------------
+
+  /** 대국 탭의 판을 기보 목록에 넣을 모양으로. */
+  const archiveOf = useCallback(
+    (result: ArchivedResult): ArchivedGame => ({
+      id: gameId,
+      endedAt: Date.now(),
+      mySide,
+      levelId,
+      levelName: level.name,
+      variant: prefs.variant,
+      result,
+      history: playHistory,
+      reviewed: null,
+    }),
+    [gameId, mySide, levelId, level.name, prefs.variant, playHistory]
+  );
+
   /*
-   * 결과 팝업.
+   * 판이 끝나면 기보 목록에 넣고, 방금 끝났으면 결과 창을 띄운다.
    *
-   * '지금 끝난 판인지'가 아니라 '방금 끝났는지'를 본다. 앞의 것으로 하면
-   * 새로고침해서 끝난 판을 되살릴 때마다 이미 아는 결과가 다시 튀어나오고,
-   * 복기하러 들어올 때마다 창을 닫아야 한다. 그래서 대국이 끝나는 '순간'만
-   * 잡는다 - 처음 그릴 때의 over 는 이미 본 것으로 치고 넘어간다.
+   * 결과 창은 '지금 끝난 판인지' 가 아니라 '방금 끝났는지' 를 본다. 앞의 것으로
+   * 하면 새로고침할 때마다 이미 아는 결과가 다시 튀어나오고, 탭을 오갈 때마다
+   * 창을 닫아야 한다. 예전에는 처음 그릴 때의 over 를 이미 본 것으로 쳤는데,
+   * 이제는 목록이 답한다. 같은 결과로 이미 들어 있으면 본 판이다.
+   *
+   * 끝난 뒤 무르고 다시 두어 다르게 끝나면 한 번 더 들어온다. 이름표(gameId)가
+   * 같아서 목록에서는 한 줄이 바뀐다(upsertGame). 결과가 같고 수만 달라졌으면
+   * 목록만 고치고 창은 다시 띄우지 않는다.
    */
   const [resultOpen, setResultOpen] = useState(false);
-  const wasOver = useRef(over);
   useEffect(() => {
-    if (over && !wasOver.current) setResultOpen(true);
-    wasOver.current = over;
-  }, [over]);
+    if (!outcome || playHistory.length < 2) return;
+    const prev = games.find((g) => g.id === gameId);
+    const sameResult =
+      prev !== undefined &&
+      prev.result.kind === outcome.kind &&
+      prev.result.winner === outcome.winner;
+    if (sameResult && prev.history.length === playHistory.length) return;
+    setGames((list) => upsertGame(list, archiveOf(outcome)));
+    if (!sameResult) setResultOpen(true);
+  }, [outcome, games, gameId, playHistory, archiveOf]);
 
   // --- 수 두기 ----------------------------------------------------------
 
@@ -498,8 +567,8 @@ export default function App() {
       // 소리는 판을 고치기 전에 낸다. 여기를 사람도 엔진도 다 지나가므로
       // 한 군데만 손보면 된다. 한수쉼(제자리 수)은 잡는 게 아니다.
       playMoveSound(from !== to && position.board[to] ? "capture" : "move");
-      setHistory((prev) => {
-        const base = prev.slice(0, cursor + 1);
+      setPlayHistory((prev) => {
+        const base = prev.slice(0, playCursor + 1);
         const current = parseFen(base[base.length - 1].fen);
         const notation = describeMove(from + to, current.board);
         const next = applyMove(current, from, to);
@@ -514,33 +583,15 @@ export default function App() {
           },
         ];
       });
-      setCursor((c) => c + 1);
+      setPlayCursor((c) => c + 1);
       setSelected(null);
       // 초읽기는 "회 안에만 두면 회수가 줄지 않는" 규칙이라, 둘 때마다 되채운다.
       if (clockSettings.enabled) {
         setClocks((prev) => commitMove(prev, mover, clockSettings));
       }
-      // 수가 하나라도 바뀌면 앞서 돌린 복기는 더 이상 이 기보의 것이 아니다.
-      setReviewed(null);
     },
-    [cursor, mover, clockSettings, position.board]
+    [playCursor, mover, clockSettings, position.board]
   );
-
-  /** 분석이 끝나면 그 국면의 평가치를 기보에 적어둔다. 형세 그래프의 재료가 된다. */
-  useEffect(() => {
-    if (editMode || reviewRunning || !snapshot?.lines.length) return;
-    // 급수를 낮춘 엔진의 점수는 형세 그래프에 쓰지 않는다. 약하게 본 값이라
-    // 그래프가 실제 형세와 어긋난다.
-    if (mode === "play" && engineTurn) return;
-    const line = snapshot.lines[0];
-    const score = line.mate !== null ? (line.mate > 0 ? 20 : -20) : line.score;
-    setHistory((prev) => {
-      if (!prev[cursor] || prev[cursor].score === score) return prev;
-      const next = [...prev];
-      next[cursor] = { ...next[cursor], score };
-      return next;
-    });
-  }, [snapshot, cursor, editMode, reviewRunning, mode, engineTurn]);
 
   // --- 시계 ------------------------------------------------------------
 
@@ -568,10 +619,10 @@ export default function App() {
   /**
    * 시계는 첫 수가 놓여야 돈다.
    * 급수를 고르고 상차림을 맞추는 동안 시간이 깎이면 곤란하기 때문이다.
-   * 기보를 되짚는 중(기보 끝이 아님)이나 대국이 끝난 뒤에는 멈춘다.
+   * 기보를 되짚는 중(기보 끝이 아님)이나 대국이 끝난 뒤, 기보 탭에 가 있는
+   * 동안에는 멈춘다.
    */
-  const clockRunning =
-    clockSettings.enabled && mode === "play" && started && atTip && !over && !editMode;
+  const clockRunning = clockSettings.enabled && mode === "play" && started && atTip && !over;
 
   useEffect(() => {
     if (!clockRunning) return;
@@ -624,7 +675,7 @@ export default function App() {
         return next;
       });
     },
-    [history.length]
+    [history.length, setCursor]
   );
 
   /**
@@ -635,68 +686,23 @@ export default function App() {
    * 일어나지 않고 안내도 없다. 실제로 그래서 고장인 줄 알았다.
    *
    * 그래서 내 차례가 나올 때까지 되감는다. 보통 두 수(내 수 + 엔진 응수)다.
-   * 분석·복기에서는 한 칸씩 움직이는 것이 맞으므로 그대로 둔다.
+   * 기보 탭에서는 한 칸씩 움직이는 것이 맞으므로 '이전' 이 goTo 를 쓴다.
    */
   const undoMove = useCallback(() => {
     setSelected(null);
-    setCursor((c) =>
+    setPlayCursor((c) =>
       undoTarget(
-        history.map((h) => h.fen),
+        playHistory.map((h) => h.fen),
         c,
-        mode === "play" ? mySide : null
+        mySide
       )
     );
-  }, [mode, mySide, history]);
+  }, [mySide, playHistory]);
 
-  useKeyboard(
-    useMemo(
-      () => ({
-        prev: () => goTo(cursor - 1),
-        next: () => goTo(cursor + 1),
-        first: () => goTo(0),
-        last: () => goTo(history.length - 1),
-        flip: () => setFlipped((f) => !f),
-        // 대국에서는 켤 분석이 없다(훈수 보기를 뺐다).
-        toggleAnalysis: mode === "analyze" ? () => setAnalysisOn((a) => !a) : undefined,
-      }),
-      [cursor, goTo, history.length, mode]
-    ),
-    !editMode && !reviewRunning
+  const flip = useCallback(
+    () => (openGame ? setViewFlipped((f) => !f) : setFlipped((f) => !f)),
+    [openGame, setFlipped]
   );
-
-  // --- 편집 -------------------------------------------------------------
-
-  const enterEdit = () => {
-    setDraft(parseFen(entry.fen));
-    setSelected(null);
-    setBrush(null);
-  };
-
-  /**
-   * 편집을 끝낸다. 판이 그대로면 기보를 건드리지 않고, 달라졌을 때만
-   * 편집한 국면을 새 시작점으로 삼는다.
-   */
-  const leaveEdit = () => {
-    if (!draft) return;
-    const editedFen = toFen(draft);
-    if (editedFen !== entry.fen) {
-      setHistory([
-        { fen: editedFen, move: null, notation: "편집", mover: null, score: null },
-      ]);
-      setCursor(0);
-      setReviewed(null);
-      setResigned(null);
-      resetClocks();
-      setNotice("편집한 국면을 새 시작 국면으로 삼았습니다.");
-    }
-    setDraft(null);
-    setSelected(null);
-    setBrush(null);
-  };
-
-  const editBoard = (change: (b: BoardMap) => BoardMap) => {
-    setDraft((d) => (d ? { ...d, board: change({ ...d.board }) } : d));
-  };
 
   // --- 판 조작 ----------------------------------------------------------
 
@@ -716,24 +722,14 @@ export default function App() {
 
   /**
    * 판을 만질 수 있는지.
-   *
-   * 복기는 읽기만 한다. 대국에서는 내 차례에만, 그리고 대국이 끝나면 못 둔다.
-   *
-   * 분석에서는 끝난 판이라도 둘 수 있어야 한다. 기권·시간패는 '국면' 이 아니라
-   * '대국' 에 붙는 결과인데, 그것 때문에 분석판까지 잠겨 있었다. 진 판을 다시
-   * 놓아보는 것이 분석판의 쓸모라 이건 앞뒤가 맞지 않는다. 정말로 둘 수가 없는
-   * 국면(외통·수몰)은 legalFrom 이 비어 있어서 저절로 막히므로, 여기서 한 번
-   * 더 막을 필요가 없다.
+   * 대국 탭에서 내 차례에만, 판이 끝나기 전까지. 기보 탭은 지난 판을 읽기만 한다.
    */
-  const canTouchBoard =
-    mode === "analyze"
-      ? true
-      : mode === "play" && !over && !engineTurn;
+  const canTouchBoard = mode === "play" && !over && !engineTurn;
 
   /**
    * 집어 들 수 있는 기물. 눌러서 고르는 것(handleSquareClick)과 같은 조건이다.
    * 판을 만질 수 있고, 둘 차례인 쪽의 기물이고, 갈 곳이 있어야 한다.
-   * 대국에서 엔진 차례면 canTouchBoard 가 막으므로 곧 '내 기물만' 이다.
+   * 엔진 차례면 canTouchBoard 가 막으므로 곧 '내 기물만' 이다.
    */
   const canPick = (square: Square) => {
     const piece = position.board[square];
@@ -746,22 +742,6 @@ export default function App() {
   };
 
   const handleSquareClick = (square: Square) => {
-    if (editMode) {
-      if (brush === "erase") {
-        editBoard((b) => {
-          delete b[square];
-          return b;
-        });
-        return;
-      }
-      if (brush) {
-        editBoard((b) => ({ ...b, [square]: brush }));
-        return;
-      }
-      setSelected(selected === square ? null : square);
-      return;
-    }
-
     if (!canTouchBoard) return;
 
     if (selected && targets.includes(square)) {
@@ -781,26 +761,9 @@ export default function App() {
   };
 
   const handleMove = (from: Square, to: Square) => {
-    if (editMode) {
-      editBoard((b) => {
-        if (!b[from]) return b;
-        b[to] = b[from];
-        delete b[from];
-        return b;
-      });
-      return;
-    }
     if (!canTouchBoard) return;
     if (legalFrom.get(from)?.includes(to)) pushMove(from, to);
     else setSelected(null);
-  };
-
-  const handleRemove = (square: Square) => {
-    if (!editMode) return;
-    editBoard((b) => {
-      delete b[square];
-      return b;
-    });
   };
 
   const passMove = () => {
@@ -810,31 +773,31 @@ export default function App() {
     if (king && legal.has(king[0] + king[0])) pushMove(king[0], king[0]);
   };
 
-  // --- 국면 도구 --------------------------------------------------------
+  // --- 판 새로 놓기 -------------------------------------------------------
 
+  /** 상차림을 바꾸면 그 판을 새 시작 국면으로 삼는다. 수를 두기 전에만 된다. */
   const startFrom = (next: Position, label: string) => {
-    if (editMode) {
-      setDraft(next);
-      return;
-    }
-    setHistory([
+    setPlayHistory([
       { fen: toFen(next), move: null, notation: label, mover: null, score: null },
     ]);
-    setCursor(0);
+    setPlayCursor(0);
     setSelected(null);
-    setReviewed(null);
     setResigned(null);
     resetClocks();
   };
 
-  const handleFen = (value: string) => {
-    startFrom(parseFen(value), "불러옴"); // 형식이 틀리면 parseFen 이 예외를 던진다
-  };
-
-  /** 새 대국. 지금 시작 국면(상차림 포함)은 그대로 두고 수만 지운다. */
+  /**
+   * 새 대국. 지금 시작 국면(상차림 포함)은 그대로 두고 수만 지운다.
+   *
+   * 두던 판은 기보 목록에 남긴다. 끝난 판은 끝나는 순간 이미 들어갔고, 끝나지
+   * 않은 판은 여기서 '중단' 으로 들어간다. 한 수도 두지 않은 판은 남길 것이 없다.
+   */
   const newGame = () => {
-    const base = parseFen(history[0].fen);
-    setHistory([
+    if (started && !over) {
+      setGames((list) => upsertGame(list, archiveOf({ kind: "abandoned", winner: null })));
+    }
+    const base = parseFen(playHistory[0].fen);
+    setPlayHistory([
       {
         fen: toFen({ ...base, turn: "cho", halfmove: 0, fullmove: 1 }),
         move: null,
@@ -843,9 +806,9 @@ export default function App() {
         score: null,
       },
     ]);
-    setCursor(0);
+    setPlayCursor(0);
+    setGameId(newGameId());
     setSelected(null);
-    setReviewed(null);
     setResigned(null);
     resetClocks();
     playedFor.current = null;
@@ -853,22 +816,42 @@ export default function App() {
   };
 
   /**
-   * 탭을 옮긴다.
+   * 탭을 옮긴다. 기보 탭은 늘 목록에서 시작한다.
    *
-   * 탭 말고도 '복기 보기' 버튼처럼 다른 데서 탭을 옮기는 자리가 생겨서, 옮길 때
-   * 같이 해야 하는 일(편집 끝내기·고른 기물 놓기)을 한곳에 뒀다.
+   * 탭 말고도 '기보 보기' 버튼처럼 다른 데서 탭을 옮기는 자리가 있어서, 옮길 때
+   * 같이 해야 하는 일(고른 기물 놓기)을 한곳에 뒀다. 복기가 도는 동안에는 엔진을
+   * 붙잡고 있으므로 옮기지 않는다.
    */
   const goMode = useCallback(
     (next: Mode) => {
       if (reviewRunning) return;
-      if (next !== "analyze" && draft !== null) leaveEdit();
       setMode(next);
+      setOpenId(null);
       setSelected(null);
+      setHover(null);
     },
-    // leaveEdit 은 매 렌더 새로 만들어지지만 draft 를 닫는 일만 한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [reviewRunning, draft]
+    [reviewRunning]
   );
+
+  /** 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. */
+  const openArchived = (id: string) => {
+    if (reviewRunning) return;
+    const game = games.find((g) => g.id === id);
+    if (!game) return;
+    setMode("games");
+    setOpenId(id);
+    setViewCursor(game.history.length - 1);
+    setViewFlipped(game.mySide === "han");
+    setSelected(null);
+    setHover(null);
+    setReviewError(null);
+  };
+
+  const closeArchived = () => {
+    if (reviewRunning) return;
+    setOpenId(null);
+    setHover(null);
+  };
 
   const resign = () => {
     // 기권하면 결과 팝업이 뜨고, 거기에 '기보 보기'가 있다. 예전에는 여기서
@@ -878,59 +861,62 @@ export default function App() {
   };
 
   /*
-   * 되돌릴 수 없는 두 동작(새 대국·기권)은 창을 띄워 한 번 더 묻는다.
+   * 대국을 끝내는 두 동작(새 대국·기권)은 창을 띄워 한 번 더 묻는다.
    *
    * 예전에는 창 대신 '새 대국' 버튼이 그 자리에서 "기보를 지우고 시작" 으로
    * 바뀌었다. 창이 흐름을 끊는다고 봤는데, 버튼 글자가 바뀌는 것은 눈에 덜
-   * 띄어서 묻는 줄 모르고 지나쳤고, 기권은 아예 묻지 않았다. 둘 다 누르는
-   * 순간 판이 끝나는 동작이라 한 곳에서 같은 모양으로 묻는다.
+   * 띄어서 묻는 줄 모르고 지나쳤고, 기권은 아예 묻지 않았다.
    */
   const [asking, setAsking] = useState<"new" | "resign" | null>(null);
 
-  // --- 기보 저장·불러오기 -----------------------------------------------
+  useKeyboard(
+    useMemo(
+      () => ({
+        prev: () => goTo(cursor - 1),
+        next: () => goTo(cursor + 1),
+        first: () => goTo(0),
+        last: () => goTo(history.length - 1),
+        flip,
+      }),
+      [cursor, goTo, history.length, flip]
+    ),
+    !reviewRunning && !listView && asking === null && !resultOpen
+  );
 
-  const recordPlayers = (): Record<"cho" | "han", RecordPlayer> => {
-    const make = (side: Side): RecordPlayer =>
-      mySide === side
-        ? { kind: "human", label: "나" }
-        : { kind: "engine", level: levelId, label: level.name };
-    return { cho: make("cho"), han: make("han") };
-  };
+  // --- 기보 파일 --------------------------------------------------------
 
-  /**
-   * 기보에 적을 승부.
-   *
-   * 기권과 시간패를 먼저 본다. 둘은 상태로 들고 있어서 기보를 되짚는 중에
-   * 저장해도 그대로다. 외통·수몰·점수는 엔진이 '지금 보고 있는 국면' 을
-   * 판정한 값이라 기보 끝에 있을 때만 믿을 수 있다.
-   *
-   * 시간패와 200수 점수제가 빠져 있어서, 그렇게 끝난 판을 저장하면 승부가
-   * 통째로 'unfinished' 로 적혔다.
-   */
-  const recordResult = (): RecordResult => {
-    // 기보 끝이 아니면 외통·수몰·점수는 믿을 수 없다(지금 보고 있는 국면의
-    // 판정이라서). 기권·시간패는 대국에 붙는 결과라 그대로 쓴다.
-    const o = outcomeOf(atTip ? gstatus : { kind: "playing" }, resigned, flagged);
-    if (!o) return "unfinished";
-    return o.winner ?? "draw";
-  };
-
+  /** 연 판을 파일로 저장한다. 누가 어느 쪽을 어떤 급수로 잡았는지와 승부까지 담는다. */
   const saveRecord = () => {
+    const g = openGame;
+    if (!g) return;
+    const make = (side: Side): RecordPlayer =>
+      g.mySide === side
+        ? { kind: "human", label: "나" }
+        : { kind: "engine", level: g.levelId, label: g.levelName };
+    const result: RecordResult =
+      g.result.kind === "abandoned" ? "unfinished" : (g.result.winner ?? "draw");
     downloadRecord(
       buildRecord({
-        startFen: history[0].fen,
-        moves: history.slice(1).map((h) => ({
+        startFen: g.history[0].fen,
+        moves: g.history.slice(1).map((h) => ({
           move: h.move ?? "",
           notation: h.notation,
           score: h.score ?? undefined,
         })),
-        variant: prefs.variant,
-        players: recordPlayers(),
-        result: recordResult(),
+        variant: g.variant,
+        players: { cho: make("cho"), han: make("han") },
+        result,
       })
     );
   };
 
+  /**
+   * 파일로 저장해 둔 기보를 목록에 넣는다.
+   *
+   * 예전에는 불러온 기보가 두던 판을 덮어썼다. 이제는 목록에 한 판으로 들어가
+   * 두던 판은 그대로다. 파일에는 누가 이겼는지만 있고 어떻게 끝났는지는 없어서
+   * 결과는 '불러온 기보' 로 적는다.
+   */
   const loadRecord = async (file: File) => {
     try {
       const record = parseRecord(await file.text());
@@ -947,24 +933,38 @@ export default function App() {
             `${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`
           );
         }
-        const mover = pos.turn;
+        const moverSide = pos.turn;
         pos = applyMove(pos, from, to);
         rebuilt.push({
           fen: toFen(pos),
           move: m.move,
           notation: m.notation || m.move,
-          mover,
+          mover: moverSide,
           score: m.score ?? null,
         });
       }
+      if (rebuilt.length < 2) throw new Error("수가 하나도 없는 기보입니다.");
 
-      setDraft(null);
-      setHistory(rebuilt);
-      setCursor(rebuilt.length - 1);
-      setSelected(null);
-      setReviewed(null);
-      setResigned(null);
-      resetClocks();
+      // 사람이 잡은 쪽을 '나' 로 본다. 둘 다 사람이면 초.
+      const me: Side = record.players.han.kind === "human" &&
+        record.players.cho.kind !== "human" ? "han" : "cho";
+      const opponent = record.players[me === "cho" ? "han" : "cho"];
+      const game: ArchivedGame = {
+        id: newGameId(),
+        // 목록 맨 위에 서야 불러온 것이 보인다. 파일의 저장 날짜로 두면 한참 아래에 묻힌다.
+        endedAt: Date.now(),
+        mySide: me,
+        levelId: opponent.level ?? "",
+        levelName: opponent.label,
+        variant: record.variant,
+        result:
+          record.result === "unfinished"
+            ? { kind: "abandoned", winner: null }
+            : { kind: "record", winner: record.result === "draw" ? null : record.result },
+        history: rebuilt,
+        reviewed: null,
+      };
+      setGames((list) => upsertGame(list, game));
       setNotice(`기보를 불러왔습니다. ${record.moves.length}수.`);
     } catch (err) {
       setNotice(err instanceof Error ? err.message : String(err));
@@ -973,9 +973,14 @@ export default function App() {
 
   // --- 복기 -------------------------------------------------------------
 
+  /**
+   * 연 판을 복기한다. 결과와 복기로 얻은 점수는 목록의 그 판에 남긴다 - 다시
+   * 열 때 또 돌리지 않는다.
+   */
   const startReview = async () => {
-    if (!engine || history.length < 2) return;
-    const moves = history
+    const game = openGame;
+    if (!engine || !game) return;
+    const moves = game.history
       .slice(1)
       .map((h) => h.move)
       .filter((m): m is string => Boolean(m));
@@ -983,41 +988,37 @@ export default function App() {
 
     cancelReview.current = false;
     setReviewError(null);
-    setReviewed(null);
     setReviewProgress(null);
     setReviewRunning(true);
 
     try {
-      // 실시간 분석을 먼저 세운다. 엔진은 하나뿐이라 둘이 나눠 쓸 수 없다.
+      // 탐색을 먼저 세운다. 엔진은 하나뿐이라 둘이 나눠 쓸 수 없다.
       await engine.stop();
-      await engine.setOptions({ ...prefs, multiPV: 1, skill: 20 });
+      await engine.setOptions({ ...prefs, variant, multiPV: 1, skill: 20 });
 
       const result = await runReview({
         engine,
-        startFen: history[0].fen,
+        startFen: game.history[0].fen,
         moves,
         nodes: reviewDepthById(reviewDepthId).nodes,
-        // 고른 급수에 맞춰 등급 눈높이를 낮춘다. 12급과 둔 판을 9단 잣대로
-        // 재면 평범한 첫 수부터 '부정확' 이 붙는다.
-        tolerance: gradeToleranceOf(level),
+        // 그 판의 상대 급수에 맞춰 등급 눈높이를 낮춘다. 12급과 둔 판을 9단
+        // 잣대로 재면 평범한 첫 수부터 '부정확' 이 붙는다.
+        tolerance: gradeToleranceOf(levelById(game.levelId)),
         onProgress: setReviewProgress,
         shouldStop: () => cancelReview.current,
       });
 
-      setReviewed(result);
-
-      // 복기로 얻은 점수를 기보에 옮겨 적는다. 실시간 분석 때 찍힌 값보다
-      // 깊이가 고르기 때문에 형세 그래프가 훨씬 정확해진다.
+      // 복기로 얻은 점수를 기보에 옮겨 적는다. 형세 그래프의 재료가 된다.
+      const scored = [...game.history];
       if (result.length > 0) {
-        setHistory((prev) => {
-          const next = [...prev];
-          if (next[0]) next[0] = { ...next[0], score: result[0].scoreBefore };
-          for (const r of result) {
-            if (next[r.index]) next[r.index] = { ...next[r.index], score: r.scoreAfter };
-          }
-          return next;
-        });
+        if (scored[0]) scored[0] = { ...scored[0], score: result[0].scoreBefore };
+        for (const r of result) {
+          if (scored[r.index]) scored[r.index] = { ...scored[r.index], score: r.scoreAfter };
+        }
       }
+      setGames((list) =>
+        list.map((g) => (g.id === game.id ? { ...g, history: scored, reviewed: result } : g))
+      );
       if (!cancelReview.current) setNotice("복기가 끝났습니다.");
     } catch (err) {
       setReviewError(err instanceof Error ? err.message : String(err));
@@ -1046,27 +1047,16 @@ export default function App() {
   );
 
   const hoverArrow = arrowOf(hover);
-  const bestArrow = useMemo(() => {
-    // 복기 중에는 "이랬어야 했다" 를 그린다.
-    if (mode === "review") return bestArrowOf(currentReview);
-    if (hoverArrow) return null;
-    // 대국 중에는 최선수를 그리지 않는다. 엔진이 제 수를 찾는 중인 값이다.
-    if (mode === "play") return null;
-    const first = snapshot?.lines[0]?.pv[0];
-    return first ? arrowOf(first) : null;
-  }, [mode, currentReview, hoverArrow, snapshot]);
+  // 복기한 판에서는 고른 수에 "이랬어야 했다" 를 그린다. 대국 중에는 그리지 않는다.
+  const bestArrow = openGame ? bestArrowOf(currentReview) : null;
 
-  const lastMove = useMemo(() => {
-    if (editMode || !entry.move) return null;
-    const { from, to } = splitMove(entry.move);
-    return from && to && from !== to ? { from, to } : null;
-  }, [editMode, entry.move]);
+  const lastMove = useMemo(() => arrowOf(entry.move), [entry.move]);
 
   // --- 판 너비 재기 ------------------------------------------------------
   //
   // 판은 남은 높이에 맞춰 크기가 정해지므로 너비를 CSS 만으로는 알 수 없다.
-  // 다 그려진 뒤에 재서 --board-w 로 넘기면, 대국자 카드와 버튼 줄이 판과
-  // 정확히 같은 너비로 선다. (layout.css 의 .table 주석 참고)
+  // 다 그려진 뒤에 재서 --board-w 로 넘기면, 폰에서 판 위아래에 붙는 대국자
+  // 카드가 판과 정확히 같은 너비로 선다. (layout.css 의 .table 주석 참고)
   //
   // 헤더와 판·패널 덩어리를 가운데로 모으려면(layout.css 의 .top/.layout)
   // '판이 들어갈 수 있는 폭' 도 알아야 한다. 이건 --board-w 로 쓰면 안 된다.
@@ -1075,16 +1065,16 @@ export default function App() {
   // 판이 제 폭으로 제 칸을 정하는 고리다.
   //
   // 그래서 판 자리의 '높이' 에서 거꾸로 계산한다(--board-fit). 판 자리의
-  // 높이는 헤더·대국자 카드처럼 세로로 쌓인 것만 보고 정해지므로 가로 폭에
-  // 기대지 않는다. 판은 그 높이를 다 쓰고, 폭은 높이 × 판의 가로세로 비다.
-  // 둘 다 .app 에 걸어 헤더와 판 칸이 같은 값을 본다.
+  // 높이는 세로로 쌓인 것만 보고 정해지므로 가로 폭에 기대지 않는다. 판은 그
+  // 높이를 다 쓰고, 폭은 높이 × 판의 가로세로 비다. 둘 다 .app 에 걸어 헤더와
+  // 판 칸이 같은 값을 본다.
   //
-  // --board-fit 은 같은 창 크기 안에서는 줄이지 않는다. 장군·기권 알림이나
-  // 편집 팔레트가 판 위아래에 끼면 판 자리가 낮아지는데, 그때마다 덩어리 폭을
-  // 따라 줄이면 헤더와 패널이 옆으로 25px 씩 움직였다. 장군은 대국 중에 수시로
-  // 떴다 사라지니 화면 전체가 출렁인다. 가장 컸던 값을 쥐고 있으면 판만 제
-  // 칸 안에서 줄고(예전과 같다) 헤더와 패널은 제자리에 있다. 창 크기가
-  // 바뀌면 그때 새로 잰다.
+  // --board-fit 은 같은 창 크기 안에서는 줄이지 않는다. 판 위아래에 무언가
+  // 끼어 판 자리가 낮아질 때마다 덩어리 폭을 따라 줄이면 헤더와 패널이 옆으로
+  // 움직인다. 가장 컸던 값을 쥐고 있다가 창 크기가 바뀌면 그때 새로 잰다.
+  //
+  // 기보 목록에서는 판이 없다. 목록에서 판으로 돌아오면 판이 새로 붙으므로
+  // 그때 다시 건다(listView 의존성).
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -1114,13 +1104,13 @@ export default function App() {
     return () => ro.disconnect();
     // 엔진을 내려받는 동안에는 로딩 화면이라 판이 아직 없다. 준비가 끝나고
     // 판이 붙은 뒤에 다시 걸어야 한다.
-  }, [status]);
+  }, [status, listView]);
 
   // --- 대국자 카드 ------------------------------------------------------
 
   // 판은 초를 아래에 놓고 그린다. 뒤집으면 위아래가 바뀐다.
-  const bottomSide: Side = flipped ? "han" : "cho";
-  const topSide: Side = flipped ? "cho" : "han";
+  const bottomSide: Side = boardFlipped ? "han" : "cho";
+  const topSide: Side = boardFlipped ? "cho" : "han";
 
   const scores = useMemo(() => scoreBoard(position), [position]);
 
@@ -1128,55 +1118,56 @@ export default function App() {
   // 지금 국면이 아니라 시작 국면을 본다 - 몇 수 두고 나면 마·상이 움직여서
   // 지금 판으로는 되읽을 수 없다.
   const startSetups = useMemo(() => {
-    const board = parseFen(history[0].fen).board;
+    const board = parseFen(playHistory[0].fen).board;
     return { cho: detectSetup(board, "cho"), han: detectSetup(board, "han") };
-  }, [history]);
+  }, [playHistory]);
 
   const playerOf = useCallback(
-    (side: Side) => ({
-      side,
-      name: mySide === side ? "나" : level.name,
-      kind: (mySide === side ? "human" : "engine") as "human" | "engine",
-      score: side === "cho" ? scores.cho : scores.han,
-      // 이 진영이 '잡아낸' 기물 = 상대가 잃은 기물
-      captured: capturedPieces(
-        position,
-        side === "cho" ? "han" : "cho"
-      ) as PieceType[],
-      active: !showOver && position.turn === side,
-      thinking: mode === "play" && engineTurn && position.turn === side,
-      // 시계는 대국에서만 돈다. 복기·분석에서 남은 시간을 보여주면 아직
-      // 대국 중인 것처럼 읽힌다.
-      clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
-      // 막대 길이를 재려면 '전체가 얼마였는지'가 있어야 한다.
-      settings: mode === "play" && clockSettings.enabled ? clockSettings : null,
-      // 장군·승패. 예전의 판 위 배너 대신 여기서 말한다(sideTag 주석).
-      tag: sideTag(gstatus, shownOutcome, side),
-    }),
+    (side: Side) => {
+      const me = openGame ? openGame.mySide : mySide;
+      return {
+        side,
+        name: me === side ? "나" : openGame ? openGame.levelName : level.name,
+        kind: (me === side ? "human" : "engine") as "human" | "engine",
+        score: side === "cho" ? scores.cho : scores.han,
+        // 이 진영이 '잡아낸' 기물 = 상대가 잃은 기물
+        captured: capturedPieces(position, side === "cho" ? "han" : "cho") as PieceType[],
+        active: !showOver && position.turn === side,
+        thinking: engineTurn && position.turn === side,
+        // 시계는 대국에서만 돈다. 기보 탭에서 남은 시간을 보여주면 아직
+        // 대국 중인 것처럼 읽힌다.
+        clock: mode === "play" && clockSettings.enabled ? clocks[side] : null,
+        // 막대 길이를 재려면 '전체가 얼마였는지'가 있어야 한다.
+        settings: mode === "play" && clockSettings.enabled ? clockSettings : null,
+        // 장군·승패. 예전의 판 위 배너 대신 여기서 말한다(sideTag 주석).
+        tag: sideTag(gstatus, shownOutcome, side),
+        // 넓은 화면은 오른쪽 칸의 두 줄 카드, 폰은 판 위아래의 한 줄(PlayerBar 주석).
+        layout: (narrow ? "row" : "stacked") as "row" | "stacked",
+      };
+    },
     [
-      mySide, level.name, scores, position, showOver, engineTurn, mode,
-      clockSettings.enabled, clocks, gstatus, shownOutcome,
+      openGame, mySide, level.name, scores, position, showOver, engineTurn, mode,
+      clockSettings, clocks, gstatus, shownOutcome, narrow,
     ]
   );
 
   /*
-   * 헤더 오른쪽에 거는 판 상태. 편집 중이거나 판이 규칙에 맞지 않을 때만 뜬다.
+   * 헤더 오른쪽에 거는 판 상태. 판이 규칙에 맞지 않을 때만 뜬다.
    *
-   * '성립하지 않는 국면' 은 예전에 판 위 배너였다. 배너가 뜨면 판이 그만큼
-   * 줄어서, 높이가 늘 같은 헤더 줄로 옮겼다. 무엇이 틀렸는지는 국면 카드의
-   * 경고 목록(편집 중에도, 보기에서도 뜬다)과 이 표시의 툴팁이 말한다.
-   *
-   * 말은 짧아야 한다. 폰(390)에서 앱 이름과 탭 옆에 남는 자리가 71px 이라
-   * "판 편집 중 · 성립하지 않는 국면" 을 붙였더니 헤더가 두 줄이 되며 판이
-   * 38px 내려갔다. 배너를 없앤 까닭이 그대로 되살아난 셈이다. 그래서 편집
-   * 중에는 "판 편집 중" 만 두고(바로 옆 편집 패널이 경고를 보여준다), 편집을
-   * 마친 뒤에도 틀린 판이면 "잘못된 판"(57px) 을 건다.
+   * 예전에는 판 위 배너였다. 배너가 뜨면 판이 그만큼 줄어서, 높이가 늘 같은 헤더
+   * 줄로 옮겼다. 폰(390)에서 앱 이름과 탭 옆에 남는 자리가 71px 이라 말은
+   * 짧게(57px) 둔다. 대국에서는 생길 일이 없고, 파일에서 불러온 기보가 이상할
+   * 때를 위한 것이다. 무엇이 틀렸는지는 툴팁이 말한다.
    */
   const problems = gstatus.kind === "invalid" ? gstatus.problems : null;
-  const headTag = editMode ? "판 편집 중" : problems ? "잘못된 판" : null;
+  const headTag = problems && !listView ? "잘못된 판" : null;
 
   // 눈으로는 대국자 카드와 헤더가 말하는 것을 화면 읽기 프로그램에 한 줄로 알린다.
-  const spoken = shownOutcome ? outcomeMessage(shownOutcome) : (statusMessage(gstatus) ?? "");
+  const spoken = listView
+    ? ""
+    : shownOutcome
+      ? outcomeMessage(shownOutcome)
+      : (statusMessage(gstatus) ?? "");
 
   // 장군을 맞은 궁의 자리. 판에서 붉게 표시한다.
   const checkedKing = useMemo(() => {
@@ -1232,6 +1223,18 @@ export default function App() {
   }
 
   const thinking = engineTurn && Boolean(snapshot?.running);
+  const openTag = openGame ? resultTag(openGame) : null;
+
+  /*
+   * 알림. 예전에는 헤더 아래 한 줄을 차지해서, 뜰 때와 4초 뒤 사라질 때
+   * 화면 전체가 두 번 아래위로 움직였다. 이제 자리를 차지하지 않고
+   * 오른쪽 칸 아래에 떴다가 사라진다. 판은 가리지 않는다.
+   */
+  const toast = (
+    <div className="toast" role="status">
+      {notice}
+    </div>
+  );
 
   return (
     <div className="app">
@@ -1243,15 +1246,13 @@ export default function App() {
           차지하고 있었다. 신경망이 붙었는지는 useEngine 의 evalMode 로 여전히
           알 수 있다 — 필요하면 콘솔에서 본다.
         */}
-        <ModeTabs mode={mode} onMode={goMode} canReview={history.length > 1} />
+        <ModeTabs mode={mode} onMode={goMode} />
 
         {/*
           예전에는 여기서 늘 "둘 차례: 초 楚 · 엔진이 생각 중…" 을 말했다.
-          판 바로 위아래 대국자 카드가 같은 말(둘 차례, 생각 중인 점)을 하고
-          있어서 한 화면에 두 번 나왔고, 폰에서는 이 한 줄 때문에 헤더가 두
-          줄이 됐다. '복기 중' 도 바로 옆 탭이 이미 말한다. 편집 중만 남긴다 -
-          그때는 대국자 카드가 빠져서 판의 상태를 말할 곳이 여기뿐이다.
-          규칙에 맞지 않는 판도 여기서 말한다(headTag 주석).
+          대국자 카드가 같은 말(둘 차례, 생각 중인 점)을 하고 있어서 한 화면에
+          두 번 나왔고, 폰에서는 이 한 줄 때문에 헤더가 두 줄이 됐다.
+          규칙에 맞지 않는 판만 여기서 말한다(headTag 주석).
         */}
         {headTag && (
           <span className="turn-tag" title={problems?.join(" ")}>
@@ -1263,72 +1264,91 @@ export default function App() {
         </p>
       </header>
 
-      <main className="layout">
-        <section className="board-col">
-          <div className="table" ref={tableRef}>
-            {/*
-              판 위에는 아무것도 끼우지 않는다. 예전에는 장군·외통·기권·시간패·
-              성립하지 않는 국면을 여기 배너로 띄웠는데, 판 크기가 남은 높이로
-              정해지는 탓에 배너가 뜰 때마다 판이 50px 남짓 줄었다 늘었다 했다.
-              장군이 걸릴 때마다 그랬다. 이제 장군·승패는 대국자 카드가,
-              성립하지 않는 국면은 헤더가 말한다. 배너의 '한 수 무르기' 는
-              오른쪽 위 무르기 버튼과 같은 일이라 따로 두지 않는다.
-            */}
-
-            {/*
-              대국자 카드는 편집 중을 빼고 어디서나 그린다.
-              대국 탭에만 두었더니 탭을 옮길 때마다 판이 596↔695 로 출렁였다.
-              카드가 차지하는 높이가 빠지고 더해지기 때문이다. 어차피 누가 어느
-              쪽인지·기물 점수·잡은 기물은 복기와 분석에서도 볼 값이라 같이 둔다.
-              편집 중에는 팔레트에 자리를 내준다.
-            */}
-            {!editMode && <PlayerBar {...playerOf(topSide)} />}
-
-            <div className="board-stage">
-              <Board
-                board={position.board}
-                flipped={flipped}
-                editMode={editMode}
-                selected={selected}
-                targets={targets}
-                lastMove={lastMove}
-                bestMove={bestArrow}
-                hoverMove={hoverArrow}
-                checkedKing={checkedKing}
-                onSquareClick={handleSquareClick}
-                onMove={handleMove}
-                onRemove={handleRemove}
-                onPick={handleSquareClick}
-                canPick={canPick}
-              />
-            </div>
-
-            {!editMode && <PlayerBar {...playerOf(bottomSide)} />}
-
-            {/*
-              버튼 줄은 오른쪽 칸(BoardControls)으로 갔다. 판 아래에 두면 그
-              44px 만큼 판이 작아진다. 편집 중의 팔레트는 판 바로 아래가 맞다 -
-              집은 기물을 판에 찍는 동작이라 손이 오가는 거리가 짧아야 한다.
-            */}
-            {editMode && <PiecePalette brush={brush} onPick={setBrush} />}
-          </div>
-        </section>
-
-        <section className="side-col">
-          <BoardControls
-            mode={mode}
-            editing={editMode}
-            cursor={cursor}
-            last={history.length - 1}
-            canTouch={canTouchBoard}
-            onJump={goTo}
-            onUndo={undoMove}
-            onFlip={() => setFlipped((f) => !f)}
-            onPass={passMove}
+      {listView ? (
+        <main className="layout list">
+          <GameList
+            games={games}
+            now={Date.now()}
+            onOpen={openArchived}
+            onLoad={loadRecord}
           />
+          {toast}
+        </main>
+      ) : (
+        <main className="layout">
+          <section className="board-col">
+            <div className="table" ref={tableRef}>
+              {/*
+                판 위에는 아무것도 끼우지 않는다. 예전에는 장군·외통·기권·시간패
+                배너를 여기 띄웠는데, 판 크기가 남은 높이로 정해지는 탓에 배너가
+                뜰 때마다 판이 50px 남짓 줄었다 늘었다 했다.
 
-          {mode === "play" && (
-            <>
+                대국자 카드도 넓은 화면에서는 오른쪽 칸으로 갔다(PlayerBar 주석).
+                판 위아래 두 장이 세로 92px 을 가져가고 있었다. 폰은 오른쪽 칸이
+                판 아래로 내려가서 카드를 판 위아래에 그대로 둔다.
+              */}
+              {narrow && <PlayerBar {...playerOf(topSide)} />}
+
+              <div className="board-stage">
+                <Board
+                  board={position.board}
+                  flipped={boardFlipped}
+                  selected={selected}
+                  targets={targets}
+                  lastMove={lastMove}
+                  bestMove={bestArrow}
+                  hoverMove={hoverArrow}
+                  checkedKing={checkedKing}
+                  onSquareClick={handleSquareClick}
+                  onMove={handleMove}
+                  onPick={handleSquareClick}
+                  canPick={canPick}
+                />
+              </div>
+
+              {narrow && <PlayerBar {...playerOf(bottomSide)} />}
+            </div>
+          </section>
+
+          <section className="side-col">
+            {openGame && openTag && (
+              <div className="game-back">
+                <button
+                  type="button"
+                  className="ghost"
+                  onClick={closeArchived}
+                  disabled={reviewRunning}
+                >
+                  <ChevronLeft size={20} strokeWidth={2} aria-hidden />
+                  목록
+                </button>
+                <span className="game-back-meta">
+                  vs {openGame.levelName} · {whenLabel(openGame.endedAt)} ·{" "}
+                  <b className={"game-result " + openTag.tone}>{openTag.text}</b>
+                </span>
+              </div>
+            )}
+
+            {/* 상대가 위, 내가 아래 - 판과 같은 순서로 포갠다. */}
+            {!narrow && (
+              <div className="players">
+                <PlayerBar {...playerOf(topSide)} />
+                <PlayerBar {...playerOf(bottomSide)} />
+              </div>
+            )}
+
+            <BoardControls
+              mode={mode}
+              cursor={cursor}
+              last={history.length - 1}
+              canTouch={canTouchBoard}
+              onJump={goTo}
+              onUndo={undoMove}
+              onFlip={flip}
+              onPass={passMove}
+            />
+
+            {mode === "play" && (
               <PlayPanel
                 mySide={mySide}
                 levelId={levelId}
@@ -1362,113 +1382,48 @@ export default function App() {
                     "시작"
                   )
                 }
-                onNewGame={() => (started ? setAsking("new") : newGame())}
+                onNewGame={() => (started && !over ? setAsking("new") : newGame())}
                 onResign={() => setAsking("resign")}
               />
-            </>
-          )}
+            )}
 
-          {mode === "analyze" && (
-            <>
-              <PositionTools
-                position={position}
-                editMode={editMode}
-                onEditMode={(on) => (on ? enterEdit() : leaveEdit())}
-                onFen={handleFen}
-                onTurn={(turn) => startFrom({ ...position, turn }, "편집")}
-                onSetup={(side: Side, setup: Setup) =>
-                  startFrom(
-                    { ...position, board: applySetup(position.board, side, setup) },
-                    "편집"
-                  )
-                }
-                onClear={() => startFrom({ ...position, board: {} }, "편집")}
-                onReset={() => {
-                  setDraft(null);
-                  setHistory(initialHistory);
-                  setCursor(0);
-                  setSelected(null);
-                  setReviewed(null);
-                  setResigned(null);
-                  resetClocks();
-                }}
-              />
-
-              <AnalysisPanel
-                snapshot={snapshot}
-                board={position.board}
-                enabled={analysisEnabled}
-                editing={editMode}
-                onHoverLine={setHover}
-                onPlayLine={(move) => {
-                  if (editMode || !canTouchBoard) return;
-                  const { from, to } = splitMove(move);
-                  if (from && to) pushMove(from, to);
-                }}
-              />
-
-              <EngineControls
-                options={options}
-                limits={limits}
-                analysisOn={analysisOn}
-                onOptions={(patch) => setPrefs((o) => ({ ...o, ...patch }))}
-                onLimits={(patch) => setLimits((l) => ({ ...l, ...patch }))}
-                onAnalysisOn={setAnalysisOn}
-              />
-            </>
-          )}
-
-          {mode === "review" && (
-            <ReviewPanel
-              moveCount={history.length - 1}
-              levelName={level.name}
-              depthId={reviewDepthId}
-              onDepth={setReviewDepthId}
-              running={reviewRunning}
-              progress={reviewProgress}
-              reviewed={reviewed}
-              cursor={cursor}
-              error={reviewError}
-              onStart={() => void startReview()}
-              onStop={stopReview}
-              onJump={goTo}
-            />
-          )}
-
-          {!editMode && (
-            <>
-              {/* 대국 중에는 형세 그래프를 띄우지 않는다. 엔진 평가를 그대로
-                  흘리는 것이라 훈수와 같다. */}
-              {mode !== "play" && (
+            {openGame && (
+              <>
+                <ReviewPanel
+                  moveCount={openGame.history.length - 1}
+                  levelName={openGame.levelName}
+                  depthId={reviewDepthId}
+                  onDepth={setReviewDepthId}
+                  running={reviewRunning}
+                  progress={reviewProgress}
+                  reviewed={reviewed}
+                  cursor={cursor}
+                  error={reviewError}
+                  onStart={() => void startReview()}
+                  onStop={stopReview}
+                  onJump={goTo}
+                />
                 <EvalGraph history={history} cursor={cursor} onJump={goTo} />
-              )}
-              <MoveList
-                history={history}
-                cursor={cursor}
-                reviewed={reviewed}
-                canSave={history.length > 1}
-                onJump={goTo}
-                onHoverMove={setHover}
-                onSave={saveRecord}
-                onLoad={loadRecord}
-              />
-            </>
-          )}
-        </section>
+                <MoveList
+                  history={history}
+                  cursor={cursor}
+                  reviewed={reviewed}
+                  canSave
+                  onJump={goTo}
+                  onHoverMove={setHover}
+                  onSave={saveRecord}
+                />
+              </>
+            )}
+          </section>
 
-        {/*
-          알림. 예전에는 헤더 아래 한 줄을 차지해서, 뜰 때와 4초 뒤 사라질 때
-          화면 전체가 두 번 아래위로 움직였다. 이제 자리를 차지하지 않고
-          오른쪽 칸 아래에 떴다가 사라진다. 판은 가리지 않는다.
-        */}
-        <div className="toast" role="status">
-          {notice}
-        </div>
-      </main>
+          {toast}
+        </main>
+      )}
 
       {/*
-        결과 팝업. 대국에서만 뜬다 - 분석·복기에서 끝난 국면을 불러올 때마다
-        창이 뜨면 그게 곧 방해다.
+        결과 팝업. 대국에서만 뜬다 - 기보 탭에서 끝난 판을 열 때마다 창이
+        뜨면 그게 곧 방해다.
       */}
       {mode === "play" && resultOpen && outcome && (
         <GameOverDialog
@@ -1476,7 +1431,7 @@ export default function App() {
           mySide={mySide}
           onReview={() => {
             setResultOpen(false);
-            goMode("review");
+            openArchived(gameId);
           }}
           onClose={() => setResultOpen(false)}
         />
@@ -1485,9 +1440,8 @@ export default function App() {
       {asking === "new" && (
         <ConfirmDialog
           title="새 대국을 시작할까요?"
-          message="두던 판의 기보가 지워집니다."
+          message="두던 판은 기보 목록에 '중단'으로 남습니다."
           confirmLabel="새 대국"
-          danger
           onConfirm={() => {
             setAsking(null);
             newGame();

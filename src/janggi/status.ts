@@ -100,7 +100,11 @@ export const isGameOver = (s: GameStatus): boolean =>
 export type OutcomeKind = "checkmate" | "stalemate" | "points" | "resign" | "flag";
 
 export interface Outcome {
-  kind: OutcomeKind;
+  /**
+   * 어떻게 끝났는지. record 는 파일에서 불러온 기보다 - 누가 이겼는지만 적혀
+   * 있고 어떻게 끝났는지는 모른다(기보 형식 janggi-board/2 에 그 칸이 없다).
+   */
+  kind: OutcomeKind | "record";
   /** 이긴 쪽. 점수가 같아 비겼으면 null */
   winner: Side | null;
 }
@@ -130,12 +134,13 @@ export function outcomeOf(
   return null;
 }
 
-const OUTCOME_HOW: Record<OutcomeKind, string> = {
+const OUTCOME_HOW: Record<Outcome["kind"], string> = {
   checkmate: "외통",
   stalemate: "둘 수가 없음",
   points: `${MOVE_LIMIT}수 점수`,
   resign: "기권",
   flag: "시간패",
+  record: "불러온 기보",
 };
 
 /** 끝난 사연을 한 줄로. "외통 - 초가 이겼습니다." */
@@ -172,12 +177,13 @@ export interface SideTag {
 }
 
 /** 진 쪽 카드에 적을 말. 어떻게 졌는지까지 적는다. */
-const LOSE_TAG: Record<OutcomeKind, string> = {
+const LOSE_TAG: Record<Outcome["kind"], string> = {
   checkmate: "외통패",
   stalemate: "패",
   points: "점수패",
   resign: "기권패",
   flag: "시간패",
+  record: "패",
 };
 
 /**

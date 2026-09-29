@@ -74,17 +74,24 @@ export function readStored<T>(
   }
 }
 
-/** 값을 남긴다. 실패해도 조용히 넘어간다 — 저장이 안 된다고 대국이 멈추면 안 된다. */
+/**
+ * 값을 남긴다. 실패해도 조용히 넘어간다 — 저장이 안 된다고 대국이 멈추면 안 된다.
+ *
+ * 남겼는지는 돌려준다. 대부분은 보지 않지만, 기보 목록처럼 커질 수 있는 값은
+ * 저장 공간이 차면 오래된 것을 덜어내고 다시 남겨야 해서 알아야 한다.
+ */
 export function writeStored(
   key: string,
   value: unknown,
   store: StoreLike | null = safeStore()
-): void {
-  if (!store) return;
+): boolean {
+  if (!store) return false;
   try {
     store.setItem(PREFIX + key, JSON.stringify(value));
+    return true;
   } catch {
     // 저장 공간이 찼거나 막혀 있다. 이번 판은 그냥 둔다.
+    return false;
   }
 }
 

@@ -23,8 +23,6 @@ const ICON = { size: 20, strokeWidth: 2, "aria-hidden": true } as const;
 
 interface Props {
   mode: Mode;
-  /** 편집 중에는 되짚을 기보가 없다. 판 뒤집기만 살려 둔다. */
-  editing: boolean;
   /** 지금 보고 있는 수의 번호 */
   cursor: number;
   /** 기보의 마지막 칸 번호 */
@@ -39,11 +37,10 @@ interface Props {
 }
 
 export function BoardControls(props: Props) {
-  const { mode, editing, cursor, last, canTouch, onJump, onUndo, onFlip, onPass } =
-    props;
+  const { mode, cursor, last, canTouch, onJump, onUndo, onFlip, onPass } = props;
 
-  const atStart = editing || cursor === 0;
-  const atEnd = editing || cursor >= last;
+  const atStart = cursor === 0;
+  const atEnd = cursor >= last;
 
   /*
    * 두 줄로 나눈다.
@@ -100,7 +97,8 @@ export function BoardControls(props: Props) {
         <button type="button" onClick={onFlip} title="F 키">
           판 뒤집기
         </button>
-        {mode !== "review" && (
+        {/* 기보 탭은 지난 판을 읽기만 한다. 둘 수가 없으니 한수쉼도 없다. */}
+        {mode === "play" && (
           <button
             type="button"
             disabled={!canTouch}

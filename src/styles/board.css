@@ -163,36 +163,16 @@
   pointer-events: none;
 }
 
-.board .drag-layer.removing {
-  opacity: 0.45;
-}
-
 .board-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-/* --- 팔레트 ------------------------------------------------------------ */
-
-.palette {
-  margin-top: 12px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.palette-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
+/*
+ * 상차림 줄의 진영 글자(초·한). 판 편집 팔레트에서 쓰던 이름을 그대로 쓴다.
+ * 팔레트는 분석 탭과 함께 뺐다.
+ */
 .palette-side {
   width: 24px;
   flex: none;
@@ -206,57 +186,6 @@
 
 .palette-side.han {
   color: var(--han);
-}
-
-.palette-side.muted {
-  color: var(--muted);
-  font-weight: 500;
-  width: auto;
-  margin-right: 4px;
-}
-
-/* 기물 칸은 판 그림의 일부라 나무색을 쓴다. 판 아래 한 줄이 판 높이를
-   깎으므로 40 이 아니라 36 으로 둔다. */
-.palette-piece {
-  width: 36px;
-  height: 36px;
-  min-height: 0;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #f7f0de;
-  border: 1px solid #8d7444;
-  border-radius: var(--radius-sm);
-}
-
-.palette-piece.cho {
-  color: var(--cho);
-}
-
-.palette-piece.han {
-  color: var(--han);
-}
-
-.palette-piece.erase {
-  width: auto;
-  padding: 0 12px;
-  font-family: inherit;
-  font-size: var(--fs-base);
-  background: var(--panel-2);
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-.palette-piece.active {
-  outline: 2px solid var(--ink);
-  outline-offset: 1px;
-}
-
-.palette-hint {
-  color: var(--muted);
-  font-size: var(--fs-base);
-  margin-left: 4px;
 }
 
 /* 장군을 맞은 궁. 눈에 확 띄어야 해서 붉은 테두리에 맥박을 준다. */
@@ -467,6 +396,69 @@
 
 .player-turn {
   white-space: nowrap;
+}
+
+/* 차례·생각 중·장군·승패를 한 묶음으로. 한 줄 카드에서는 시계 뒤 맨 끝에 선다. */
+.player-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-status:empty {
+  display: none;
+}
+
+/*
+ * 오른쪽 칸의 두 줄 카드(PlayerBar layout="stacked").
+ *
+ *   윗줄: 진영 · 이름 · 차례/장군/승패 ········ 시계
+ *   아랫줄: 잡아낸 기물 ······················· 점수
+ *
+ * 판 위아래의 한 줄 카드는 판 폭(600px 넘게)이라 한 줄에 다 들어갔다. 오른쪽
+ * 칸은 400 이라 한 줄에 넣으면 잡은 기물 칸이 두세 알 폭으로 줄어든다. 두 줄로
+ * 나누면서 가장 자주 보는 것(누구 차례, 남은 시간)을 윗줄에 모았다.
+ */
+.player-bar.stacked {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-areas:
+    "mark name status clock"
+    "cap  cap  cap    score";
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 4px;
+  /* 아래 4 는 시간 막대가 깔리는 자리 */
+  padding: 8px 12px 12px;
+  min-height: 0;
+}
+
+.player-bar.stacked .player-mark {
+  grid-area: mark;
+}
+
+.player-bar.stacked .player-name {
+  grid-area: name;
+}
+
+.player-bar.stacked .player-status {
+  grid-area: status;
+  justify-self: start;
+}
+
+.player-bar.stacked .player-clock {
+  grid-area: clock;
+}
+
+/* 잡은 기물이 없어도 아랫줄 높이는 그대로 둔다. 한 알 잡을 때마다 카드가 자라면 안 된다. */
+.player-bar.stacked .player-captured {
+  grid-area: cap;
+  min-height: 22px;
+}
+
+.player-bar.stacked .player-score {
+  grid-area: score;
+  justify-self: end;
 }
 
 /*
