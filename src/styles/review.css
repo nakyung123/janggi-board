@@ -111,11 +111,6 @@
 
 /* --- 대국 패널 --------------------------------------------------------- */
 
-.level-desc {
-  font-size: var(--fs-base);
-  color: var(--muted);
-}
-
 button.primary {
   background: var(--ink);
   border-color: var(--ink);

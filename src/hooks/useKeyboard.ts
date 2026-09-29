@@ -13,7 +13,11 @@ export interface Shortcuts {
   flip: () => void;
 }
 
-/** 지금 타이핑 중인지. FEN 칸에서 방향키를 누를 때 판이 움직이면 곤란하다. */
+/**
+ * 방향키를 제 몫으로 쓰는 칸에 초점이 있는지. 입력칸에서 방향키를 누를 때
+ * 판이 움직이면 곤란하다. 드롭다운(Dropdown.tsx)은 버튼이지만 방향키·Home·End
+ * 로 목록을 훑으므로 셀렉트와 같이 친다.
+ */
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el) return false;
@@ -22,6 +26,7 @@ function isTyping(target: EventTarget | null): boolean {
     tag === "INPUT" ||
     tag === "TEXTAREA" ||
     tag === "SELECT" ||
+    el.getAttribute("role") === "combobox" ||
     el.isContentEditable
   );
 }

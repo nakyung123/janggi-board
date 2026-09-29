@@ -557,6 +557,21 @@ export default function App() {
     if (!sameResult) setResultOpen(true);
   }, [outcome, games, gameId, playHistory, archiveOf]);
 
+  /**
+   * 대국 탭의 판이 끝났는지. 설정 잠금과 새 대국 확인 창이 본다.
+   *
+   * over 는 지금 보고 있는 국면의 판정이라, 외통으로 끝난 판을 '이전' 으로
+   * 되짚으면 false 가 된다. 그 틈에 설정이 풀리면 끝난 판의 급수·시계를 바꿀 수
+   * 있다. 그래서 판 전체로 본다 - 끝나는 순간 목록에 들어간 결과가 있고 수순이
+   * 그대로면 끝난 판이다. 끝난 뒤 무르고 다른 수를 두면 수순이 달라져 풀린다.
+   */
+  const archivedSelf = games.find((g) => g.id === gameId);
+  const ended =
+    over ||
+    (archivedSelf !== undefined &&
+      archivedSelf.result.kind !== "abandoned" &&
+      archivedSelf.history.length === playHistory.length);
+
   // --- 수 두기 ----------------------------------------------------------
 
   /** 지금 둘 차례. 시계에서 "누구 시간을 깎을지" 를 정하는 값이기도 하다. */
@@ -861,7 +876,9 @@ export default function App() {
    * 않은 판은 여기서 '중단' 으로 들어간다. 한 수도 두지 않은 판은 남길 것이 없다.
    */
   const newGame = () => {
-    if (started && !over) {
+    // over 가 아니라 ended 를 본다. 외통으로 끝난 판을 되짚던 중에 누르면 over 는
+    // false 라서, 끝난 판이 '중단' 으로 덮여 쓰였다.
+    if (started && !ended) {
       setGames((list) => upsertGame(list, archiveOf({ kind: "abandoned", winner: null })));
     }
     const base = parseFen(playHistory[0].fen);
@@ -881,7 +898,8 @@ export default function App() {
     resetClocks();
     forgetMoves();
     playedFor.current = null;
-    setNotice(`새 대국을 시작합니다. 상대는 ${level.name} 입니다.`);
+    // 예전에는 여기서 "새 대국을 시작합니다. 상대는 ○○ 입니다." 알림을 띄웠다.
+    // 이제는 누르기 전에 확인 창이 물으므로 한 번 더 말하지 않는다.
   };
 
   /**
@@ -1425,6 +1443,7 @@ export default function App() {
                 mySide={mySide}
                 levelId={levelId}
                 started={started}
+                ended={ended}
                 status={gstatus}
                 resigned={resigned}
                 flagged={flagged}
@@ -1454,7 +1473,7 @@ export default function App() {
                     "시작"
                   )
                 }
-                onNewGame={() => (started && !over ? setAsking("new") : newGame())}
+                onNewGame={() => setAsking("new")}
                 onResign={() => setAsking("resign")}
               />
             )}
@@ -1509,10 +1528,21 @@ export default function App() {
         />
       )}
 
+      {/*
+        새 대국은 언제 눌러도 묻는다. 예전에는 두던 판이 있을 때만 물었는데,
+        끝난 판·시작 전 판에서는 누르는 즉시 판이 바뀌고 알림만 떴다. 무엇이
+        달라지는지 한 줄만 상황마다 다르게 적는다.
+      */}
       {asking === "new" && (
         <ConfirmDialog
           title="새 대국을 시작할까요?"
-          message="두던 판은 기보 목록에 '중단'으로 남습니다."
+          message={
+            !started
+              ? "판을 처음 모양으로 다시 놓습니다."
+              : ended
+                ? "끝난 판은 기보 목록에서 다시 볼 수 있습니다."
+                : "두던 판은 기보 목록에 '중단'으로 남습니다."
+          }
           confirmLabel="새 대국"
           onConfirm={() => {
             setAsking(null);

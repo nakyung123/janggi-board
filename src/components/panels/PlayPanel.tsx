@@ -3,6 +3,7 @@
 // 한 판 두는 데 필요한 것만 둔다. 어느 쪽을 잡을지, 상대가 몇 급인지,
 // 상차림을 어떻게 할지. 스레드·해시 같은 엔진 설정은 화면에 두지 않는다.
 
+import { useId } from "react";
 import { LEVELS, levelById, levelWaitLabel } from "../../engine/levels";
 import type { EngineOptions } from "../../engine/types";
 import { CLOCK_PRESETS, describeClock } from "../../janggi/clock";
@@ -13,6 +14,7 @@ import type { Setup } from "../../janggi/setups";
 import type { GameStatus } from "../../janggi/status";
 import { outcomeOf } from "../../janggi/status";
 import { 을를 } from "../../janggi/korean";
+import { Dropdown } from "../Dropdown";
 
 /*
  * 예전에는 '구경'(엔진끼리 두는 것을 지켜보기)이 세 번째 선택지로 있었다.
@@ -39,6 +41,11 @@ interface Props {
   levelId: string;
   /** 대국이 이미 시작됐는지 (수를 한 번이라도 뒀는지) */
   started: boolean;
+  /**
+   * 이 판이 끝났는지. 끝난 판은 새 대국을 눌러야 설정이 풀린다.
+   * 지금 보고 있는 국면이 아니라 판 전체로 본다(App 의 ended 주석).
+   */
+  ended: boolean;
   status: GameStatus;
   /** 기권했으면 기권한 쪽 */
   resigned: Side | null;
@@ -61,7 +68,7 @@ interface Props {
 
 export function PlayPanel(props: Props) {
   const {
-    mySide, levelId, started, status, resigned, flagged, thinking,
+    mySide, levelId, started, ended, status, resigned, flagged, thinking,
     clockId, onClock, variant, onVariant,
     onMySide, onLevel, setups, onSetup, onNewGame, onResign,
   } = props;
@@ -69,6 +76,20 @@ export function PlayPanel(props: Props) {
   const level = levelById(levelId);
   /** 끝났는지, 끝났다면 어떻게. 기권 버튼이 이 하나를 본다. */
   const outcome = outcomeOf(status, resigned, flagged);
+  const levelLabel = useId();
+  const variantLabel = useId();
+
+  /*
+   * 잠금은 두 겹이다.
+   *
+   * 규칙·상차림은 첫 수를 두면 잠긴다. 두던 중에 승부 조건이 바뀌면 안 된다.
+   * 나머지(쪽·급수·시계)는 두는 동안에는 풀어 두고, 판이 끝나면 잠근다. 끝난
+   * 판에서 시계를 바꾸면 양쪽 시계가 새로 차면서 시간패가 지워져 끝난 판을
+   * 이어 둘 수 있었고, 쪽을 바꾸면 기권한 쪽이 뒤바뀌었다. 끝난 판은 새 대국으로만
+   * 넘어간다.
+   */
+  const endedTitle = "끝난 판입니다. 새 대국을 누르면 바꿀 수 있습니다";
+  const startedTitle = ended ? endedTitle : "대국을 시작하면 바꿀 수 없습니다";
 
   return (
     <div className="panel play">
@@ -90,37 +111,36 @@ export function PlayPanel(props: Props) {
               key={id}
               type="button"
               className={(mySide === id ? "active " : "") + id}
+              aria-pressed={mySide === id}
+              disabled={ended}
               onClick={() => onMySide(id)}
-              title={`${을를(SIDE_LABEL[id])} 잡고 둡니다`}
+              title={ended ? endedTitle : `${을를(SIDE_LABEL[id])} 잡고 둡니다`}
             >
               {label}
             </button>
           ))}
         </div>
       </div>
-      <div className="row">
-        <span className="label">상대 급수</span>
-        <select
-          value={level.id}
-          onChange={(e) => onLevel(e.target.value)}
-          aria-label="상대 급수"
-        >
-          {LEVELS.map((l) => {
-            const wait = levelWaitLabel(l);
-            return (
-              <option key={l.id} value={l.id} title={l.desc}>
-                {l.name}
-                {wait && ` - 한 수 ${wait}`}
-              </option>
-            );
-          })}
-        </select>
-      </div>
       {/*
-        고른 급수가 어떤 상대인지 적는다. 예전에는 option 의 title 에만 있어서
-        마우스를 올려야 보였다 — 폰에서는 볼 방법이 아예 없었다.
+        고른 급수의 설명 줄(예전 .level-desc)은 뺐다. 목록을 훑을 때는 이름만
+        보고 고르고, 설명은 한 번 읽고 나면 다시 보지 않았다.
       */}
-      <p className="muted small level-desc">{level.desc}</p>
+      <div className="row">
+        <span className="label" id={levelLabel}>
+          상대 급수
+        </span>
+        <Dropdown
+          value={level.id}
+          labelledBy={levelLabel}
+          disabled={ended}
+          title={ended ? endedTitle : undefined}
+          onChange={onLevel}
+          options={LEVELS.map((l) => {
+            const wait = levelWaitLabel(l);
+            return { value: l.id, label: l.name, hint: wait ? `한 수 ${wait}` : undefined };
+          })}
+        />
+      </div>
 
       {/*
         시계는 두 가지라 셀렉트 대신 분절 버튼이다. 펼쳐 봐야 둘뿐인 것을
@@ -135,7 +155,8 @@ export function PlayPanel(props: Props) {
               type="button"
               className={clockId === c.id ? "active" : ""}
               aria-pressed={clockId === c.id}
-              title={describeClock(c)}
+              disabled={ended}
+              title={ended ? endedTitle : describeClock(c)}
               onClick={() => onClock(c.id)}
             >
               {c.name}
@@ -145,24 +166,28 @@ export function PlayPanel(props: Props) {
       </div>
 
       <div className="row">
-        <span className="label">규칙</span>
-        <select
+        <span className="label" id={variantLabel}>
+          규칙
+        </span>
+        <Dropdown
           value={variant}
+          labelledBy={variantLabel}
           disabled={started}
-          title={
-            started
-              ? "대국을 시작하면 바꿀 수 없습니다"
-              : "승부가 어떻게 갈리는지를 정합니다"
-          }
-          onChange={(e) => onVariant(e.target.value as EngineOptions["variant"])}
-        >
-          {VARIANTS.map((v) => (
-            <option key={v.id} value={v.id} title={v.desc}>
-              {v.label}
-            </option>
-          ))}
-        </select>
+          title={started ? startedTitle : "승부가 어떻게 갈리는지를 정합니다"}
+          onChange={onVariant}
+          // 설명은 예전에 option 의 툴팁에만 있어서 무슨 규칙인지 고르면서 알 수 없었다.
+          options={VARIANTS.map((v) => ({ value: v.id, label: v.label, desc: v.desc }))}
+        />
       </div>
+      {/*
+        무엇이 언제 잠기는지 적어 둔다. 잠긴 칸의 까닭은 마우스를 올려야 보이는
+        툴팁에만 있었다 - 폰에서는 볼 길이 없다. 두 말 다 한 줄에 들어가게
+        짧게 둔다(오른쪽 칸 폭 400 에서 컨트롤 칸은 한글 열여섯 자 남짓).
+      */}
+      <p className="muted small field-note">
+        {ended ? "새 대국을 누르면 설정이 풀립니다." : "규칙·상차림은 시작하면 잠깁니다."}
+      </p>
+
       {/*
         고른 상차림을 짚어 준다. 예전에는 대국 탭에만 이 표시가 없어서, 무엇을
         골랐는지 판을 들여다봐야 알았고 버튼 두 줄이 통째로 꺼진 것처럼 보였다.
@@ -185,11 +210,7 @@ export function PlayPanel(props: Props) {
                   className={setups[side]?.id === s.id ? "active" : ""}
                   aria-pressed={setups[side]?.id === s.id}
                   disabled={started}
-                  title={
-                    started
-                      ? "대국을 시작하면 바꿀 수 없습니다"
-                      : `${s.alias} - ${s.desc}`
-                  }
+                  title={started ? startedTitle : `${s.alias} - ${s.desc}`}
                   onClick={() => onSetup(side, s)}
                 >
                   {s.name}
@@ -200,7 +221,7 @@ export function PlayPanel(props: Props) {
         ))}
       </div>
 
-      {/* 두던 판이 있으면 App 이 확인 창(ConfirmDialog)으로 한 번 더 묻는다. */}
+      {/* 누르면 App 이 확인 창(ConfirmDialog)으로 한 번 더 묻는다. */}
       <div className="row">
         <button type="button" className="primary" onClick={onNewGame}>
           새 대국
