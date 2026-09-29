@@ -1273,9 +1273,9 @@ export default function App() {
    * 헤더 오른쪽에 거는 판 상태. 판이 규칙에 맞지 않을 때만 뜬다.
    *
    * 예전에는 판 위 배너였다. 배너가 뜨면 판이 그만큼 줄어서, 높이가 늘 같은 헤더
-   * 줄로 옮겼다. 폰(390)에서 앱 이름과 탭 옆에 남는 자리가 71px 이라 말은
-   * 짧게(57px) 둔다. 대국에서는 생길 일이 없고, 파일에서 불러온 기보가 이상할
-   * 때를 위한 것이다. 무엇이 틀렸는지는 툴팁이 말한다.
+   * 줄로 옮겼다. 말은 짧게(57px) 둔다 - 앱 이름·탭 옆에 남는 자리가 360 폰에서
+   * 145px 이다(이름이 '장기 AI' 로 짧아진 뒤). 대국에서는 생길 일이 없고, 파일에서
+   * 불러온 기보가 이상할 때를 위한 것이다. 무엇이 틀렸는지는 툴팁이 말한다.
    */
   const problems = gstatus.kind === "invalid" ? gstatus.problems : null;
   const headTag = problems && !listView ? "잘못된 판" : null;
@@ -1302,7 +1302,7 @@ export default function App() {
   if (status !== "ready") {
     return (
       <div className="boot">
-        <h1>장기 분석판</h1>
+        <h1>장기 AI</h1>
         {status === "error" ? (
           <div className="boot-error">
             <p>엔진을 시작하지 못했습니다.</p>
@@ -1357,7 +1357,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="top">
-        <h1>장기 분석판</h1>
+        <h1>장기 AI</h1>
         {/*
           예전에는 여기에 "신경망 적용됨" 배지가 있었다. 만든 쪽에서나 뿌듯한
           말이지 두는 사람에게는 아무 뜻이 없고, 화면에서 제일 좋은 자리를

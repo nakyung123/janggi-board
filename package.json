@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Fairy-Stockfish 기반 장기 분석 보드 (Yixin-Board 스타일 자유 편집 + 실시간 분석)",
+  "description": "장기 AI - 브라우저에서 Fairy-Stockfish 와 한 판 두고 복기하는 장기",
   "scripts": {
     "fetch-engine": "node scripts/fetch-engine.mjs",
     "verify-engine": "node scripts/verify-engine.mjs",
