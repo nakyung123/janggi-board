@@ -12,7 +12,6 @@
 
 import type { Board } from "./board";
 import { fileIdxOf, rankOf } from "./board";
-import type { Side } from "./pieces";
 import { pieceInfo, sideOf } from "./pieces";
 
 /** 엔진 좌표(a1~i10) → 장기 좌표 두 자리 문자열 */
@@ -89,24 +88,6 @@ export function describeMove(move: string, before: Board): MoveNotation {
   };
 }
 
-/** 수순(PV)을 기보 문자열 배열로. 판을 따라 옮겨가며 잡은 기물까지 반영한다. */
-export function describeLine(moves: string[], start: Board): string[] {
-  let board = { ...start };
-  const out: string[] = [];
-  for (const move of moves) {
-    const { from, to } = splitMove(move);
-    if (!from || !board[from]) break;
-    out.push(describeMove(move, board).short);
-    if (from !== to) {
-      const next = { ...board };
-      next[to] = next[from];
-      delete next[from];
-      board = next;
-    }
-  }
-  return out;
-}
-
 const HANGUL_OF: Record<string, string> = {
   車: "차", 包: "포", 馬: "마", 象: "상", 士: "사", 卒: "졸", 兵: "병", 楚: "궁", 漢: "궁",
 };
@@ -114,59 +95,10 @@ const HANGUL_OF: Record<string, string> = {
 /**
  * 한자로 적힌 예전 기보 표기(73卒63)를 지금 표기(73졸63)로.
  *
- * 브라우저에 남은 지난 판·두던 판·복기 설명에는 예전 표기가 그대로 들어 있다(2026-09-30
- * 까지 둔 판). 읽을 때 한 번 거친다. 한자는 기보 표기에만 들어가므로 글자만 바꾸면 되고,
+ * 브라우저에 남은 지난 판·두던 판에는 예전 표기가 그대로 들어 있다(2026-09-30 까지 둔 판).
+ * 읽을 때 한 번 거친다(예전 복기는 표기를 고치지 않고 복기 전으로 읽는다 - archive.ts). 한자는 기보 표기에만 들어가므로 글자만 바꾸면 되고,
  * 표기는 숫자로 끝나서 뒤에 붙은 조사(이었/였)도 그대로 맞다.
  */
 export function hangulNotation(text: string): string {
   return text.replace(/[車包馬象士卒兵楚漢]/g, (c) => HANGUL_OF[c]);
-}
-
-/**
- * 기보 한 줄 — 초·한 한 수씩 짝지은 것.
- * cho·han 은 기보(history) 에서의 자리. 비어 있으면 null.
- */
-export interface MoveRow {
-  no: number;
-  cho: number | null;
-  han: number | null;
-}
-
-/**
- * 기보를 줄로 나눈다. movers[i] 는 i 번째 자리를 둔 쪽이다(0 번은 시작 국면이라 null).
- *
- * 기보와 복기가 같은 번호로 말하게 하려고 한곳에 뒀다. 기보는 줄(초·한 한 쌍)로,
- * 복기는 수 하나씩 세면, 복기가 "가장 아쉬운 수 3수" 라고 짚은 수가 기보에서는 2번
- * 줄에 있게 된다. 두 패널이 위아래로 붙어 있어 바로 눈에 띈다.
- *
- * 한이 먼저 두는 국면(파일에서 불러온 판)도 있을 수 있어 순서를 가정하지 않고
- * 실제로 둔 쪽을 보고 나눈다.
- */
-export function moveRows(movers: (Side | null)[]): MoveRow[] {
-  const rows: MoveRow[] = [];
-  for (let i = 1; i < movers.length; i += 1) {
-    const mover = movers[i];
-    if (!mover) continue;
-    const last = rows[rows.length - 1];
-    if (mover === "han" && last && last.han === null) {
-      last.han = i;
-    } else {
-      rows.push({
-        no: rows.length + 1,
-        cho: mover === "cho" ? i : null,
-        han: mover === "han" ? i : null,
-      });
-    }
-  }
-  return rows;
-}
-
-/** 기보에서 이 수가 놓인 줄 번호. 복기가 기보와 같은 번호로 말하게 한다. */
-export function rowNumbers(movers: (Side | null)[]): Map<number, number> {
-  const map = new Map<number, number>();
-  for (const row of moveRows(movers)) {
-    if (row.cho !== null) map.set(row.cho, row.no);
-    if (row.han !== null) map.set(row.han, row.no);
-  }
-  return map;
 }

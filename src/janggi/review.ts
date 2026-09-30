@@ -30,7 +30,7 @@ import type {
 } from "../engine/types";
 import type { Board } from "./board";
 import { parseFen } from "./board";
-import { describeLine, describeMove, splitMove } from "./notation";
+import { describeMove, splitMove } from "./notation";
 import type { Side } from "./pieces";
 import { SIDE_LABEL } from "./pieces";
 import { 으로, 을를, 이가 } from "./korean";
@@ -144,8 +144,6 @@ export interface ReviewInput {
   played: string;
   /** 엔진이 고른 최선수 */
   best: string | null;
-  /** 최선수로 시작하는 엔진 수순 */
-  bestPv: string[];
   /** 둔 뒤 국면에서 엔진이 보는 상대의 응수 */
   replyPv: string[];
   /** 두기 전 평가 (초 기준, 이미 잘라낸 값) */
@@ -178,8 +176,6 @@ export interface ReviewedMove {
   playedNotation: string;
   best: string | null;
   bestNotation: string | null;
-  /** 최선수부터 이어지는 엔진 수순 (기보 표기) */
-  bestLine: string[];
   scoreBefore: number;
   scoreAfter: number;
   /** 둔 쪽이 본 점수 손해. 최선수면 0. 기물로 치면 얼마쯤인지 말할 때 쓴다. */
@@ -197,7 +193,7 @@ export interface ReviewedMove {
 export function reviewMove(input: ReviewInput): ReviewedMove {
   const {
     index, mover, before, after,
-    played, best, bestPv, replyPv,
+    played, best, replyPv,
     scoreBefore, scoreAfter, bestGivesCheck,
   } = input;
 
@@ -214,7 +210,6 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
 
   const playedNotation = describeMove(played, before).short;
   const bestNotation = best ? describeMove(best, before).short : null;
-  const bestLine = best ? describeLine(bestPv.slice(0, 6), before) : [];
 
   return {
     index,
@@ -223,7 +218,6 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
     playedNotation,
     best,
     bestNotation,
-    bestLine,
     scoreBefore,
     scoreAfter,
     loss,
@@ -423,7 +417,6 @@ export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]>
         after,
         played,
         best,
-        bestPv: pvs[m],
         replyPv: pvs[m + 1] ?? [],
         scoreBefore: scores[m],
         scoreAfter: scores[m + 1] ?? scores[m],

@@ -29,7 +29,6 @@ const 수 = (over: Partial<ReviewInput> = {}): ReviewInput => ({
   after,
   played: "a4a5",
   best: "c4c5",
-  bestPv: ["c4c5"],
   replyPv: [],
   scoreBefore: 0,
   scoreAfter: 0,

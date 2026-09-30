@@ -22,7 +22,7 @@ import type { ReviewedMove } from "./review";
 /** 판()의 한 수(a4a5)를 지금 잣대로 복기한 결과 */
 const 복기한수 = (): ReviewedMove => ({
   index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
-  best: "b1c3", bestNotation: "02마83", bestLine: [],
+  best: "b1c3", bestNotation: "02마83",
   scoreBefore: 0, scoreAfter: -1.2, loss: 1.2, winDrop: 0.054, grade: "inaccuracy",
   note: { verdict: null, best: "02마83", bestDoes: null, after: null },
 });
@@ -168,7 +168,7 @@ describe("읽어 온 목록", () => {
     // 한 덩어리 설명(comment)에 한자 표기이던 더 예전 복기도
     const 더예전 = {
       index: 1, mover: "cho", played: "a4a5", playedNotation: "71卒61",
-      best: "b1c3", bestNotation: "02馬83", bestLine: [],
+      best: "b1c3", bestNotation: "02馬83",
       scoreBefore: 0, scoreAfter: 0, loss: 0.5, grade: "inaccuracy",
       comment: "최선은 02馬83이었습니다.",
     } as unknown as ReviewedMove;
