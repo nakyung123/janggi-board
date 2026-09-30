@@ -2,12 +2,13 @@
 //
 // 국면 하나(FEN)만으로는 어떻게 그 자리에 왔는지 알 수 없다. 그래서
 // 시작 국면과 둔 수를 함께 담는다. 평가치도 같이 저장해 두면 다시 열었을 때
-// 형세 그래프가 그대로 살아난다.
+// 형세 그래프가 그대로 살아난다. 공유 링크(share.ts)는 이 모양을 줄여 URL 에 담는다.
 
 import type { ArchivedGame } from "./archive";
 import { newGameId } from "./archive";
-import { applyMove, parseFen, toFen } from "./board";
+import { parseFen } from "./board";
 import type { HistoryEntry } from "./history";
+import { nextEntry, startHistory } from "./history";
 import { splitMove } from "./notation";
 import type { Side } from "./pieces";
 
@@ -81,7 +82,17 @@ export function parseRecord(text: string): GameRecord {
   } catch {
     throw new Error("기보 파일이 아닙니다. JSON 형식이 깨져 있습니다.");
   }
+  return readRecord(raw);
+}
 
+/**
+ * 읽어 들인 값이 기보인지 하나씩 확인해 기보로 만든다. 파일(parseRecord)과 공유 링크
+ * (share.ts)가 함께 쓴다 - 들어오는 길이 달라도 같은 검사를 지난다.
+ */
+export function readRecord(raw: unknown): GameRecord {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("기보가 아닙니다.");
+  }
   const r = raw as Partial<GameRecord>;
   // 급수와 결과가 없던 첫 형식도 그대로 읽는다. 없는 항목만 채워 넣는다.
   if (r.format !== RECORD_FORMAT && r.format !== RECORD_FORMAT_V1) {
@@ -156,30 +167,22 @@ export function recordOfGame(game: ArchivedGame): GameRecord {
  * 시작 국면에서 수를 하나씩 다시 두며 국면을 되살린다. 출발 자리에 기물이 없는
  * 수를 만나면 그 수를 들어 Error 를 던진다. 수가 규칙에 맞는지는 엔진만 알아서, 불러올 때
  * App 이 따로 묻는다(engine.firstIllegalMove).
+ * 기보 표기는 파일에 적힌 것을 쓰지 않고 수순에서 다시 만든다. 공유 링크는 표기를 싣지
+ * 않고, 파일의 표기도 대국 탭에서 둔 수와 같은 규칙(nextEntry)으로 만들어야 서로 맞는다.
  * 파일에는 누가 이겼는지만 있고 어떻게 끝났는지는 없어서 결과는 '불러온 기보' 다.
  * 사람이 잡은 쪽을 '나' 로 보고, 둘 다 사람이면 초로 본다.
  */
 export function gameOfRecord(record: GameRecord, now = Date.now()): ArchivedGame {
-  const history: HistoryEntry[] = [
-    { fen: record.startFen, move: null, notation: "시작", mover: null, score: null },
-  ];
-  let pos = parseFen(record.startFen);
+  const history: HistoryEntry[] = startHistory(record.startFen);
   for (const m of record.moves) {
+    const before = history[history.length - 1].fen;
     const { from, to } = splitMove(m.move);
-    if (!from || !pos.board[from]) {
+    if (!from || !parseFen(before).board[from]) {
       throw new Error(
         `${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`
       );
     }
-    const mover = pos.turn;
-    pos = applyMove(pos, from, to);
-    history.push({
-      fen: toFen(pos),
-      move: m.move,
-      notation: m.notation || m.move,
-      mover,
-      score: m.score ?? null,
-    });
+    history.push({ ...nextEntry(before, from, to), score: m.score ?? null });
   }
   if (history.length < 2) throw new Error("수가 하나도 없는 기보입니다.");
 

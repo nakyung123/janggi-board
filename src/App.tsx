@@ -23,6 +23,7 @@ import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameList } from "./components/games/GameList";
 import { MoveList } from "./components/games/MoveList";
+import type { ShareResult } from "./components/games/MoveList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
 import { BootScreen } from "./components/layout/BootScreen";
@@ -65,6 +66,7 @@ import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
 import { downloadRecord, gameOfRecord, parseRecord, recordOfGame } from "./janggi/record";
 import { bestArrowOf } from "./janggi/review";
+import { decodeShare, encodeShare, sharePayloadOf, shareUrl } from "./janggi/share";
 import type { SavedGame } from "./janggi/savedGame";
 import { isSavedGame } from "./janggi/savedGame";
 import { applySetup, detectSetup } from "./janggi/setups";
@@ -772,6 +774,80 @@ export default function App() {
     }
   };
 
+  // --- 공유 링크 ----------------------------------------------------------
+
+  /**
+   * 연 판을 링크로 건넨다. 폰은 휴대폰 공유 창(카카오톡·메시지 등)을 띄우고, 컴퓨터는
+   * 클립보드에 복사한다. 컴퓨터에도 공유 창을 띄우는 브라우저가 있지만(윈도우의 크롬),
+   * 컴퓨터에서 링크를 건네는 흔한 길은 붙여넣기다. 결과는 버튼이 글자로 알린다(MoveList).
+   */
+  const shareGame = async (): Promise<ShareResult> => {
+    if (!openGame) return "failed";
+    const url = shareUrl(window.location.href, await encodeShare(recordOfGame(openGame)));
+    if (window.matchMedia("(pointer: coarse)").matches && navigator.share) {
+      try {
+        await navigator.share({ title: "장기 기보", url });
+        return "shared";
+      } catch (err) {
+        // 공유 창을 닫았으면 거기서 끝낸다 - 건네지 않기로 한 것이다. 공유 창을 못 띄웠으면 복사로.
+        if (err instanceof DOMException && err.name === "AbortError") return "cancelled";
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice("링크를 복사했습니다.");
+      return "copied";
+    } catch {
+      return "failed";
+    }
+  };
+
+  /**
+   * 주소의 #g=… 로 받은 판을 기보 목록에 넣고 연다. 파일 불러오기와 같은 검사를 지난다.
+   * 같은 판(시작 국면과 수순이 같은 판)이 이미 목록에 있으면 새로 넣지 않고 그 판을 연다 -
+   * 같은 링크를 두 번 열어도 목록에 두 줄이 생기지 않게. 두던 대국은 그대로다.
+   */
+  const openShared = async (payload: string) => {
+    try {
+      const game = gameOfRecord(await decodeShare(payload));
+      const known = games.find((g) => sameGame(g, game));
+      if (known) {
+        showGame(known);
+        return;
+      }
+      await checkMoves(game);
+      setGames((list) => upsertGame(list, game));
+      showGame(game);
+      setNotice(`받은 기보를 열었습니다. ${game.history.length - 1}수.`);
+    } catch (err) {
+      goMode("games");
+      setListError(`공유 링크를 열지 못했습니다. ${messageOf(err)}`);
+    }
+  };
+
+  /*
+   * 엔진이 준비되면 주소를 본다. 앱이 떠 있는 탭에 다른 링크를 붙여 넣으면 페이지는 새로
+   * 읽히지 않고 # 뒤만 바뀌므로(hashchange) 그것도 듣는다. 읽은 링크는 주소에서 지운다 -
+   * 새로고침할 때마다 같은 판을 또 열지 않게. 듣는 쪽은 한 번만 걸고, 부를 때는 지금 렌더의
+   * openShared(지금의 목록을 본다)를 부른다.
+   */
+  const openSharedRef = useRef(openShared);
+  useEffect(() => {
+    openSharedRef.current = openShared;
+  });
+  useEffect(() => {
+    if (status !== "ready") return;
+    const take = () => {
+      const payload = sharePayloadOf(window.location.hash);
+      if (!payload) return;
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      void openSharedRef.current(payload);
+    };
+    take();
+    window.addEventListener("hashchange", take);
+    return () => window.removeEventListener("hashchange", take);
+  }, [status]);
+
   // 방금 넣은 판의 카드는 3초 동안 도드라진다(GameList).
   useEffect(() => {
     if (!freshId) return;
@@ -1058,6 +1134,7 @@ export default function App() {
                   onJump={goTo}
                   onHoverMove={setHover}
                   onSave={saveRecord}
+                  onShare={shareGame}
                 />
               </>
             )}
@@ -1119,3 +1196,9 @@ function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+/** 시작 국면과 수순이 같은 판인가. 공유 링크로 이미 받은 판을 또 받았는지 가린다. */
+function sameGame(a: ArchivedGame, b: ArchivedGame): boolean {
+  const key = (g: ArchivedGame) =>
+    positionKey({ startFen: g.history[0].fen, moves: movesOf(g.history) });
+  return key(a) === key(b);
+}
