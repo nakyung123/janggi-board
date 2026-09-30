@@ -8,7 +8,6 @@
 
 import { useRef, useState } from "react";
 import type { JanggiEngine } from "../engine/engine";
-import { gradeToleranceOf, levelById } from "../engine/levels";
 import type { EngineOptions } from "../engine/types";
 import type { ArchivedGame } from "../janggi/archive";
 import type { HistoryEntry } from "../janggi/history";
@@ -61,9 +60,6 @@ export function useReview(engine: JanggiEngine | null) {
         startFen: game.history[0].fen,
         moves,
         nodes,
-        // 그 판의 상대 급수에 맞춰 등급 눈높이를 낮춘다. 12급과 둔 판을 9단 잣대로
-        // 재면 평범한 첫 수부터 '부정확' 이 붙는다.
-        tolerance: gradeToleranceOf(levelById(game.levelId)),
         onProgress: setProgress,
         shouldStop: () => stopRequested.current,
       });

@@ -14,6 +14,13 @@
 //   병(2점) → 2.30   마(5점) → 4.54   포(7점) → 5.20   차(13점) → 9.42
 // 낮은 쪽에서는 엔진 점수 1.0 이 대략 장기 1점이고, 위로 갈수록 눌린다.
 // 그래서 손해를 기물로 옮길 때는 폭을 넓게 잡고 "쯤" 을 붙여 말한다.
+//
+// 등급은 점수가 아니라 승률로 매긴다
+// ----------------------------------
+// 둔 쪽의 승률(winChance)이 얼마나 떨어졌는지로 나눈다. 누구에게나 같은 잣대다 - 상대
+// 급수에 맞춰 눈높이를 바꾸지 않는다. 점수로 나누면 이미 크게 이기는 판에서 3점 흘린 수와
+// 팽팽한 판에서 3점 흘린 수가 같은 악수가 되는데, 앞의 것은 이기는 판이 그대로 이기는
+// 판이다. 복기 카드가 보여 주는 "한 35% → 27%" 와도 같은 말을 한다.
 
 import type {
   AnalysisSnapshot,
@@ -31,13 +38,13 @@ import { 으로, 을를, 이가 } from "./korean";
 export type MoveGrade =
   /** 엔진과 같은 수 */
   | "best"
-  /** 최선은 아니지만 손해랄 게 없다 */
+  /** 최선은 아니지만 승률이 5%p 도 안 떨어진 수 */
   | "good"
-  /** 조금 손해 */
+  /** 승률 5%p 이상 */
   | "inaccuracy"
-  /** 기물 하나가 왔다 갔다 할 손해 */
+  /** 승률 10%p 이상 */
   | "mistake"
-  /** 판이 뒤집힐 손해 */
+  /** 승률 20%p 이상 - 판이 뒤집힐 손해 */
   | "blunder";
 
 export const GRADE_LABEL: Record<MoveGrade, string> = {
@@ -58,12 +65,16 @@ export const GRADE_MARK: Record<MoveGrade, string> = {
 };
 
 /**
- * 손해를 등급으로 나누는 경계.
- * 위에 적은 눈금대로면 1.0 은 졸 반 짝, 3.0 은 상·사 하나쯤이다.
+ * 둔 쪽 승률이 떨어진 폭(0~1)을 등급으로 나누는 경계. chess.com·lichess 처럼 승률로
+ * 나눈다. 팽팽한 판이면 점수 손해 약 1.1 / 2.3 / 4.8 점이다 - 졸 반 짝, 졸 한 짝, 마 한 짝쯤.
+ *
+ * 한때는 점수 0.3 / 1.0 / 3.0 을 상대 급수에 따라 최대 세 배까지 늘려 썼다(18급 ×3 ~ 9단 ×1).
+ * 9단 눈높이(×1)면 팽팽한 판에서 승률 1.3%p 만 떨어져도 부정확이라, '빠름' 깊이의 잔값만으로도
+ * 대부분의 수에 ?! 가 붙는다.
  */
-const INACCURACY = 0.3;
-const MISTAKE = 1.0;
-const BLUNDER = 3.0;
+const WIN_INACCURACY = 0.05;
+const WIN_MISTAKE = 0.1;
+const WIN_BLUNDER = 0.2;
 
 /**
  * 외통 점수를 그대로 빼면 손해가 수백이 된다.
@@ -104,20 +115,12 @@ export function winChance(score: number): number {
 /** 화면에 적는 초의 승률(%, 정수). 한은 100 에서 뺀 값이라 둘의 합이 늘 100 이다. */
 export const winPercent = (score: number): number => Math.round(winChance(score) * 100);
 
-/**
- * @param tolerance 경계를 늘리는 배수. 1이면 절대 기준 그대로다.
- *   고른 급수에 맞춰 눈높이를 낮출 때 쓴다 (engine/levels 의 gradeToleranceOf).
- */
-export function gradeOf(
-  loss: number,
-  playedBest: boolean,
-  tolerance = 1
-): MoveGrade {
+/** @param winDrop 둔 쪽 승률이 떨어진 폭(0~1). 오른 수는 0 이다. */
+export function gradeOf(winDrop: number, playedBest: boolean): MoveGrade {
   if (playedBest) return "best";
-  const k = Math.max(1, tolerance);
-  if (loss < INACCURACY * k) return "good";
-  if (loss < MISTAKE * k) return "inaccuracy";
-  if (loss < BLUNDER * k) return "mistake";
+  if (winDrop < WIN_INACCURACY) return "good";
+  if (winDrop < WIN_MISTAKE) return "inaccuracy";
+  if (winDrop < WIN_BLUNDER) return "mistake";
   return "blunder";
 }
 
@@ -151,11 +154,6 @@ export interface ReviewInput {
   scoreAfter: number;
   /** 최선수를 두면 장군이 되는지. 엔진에 따로 물어본 값. */
   bestGivesCheck: boolean;
-  /**
-   * 등급 경계를 늘리는 배수. 없으면 1(절대 기준)이다.
-   * 고른 급수에 맞춰 눈높이를 낮출 때 쓴다.
-   */
-  tolerance?: number;
 }
 
 /**
@@ -163,7 +161,7 @@ export interface ReviewInput {
  * 한 덩어리 문장으로 두면 무엇이 최선이고 무엇이 벌어지는지 가려 읽기 어려웠다.
  */
 export interface MoveNote {
-  /** 둔 수를 한마디로. 최선수·좋은 수, 예전 복기의 설명 한 덩어리가 여기 온다. */
+  /** 둔 수를 한마디로. 최선수·좋은 수에만 있다. */
   verdict: string | null;
   /** 엔진이 고른 수(기보 표기). 최선수를 뒀으면 null. */
   best: string | null;
@@ -184,8 +182,13 @@ export interface ReviewedMove {
   bestLine: string[];
   scoreBefore: number;
   scoreAfter: number;
-  /** 둔 쪽이 본 손해. 최선수면 0. */
+  /** 둔 쪽이 본 점수 손해. 최선수면 0. 기물로 치면 얼마쯤인지 말할 때 쓴다. */
   loss: number;
+  /**
+   * 둔 쪽 승률이 떨어진 폭(0~1). 최선수면 0. 등급은 이것으로 매긴다.
+   * 이 값이 없는 복기는 급수 눈높이로 등급을 매기던 때의 것이다(archive.ts 가 복기 전으로 읽는다).
+   */
+  winDrop: number;
   grade: MoveGrade;
   /** 화면에 띄우는 설명 */
   note: MoveNote;
@@ -205,7 +208,9 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
   // 같은 수인데도 잔값이 남는데, 그건 깊이 차이지 손해가 아니다.
   // 그대로 두면 "최선수 -0.29" 같은 말이 안 되는 줄이 뜨고 평균까지 흐려진다.
   const loss = playedBest ? 0 : Math.max(0, raw);
-  const grade = gradeOf(loss, playedBest, input.tolerance);
+  const choDrop = winChance(scoreBefore) - winChance(scoreAfter);
+  const winDrop = playedBest ? 0 : Math.max(0, mover === "cho" ? choDrop : -choDrop);
+  const grade = gradeOf(winDrop, playedBest);
 
   const playedNotation = describeMove(played, before).short;
   const bestNotation = best ? describeMove(best, before).short : null;
@@ -222,6 +227,7 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
     scoreBefore,
     scoreAfter,
     loss,
+    winDrop,
     grade,
     note: buildNote({
       grade, loss, mover, before, after,
@@ -256,9 +262,9 @@ function buildNote(c: NoteInput): MoveNote {
     return note;
   }
 
-  // ② 손해가 없으면 굳이 나무라지 않는다.
+  // ② 크게 잃지 않았으면 굳이 나무라지 않는다.
   if (c.grade === "good") {
-    note.verdict = "최선은 아니지만 손해는 없습니다.";
+    note.verdict = "최선은 아니지만 크게 잃지는 않았습니다.";
   }
 
   // ③ 최선수가 무엇이었고, 그 수가 무엇을 하는지
@@ -302,20 +308,6 @@ function buildNote(c: NoteInput): MoveNote {
  */
 export const isSlip = (r: ReviewedMove): boolean =>
   r.grade === "inaccuracy" || r.grade === "mistake" || r.grade === "blunder";
-
-/**
- * 예전 복기(설명이 한 덩어리 문장 comment 였던 때)를 지금 모양으로. 그 문장을 한마디(verdict)
- * 자리에 그대로 둔다 - 다시 쪼갤 재료(엔진의 응수)가 남아 있지 않다. 이미 지금 모양이면 그대로다.
- */
-export function noteOf(r: ReviewedMove & { comment?: unknown }): MoveNote {
-  if (r.note && typeof r.note === "object") return r.note;
-  return {
-    verdict: typeof r.comment === "string" && r.comment ? r.comment : null,
-    best: null,
-    bestDoes: null,
-    after: null,
-  };
-}
 
 // --- 요약 ----------------------------------------------------------------
 
@@ -380,8 +372,6 @@ export interface RunReviewOptions {
   moves: string[];
   /** 한 국면에 쓸 탐색량 */
   nodes: number;
-  /** 등급 경계를 늘리는 배수. 고른 급수에 맞춰 눈높이를 낮출 때 쓴다. */
-  tolerance?: number;
   onProgress: (p: ReviewProgress) => void;
   /** true 를 돌려주면 그 자리에서 그만둔다 */
   shouldStop: () => boolean;
@@ -407,7 +397,7 @@ function advance(board: Board, move: string): Board {
  * 국면당 한 번이면 충분하다.
  */
 export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]> {
-  const { engine, startFen, moves, nodes, tolerance, onProgress, shouldStop } = opts;
+  const { engine, startFen, moves, nodes, onProgress, shouldStop } = opts;
 
   const positions = moves.length + 1;
   const scores: number[] = [];
@@ -477,7 +467,6 @@ export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]>
         scoreBefore: scores[m],
         scoreAfter: scores[m + 1] ?? scores[m],
         bestGivesCheck,
-        tolerance,
       })
     );
 

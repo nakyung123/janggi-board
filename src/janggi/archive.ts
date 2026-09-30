@@ -10,10 +10,8 @@
 
 import type { HistoryEntry } from "./history";
 import { hangulHistory } from "./history";
-import { hangulNotation } from "./notation";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
-import { noteOf } from "./review";
 import type { Outcome } from "./status";
 
 /**
@@ -190,20 +188,15 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
  * 읽어 온 목록에서 멀쩡한 판만 새 순서로. 목록 모양조차 아니면 빈 목록.
  *
  * 예전 판을 지금 모양으로 고쳐 읽는 것이 둘 있다.
- * - 수보다 복기 결과가 적은 판은 '복기 전' 으로 되돌린다. 중간에 멈춘 복기가 그대로
- *   저장되던 때(2945fdb 까지)의 판이다 - 두면 '복기함' 이 붙은 채 성적표가 0수로 뜬다.
- * - 한자로 적힌 기보 표기(73卒63)는 한글(73졸63)로 바꾼다. 수 목록·복기 설명이 한 판
- *   안에서 두 표기로 섞이지 않게(notation.ts 의 hangulNotation).
- * - 복기 설명이 한 덩어리 문장(comment)이던 판은 그 문장을 설명의 한마디 자리에 둔다
- *   (review.ts 의 noteOf). 엔진의 수·그 뒤로 다시 쪼갤 재료는 남아 있지 않다.
+ * - 지금 잣대로 매기지 않은 복기는 '복기 전' 으로 되돌린다(isCurrentReview).
+ * - 한자로 적힌 기보 표기(73卒63)는 한글(73졸63)로 바꾼다(history.ts 의 hangulHistory).
  */
 export function readArchive(v: unknown): ArchivedGame[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter(isArchivedGame)
     .map((g) => {
-      const reviewed =
-        g.reviewed && g.reviewed.length === g.history.length - 1 ? g.reviewed.map(hangulReview) : null;
+      const reviewed = isCurrentReview(g.reviewed, g.history.length - 1) ? g.reviewed : null;
       return { ...g, history: hangulHistory(g.history), reviewed };
     })
     .sort((a, b) => b.endedAt - a.endedAt)
@@ -211,27 +204,20 @@ export function readArchive(v: unknown): ArchivedGame[] {
 }
 
 /**
- * 복기 한 수를 지금 모양으로: 설명을 note 로 모으고, 표기·설명을 한글 표기로. 저장된 값이라
- * 모양을 믿지 않고 글자인 것만 바꾼다.
+ * 이 복기를 그대로 보여 줘도 되는지. 아니면 그 판은 '복기 전' 으로 읽어 다시 돌리게 한다.
+ *
+ * - 수보다 결과가 적은 복기: 중간에 멈춘 복기가 그대로 저장되던 때(2945fdb 까지)의 것이다.
+ *   두면 '복기함' 이 붙은 채 빈 성적이 뜬다.
+ * - 승률 하락(winDrop)이 없는 복기: 상대 급수에 맞춰 눈높이를 바꿔 가며 점수로 등급을 매기던
+ *   때의 것이다. 등급을 지금 잣대로 다시 매기면 그 등급을 두고 쓴 설명("손해는 없습니다")과
+ *   어긋나서, 고쳐 읽지 않고 다시 돌리게 한다. 한자 표기·한 덩어리 설명이던 복기도 여기 든다.
  */
-function hangulReview(r: ReviewedMove): ReviewedMove {
-  const h = <T,>(t: T): T => (typeof t === "string" ? (hangulNotation(t) as T) : t);
-  const note = noteOf(r);
-  const out = {
-    ...r,
-    playedNotation: h(r.playedNotation),
-    bestNotation: h(r.bestNotation),
-    bestLine: Array.isArray(r.bestLine) ? r.bestLine.map(h) : r.bestLine,
-    note: {
-      verdict: h(note.verdict),
-      best: h(note.best),
-      bestDoes: h(note.bestDoes),
-      after: h(note.after),
-    },
-  };
-  // 예전 설명 문장은 note 로 옮겼다. 남겨 두면 다음 저장 때 또 실린다.
-  delete (out as { comment?: unknown }).comment;
-  return out;
+function isCurrentReview(reviewed: ReviewedMove[] | null, moves: number): reviewed is ReviewedMove[] {
+  return (
+    reviewed !== null &&
+    reviewed.length === moves &&
+    reviewed.every((r) => typeof r.winDrop === "number")
+  );
 }
 
 /**

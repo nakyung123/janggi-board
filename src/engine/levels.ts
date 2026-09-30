@@ -177,23 +177,3 @@ export const DEFAULT_REVIEW_DEPTH_ID = "normal";
 
 export const reviewDepthById = (id: string): ReviewDepth =>
   REVIEW_DEPTHS.find((d) => d.id === id) ?? REVIEW_DEPTHS[1];
-
-/**
- * 복기 등급을 얼마나 너그럽게 매길지. 1이면 절대 기준 그대로다.
- *
- * 왜 필요한가. 복기는 언제나 전력(수십만 노드)으로 평가한다. 그래서 12급과
- * 두면서 첫 수로 졸을 밀었더니 곧바로 "부정확 −0.7" 이 붙고 '가장 아쉬운 수'
- * 로 뽑혔다. 사실이긴 한데, 12급과 두는 사람에게 프로 잣대를 들이대는 셈이다.
- * 0.3점 손해는 그 자리에서 알아볼 수 있는 크기가 아니다.
- *
- * 그래서 고른 급수에 맞춰 경계를 늘린다. 18급이면 3배, 9단이면 그대로다.
- * 상대 급수를 쓰는 것은 사람이 대체로 제 실력 근처를 고르기 때문이고,
- * 정확한 값이 아니라 대략의 눈높이다. 화면에는 "18급 기준" 이라고 적어서
- * 절대 평가인 척하지 않는다.
- */
-export function gradeToleranceOf(level: Level): number {
-  const i = LEVELS.findIndex((l) => l.id === level.id);
-  if (i < 0) return 1;
-  const t = i / (LEVELS.length - 1); // 18급 0 → 9단 1
-  return 3 - 2 * t;
-}

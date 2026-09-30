@@ -28,10 +28,6 @@ import type { Side } from "../../janggi/pieces";
 
 interface Props {
   moveCount: number;
-  /**
-   * 등급을 어느 급수 눈높이로 매겼는지. 화면에 적어서 절대 평가인 척하지 않는다.
-   */
-  levelName: string;
   /** 성적표 줄에 붙일 이름. 예: { cho: "나", han: "6급" } */
   names: Record<Side, string>;
   depthId: string;
@@ -59,7 +55,7 @@ const ICON = { size: 20, strokeWidth: 2, "aria-hidden": true } as const;
 
 export function ReviewPanel(props: Props) {
   const {
-    moveCount, levelName, names, depthId, onDepth, running, progress, reviewed,
+    moveCount, names, depthId, onDepth, running, progress, reviewed,
     cursor, error, onStart, onStop, onJump, moves,
   } = props;
 
@@ -72,8 +68,7 @@ export function ReviewPanel(props: Props) {
         <div className="panel-title">복기</div>
         <p className="muted pad">
           {moveCount}수를 한 수씩 엔진에게 물어봅니다. 실제로 둔 수와 엔진이
-          고른 수를 견줘서, 어디서 얼마나 손해를 봤는지 짚어줍니다. 등급은{" "}
-          <b>{levelName} 눈높이</b>로 매깁니다.
+          고른 수를 견줘서, 어디서 얼마나 손해를 봤는지 짚어줍니다.
         </p>
 
         <div className="row">
@@ -146,10 +141,7 @@ export function ReviewPanel(props: Props) {
 
   return (
     <div className="panel review">
-      <div className="panel-title">
-        복기
-        <span className="panel-meta">{levelName} 눈높이</span>
-      </div>
+      <div className="panel-title">복기</div>
 
       {/* 지금 수의 설명 — 이 패널에서 가장 중요한 부분 */}
       {current ? (

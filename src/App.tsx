@@ -1038,7 +1038,6 @@ export default function App() {
                 <EvalGraph history={history} cursor={cursor} onJump={goTo} />
                 <ReviewPanel
                   moveCount={openGame.history.length - 1}
-                  levelName={openGame.levelName}
                   names={{
                     cho: openGame.mySide === "cho" ? "나" : openGame.levelName,
                     han: openGame.mySide === "han" ? "나" : openGame.levelName,

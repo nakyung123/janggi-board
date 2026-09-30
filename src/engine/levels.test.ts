@@ -10,7 +10,6 @@ import {
   DEFAULT_REVIEW_DEPTH_ID,
   LEVELS,
   MIN_THINK_MS,
-  gradeToleranceOf,
   levelById,
   levelWaitLabel,
   limitsOf,
@@ -112,39 +111,6 @@ describe("복기 깊이", () => {
 
   it("모르는 id 는 기본 깊이로 떨어진다", () => {
     expect(reviewDepthById("없는-깊이").id).toBe(DEFAULT_REVIEW_DEPTH_ID);
-  });
-});
-
-// 복기 등급 눈높이
-//
-// 복기는 언제나 전력으로 평가한다. 그래서 12급과 두면서 평범한 첫 수를 뒀는데
-// 곧바로 "부정확" 이 붙고 '가장 아쉬운 수' 로 뽑혔다. 사실이긴 하지만 12급과
-// 두는 사람에게 프로 잣대를 들이대는 셈이다. 급수에 맞춰 경계를 늘린다.
-describe("등급 눈높이", () => {
-  it("낮은 급수일수록 너그럽다", () => {
-    const 첫 = gradeToleranceOf(LEVELS[0]);
-    const 끝 = gradeToleranceOf(LEVELS[LEVELS.length - 1]);
-    expect(첫).toBeGreaterThan(끝);
-  });
-
-  it("9단은 절대 기준 그대로다", () => {
-    expect(gradeToleranceOf(LEVELS[LEVELS.length - 1])).toBeCloseTo(1, 5);
-  });
-
-  it("18급은 세 배까지 너그럽다", () => {
-    expect(gradeToleranceOf(LEVELS[0])).toBeCloseTo(3, 5);
-  });
-
-  it("급수가 오를수록 단조롭게 엄해진다", () => {
-    // 중간에 뒤집히면 "한 급 올렸더니 오히려 후해졌다" 가 된다
-    for (let i = 1; i < LEVELS.length; i++) {
-      expect(gradeToleranceOf(LEVELS[i])).toBeLessThan(gradeToleranceOf(LEVELS[i - 1]));
-    }
-  });
-
-  it("1 아래로는 내려가지 않는다", () => {
-    // 절대 기준보다 엄해지면 그건 눈높이가 아니라 다른 기준이다
-    for (const l of LEVELS) expect(gradeToleranceOf(l)).toBeGreaterThanOrEqual(1);
   });
 });
 

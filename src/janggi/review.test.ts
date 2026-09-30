@@ -37,30 +37,30 @@ const 수 = (over: Partial<ReviewInput> = {}): ReviewInput => ({
   ...over,
 });
 
-describe("등급 경계", () => {
+describe("등급 경계 — 둔 쪽 승률이 떨어진 폭", () => {
   it("최선수면 등급도 최선수", () => {
     expect(gradeOf(0, true)).toBe("best");
-    expect(gradeOf(5, true)).toBe("best"); // 손해가 있어도 최선수가 우선
+    expect(gradeOf(0.5, true)).toBe("best"); // 떨어졌어도 최선수가 우선
   });
 
-  it("0.3 미만은 좋은 수", () => {
+  it("5%p 미만은 좋은 수", () => {
     expect(gradeOf(0, false)).toBe("good");
-    expect(gradeOf(0.29, false)).toBe("good");
+    expect(gradeOf(0.049, false)).toBe("good");
   });
 
-  it("0.3 부터 부정확", () => {
-    expect(gradeOf(0.3, false)).toBe("inaccuracy");
-    expect(gradeOf(0.99, false)).toBe("inaccuracy");
+  it("5%p 부터 부정확", () => {
+    expect(gradeOf(0.05, false)).toBe("inaccuracy");
+    expect(gradeOf(0.099, false)).toBe("inaccuracy");
   });
 
-  it("1.0 부터 실수", () => {
-    expect(gradeOf(1.0, false)).toBe("mistake");
-    expect(gradeOf(2.99, false)).toBe("mistake");
+  it("10%p 부터 실수", () => {
+    expect(gradeOf(0.1, false)).toBe("mistake");
+    expect(gradeOf(0.199, false)).toBe("mistake");
   });
 
-  it("3.0 부터 악수", () => {
-    expect(gradeOf(3.0, false)).toBe("blunder");
-    expect(gradeOf(30, false)).toBe("blunder");
+  it("20%p 부터 악수", () => {
+    expect(gradeOf(0.2, false)).toBe("blunder");
+    expect(gradeOf(1, false)).toBe("blunder");
   });
 });
 
@@ -117,16 +117,27 @@ describe("승률 어림", () => {
 
 describe("손해 계산", () => {
   it("초가 둔 수는 평가치가 내려간 만큼이 손해다", () => {
-    const r = reviewMove(수({ mover: "cho", scoreBefore: 1.0, scoreAfter: -0.5 }));
-    expect(r.loss).toBeCloseTo(1.5, 5);
+    const r = reviewMove(수({ mover: "cho", scoreBefore: 1.0, scoreAfter: -2.0 }));
+    expect(r.loss).toBeCloseTo(3, 5);
+    // 초 승률 54.5% → 41.1%
+    expect(r.winDrop).toBeCloseTo(0.134, 3);
     expect(r.grade).toBe("mistake");
   });
 
   it("한이 둔 수는 평가치가 올라간 만큼이 손해다", () => {
-    // 초 기준 -1.0 에서 +0.5 로 올라갔다 = 한이 1.5 를 잃었다
-    const r = reviewMove(수({ mover: "han", scoreBefore: -1.0, scoreAfter: 0.5 }));
-    expect(r.loss).toBeCloseTo(1.5, 5);
+    // 초 기준 -1.0 에서 +2.0 으로 올라갔다 = 한이 3 을 잃었다(한 승률 54.5% → 41.1%)
+    const r = reviewMove(수({ mover: "han", scoreBefore: -1.0, scoreAfter: 2.0 }));
+    expect(r.loss).toBeCloseTo(3, 5);
+    expect(r.winDrop).toBeCloseTo(0.134, 3);
     expect(r.grade).toBe("mistake");
+  });
+
+  it("같은 3점 손해라도 이미 크게 이기는 판에서는 가볍다", () => {
+    // 팽팽한 판의 3점은 승률 13%p(실수), 차 하나쯤 앞선 판의 3점은 6%p(부정확)
+    const 팽팽 = reviewMove(수({ scoreBefore: 1.5, scoreAfter: -1.5 }));
+    const 앞섬 = reviewMove(수({ scoreBefore: 12, scoreAfter: 9 }));
+    expect(팽팽.grade).toBe("mistake");
+    expect(앞섬.grade).toBe("inaccuracy");
   });
 
   it("형세를 좋게 만든 수의 손해는 0이다", () => {
@@ -141,6 +152,7 @@ describe("손해 계산", () => {
       수({ played: "a4a5", best: "a4a5", scoreBefore: 0.5, scoreAfter: 0.21 })
     );
     expect(r.loss).toBe(0);
+    expect(r.winDrop).toBe(0);
     expect(r.grade).toBe("best");
   });
 

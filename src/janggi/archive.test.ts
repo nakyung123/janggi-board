@@ -19,6 +19,14 @@ import {
 import type { ArchivedGame } from "./archive";
 import type { ReviewedMove } from "./review";
 
+/** 판()의 한 수(a4a5)를 지금 잣대로 복기한 결과 */
+const 복기한수 = (): ReviewedMove => ({
+  index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
+  best: "b1c3", bestNotation: "02마83", bestLine: [],
+  scoreBefore: 0, scoreAfter: -1.2, loss: 1.2, winDrop: 0.054, grade: "inaccuracy",
+  note: { verdict: null, best: "02마83", bestDoes: null, after: null },
+});
+
 const 판 = (patch: Partial<ArchivedGame> = {}): ArchivedGame => ({
   id: "a",
   endedAt: 1_000,
@@ -138,46 +146,33 @@ describe("읽어 온 목록", () => {
     expect(readArchive([판({ reviewed: [] })])[0].reviewed).toBeNull();
   });
 
-  it("한자로 적힌 예전 기보 표기는 한글로 읽는다 - 수 목록도 복기 설명도", () => {
+  it("한자로 적힌 예전 기보 표기는 한글로 읽는다", () => {
     const old = 판({
       history: [
         { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
         { fen: START_FEN, move: "a4a5", notation: "71卒61", mover: "cho", score: null },
       ],
-      reviewed: [
-        {
-          index: 1, mover: "cho", played: "a4a5", playedNotation: "71卒61",
-          best: "b1c3", bestNotation: "02馬83", bestLine: ["02馬83", "12馬33"],
-          scoreBefore: 0, scoreAfter: 0, loss: 0.5, grade: "inaccuracy",
-          comment: "최선은 02馬83이었습니다.",
-        } as unknown as ReviewedMove,
-      ],
     });
-    const [g] = readArchive([old]);
-    expect(g.history[1].notation).toBe("71졸61");
-    const r = g.reviewed![0];
-    expect([r.playedNotation, r.bestNotation, ...r.bestLine]).toEqual(["71졸61", "02마83", "02마83", "12마33"]);
-    // 한 덩어리 설명(comment)이던 예전 복기는 그 문장을 한마디 자리에 둔다
-    expect(r.note).toEqual({ verdict: "최선은 02마83이었습니다.", best: null, bestDoes: null, after: null });
-    expect("comment" in r).toBe(false);
+    expect(readArchive([old])[0].history[1].notation).toBe("71졸61");
   });
 
-  it("지금 모양의 복기 설명도 줄마다 한글 표기로 읽는다", () => {
-    const [g] = readArchive([
-      판({
-        reviewed: [
-          {
-            index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
-            best: "b1c3", bestNotation: "02마83", bestLine: [],
-            scoreBefore: 0, scoreAfter: 0, loss: 2, grade: "mistake",
-            note: { verdict: null, best: "02馬83", bestDoes: null, after: "한이 43兵53으로 졸을 가져갑니다." },
-          },
-        ],
-      }),
-    ]);
-    expect(g.reviewed![0].note).toEqual({
-      verdict: null, best: "02마83", bestDoes: null, after: "한이 43병53으로 졸을 가져갑니다.",
-    });
+  it("지금 잣대(승률 하락)로 매긴 복기는 그대로 읽는다", () => {
+    const [g] = readArchive([판({ reviewed: [복기한수()] })]);
+    expect(g.reviewed).toEqual([복기한수()]);
+  });
+
+  it("승률 하락이 없는 복기(급수 눈높이로 매기던 때)는 복기 전으로 읽는다", () => {
+    // 등급을 지금 잣대로 다시 매기면 그 등급을 두고 쓴 설명과 어긋난다. 다시 돌리게 한다.
+    const { winDrop: _, ...예전 } = 복기한수();
+    expect(readArchive([판({ reviewed: [예전 as ReviewedMove] })])[0].reviewed).toBeNull();
+    // 한 덩어리 설명(comment)에 한자 표기이던 더 예전 복기도
+    const 더예전 = {
+      index: 1, mover: "cho", played: "a4a5", playedNotation: "71卒61",
+      best: "b1c3", bestNotation: "02馬83", bestLine: [],
+      scoreBefore: 0, scoreAfter: 0, loss: 0.5, grade: "inaccuracy",
+      comment: "최선은 02馬83이었습니다.",
+    } as unknown as ReviewedMove;
+    expect(readArchive([판({ reviewed: [더예전] })])[0].reviewed).toBeNull();
   });
 
   it("목록이 아니면 빈 목록", () => {
