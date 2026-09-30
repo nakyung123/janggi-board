@@ -8,7 +8,9 @@ import { describe, expect, it } from "vitest";
 import { START_FEN, parseFen } from "./board";
 import type { Board } from "./board";
 import type { ReviewInput, ReviewedMove } from "./review";
-import { clampScore, gradeOf, reviewMove, summarize, bestArrowOf } from "./review";
+import {
+  clampScore, gradeOf, reviewMove, summarize, bestArrowOf, winChance, winPercent,
+} from "./review";
 
 const before: Board = parseFen(START_FEN).board;
 
@@ -74,6 +76,42 @@ describe("평가치 자르기", () => {
     expect(clampScore(1.5, null)).toBe(1.5);
     expect(clampScore(999, null)).toBe(20);
     expect(clampScore(-999, null)).toBe(-20);
+  });
+});
+
+describe("승률 어림", () => {
+  it("팽팽하면 50%", () => {
+    expect(winChance(0)).toBe(0.5);
+    expect(winPercent(0)).toBe(50);
+  });
+
+  it("초와 한의 승률을 더하면 1 이다", () => {
+    for (const s of [0.3, 2.3, 7, 15]) {
+      expect(winChance(s) + winChance(-s)).toBeCloseTo(1, 10);
+    }
+  });
+
+  it("기물 하나 차이가 그럴듯한 승률로 옮겨진다", () => {
+    // 병·마·차 하나를 뺀 판의 엔진 점수(review.ts 머리의 눈금)
+    expect(winPercent(2.3)).toBe(60);
+    expect(winPercent(4.54)).toBe(69);
+    expect(winPercent(9.42)).toBe(84);
+    expect(winPercent(-9.42)).toBe(16);
+  });
+
+  it("점수가 오를수록 승률도 오른다", () => {
+    expect(winChance(1)).toBeGreaterThan(winChance(0.5));
+    expect(winChance(-1)).toBeLessThan(winChance(-0.5));
+  });
+
+  it("외통(잘라 낸 끝)은 100% · 0%", () => {
+    expect(winPercent(clampScore(0, 3))).toBe(100);
+    expect(winPercent(clampScore(0, -3))).toBe(0);
+  });
+
+  it("외통이 아니면 100% 로 적지 않는다", () => {
+    expect(winPercent(19.9)).toBeLessThan(100);
+    expect(winPercent(-19.9)).toBeGreaterThan(0);
   });
 });
 

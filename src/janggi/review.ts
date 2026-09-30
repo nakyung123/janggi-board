@@ -80,6 +80,31 @@ export const clampScore = (score: number, mate: number | null): number =>
     : Math.max(-CAP, Math.min(CAP, score));
 
 /**
+ * 승률 곡선의 기울기. 점수 1 이 승률을 얼마나 옮기는지.
+ *
+ * 체스에서 쓰는 곡선(폰 하나 앞서면 약 59%, 룩 하나면 약 86%)을 위의 눈금에 맞췄다.
+ * 병 하나가 엔진 2.30, 차 하나가 9.42 라서 0.18 이면 졸 하나 60%, 마 하나 69%,
+ * 차 하나 84% 쯤이다.
+ */
+const WIN_K = 0.18;
+
+/**
+ * 평가치(초 기준)를 초가 이길 가능성(0~1)으로 어림한다.
+ *
+ * 알파장기의 승률은 실제 대국 결과로 배운 신경망이 내는 값이지만, 이 엔진은 점수만 낸다.
+ * 그래서 점수를 로지스틱 곡선 1 / (1 + e^(−k·점수)) 에 얹어 옮긴다 - 어림값이다.
+ * 잘라 낸 끝(±CAP, 외통)은 끝난 판으로 보고 1 / 0 이다.
+ */
+export function winChance(score: number): number {
+  if (score >= CAP) return 1;
+  if (score <= -CAP) return 0;
+  return 1 / (1 + Math.exp(-WIN_K * score));
+}
+
+/** 화면에 적는 초의 승률(%, 정수). 한은 100 에서 뺀 값이라 둘의 합이 늘 100 이다. */
+export const winPercent = (score: number): number => Math.round(winChance(score) * 100);
+
+/**
  * @param tolerance 경계를 늘리는 배수. 1이면 절대 기준 그대로다.
  *   고른 급수에 맞춰 눈높이를 낮출 때 쓴다 (engine/levels 의 gradeToleranceOf).
  */

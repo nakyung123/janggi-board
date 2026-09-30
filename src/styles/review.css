@@ -389,8 +389,39 @@
 
 /* --- 형세 그래프 -------------------------------------------------------- */
 
+/* 제목 줄 오른쪽의 "초 69% · 한 31%". 진영 색 글자로 누구의 몫인지 바로 읽힌다. */
+.win-meta b {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.win-meta .cho {
+  color: var(--cho);
+}
+
+.win-meta .han {
+  color: var(--han);
+}
+
+/* 지금 국면의 승률을 두 색으로 나눈 막대. 왼쪽(초)이 차지한 몫이 곧 초의 승률이다. */
+.win-bar {
+  height: 8px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--han);
+  margin-bottom: 12px;
+}
+
+.win-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--cho);
+  transition: width 0.2s;
+}
+
 /* 그래프를 상자로 감싸지 않는다. 카드 안에 또 상자가 있으면 테두리가 두 겹이
-   된다. 0선 하나로 충분히 읽힌다. */
+   된다. 50% 선 하나로 충분히 읽힌다. */
 .eval-graph {
   width: 100%;
   height: 66px;
@@ -398,10 +429,13 @@
   cursor: pointer;
 }
 
-/* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다.
-   초 기준이라 초록이다. 아래로 처진 구간은 그만큼 채움이 얇아진다. */
-.eval-area {
-  fill: rgba(21, 101, 60, 0.1);
+/* 50% 선과 흐름 선 사이를 옅게 채운다. 선 위(초가 앞선 구간)는 초 색, 아래는 한 색. */
+.eval-area.cho {
+  fill: rgba(21, 101, 60, 0.12);
+}
+
+.eval-area.han {
+  fill: rgba(179, 38, 30, 0.1);
 }
 
 .eval-zero {
