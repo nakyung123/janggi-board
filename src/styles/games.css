@@ -43,6 +43,30 @@
 }
 
 /*
+ * 파일·링크를 못 읽은 까닭. 누른 버튼(파일 불러오기) 바로 왼쪽에 서고, 다음에 무언가를
+ * 누를 때까지 남는다. 넓은 화면은 제목 줄에 남는 폭이 넉넉해 한 줄로 들어가서 목록 칸
+ * 높이가 바뀌지 않는다(한 쪽에 들어가는 판 수가 그대로다). 폰은 제목 줄 아래로 내린다.
+ */
+.games-error {
+  min-width: 0;
+  color: var(--han);
+  font-size: var(--fs-base);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .games-head {
+    flex-wrap: wrap;
+  }
+
+  .games-error {
+    order: 3;
+    flex-basis: 100%;
+    text-align: left;
+  }
+}
+
+/*
  * 카드는 칸 폭이 되는 만큼 여러 줄로 선다. 340 아래로는 줄이지 않는다 - 글자
  * 세 줄과 작은 판이 한 카드에 들어가야 한다. 폰에서는 한 줄.
  *
@@ -137,6 +161,11 @@
   .game-card:hover {
     border-color: var(--line-strong);
   }
+}
+
+/* 방금 넣은 판(파일 불러오기). 먹 테로 3초 도드라진다(App 이 거둔다). hover 보다 뒤에 둬야 이긴다. */
+.game-card.fresh {
+  border-color: var(--ink);
 }
 
 .game-text {

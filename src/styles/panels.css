@@ -278,7 +278,7 @@
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  /* 알림(toast)과 같은 단계. 카드 위에 떠야 한다(DESIGN.md Elevation). */
+  /* 카드 위에 떠야 해서 카드 그림자보다 한참 짙다(DESIGN.md Elevation 의 떠 있는 목록). */
   box-shadow: 0 8px 24px rgba(60, 40, 15, 0.24);
   overflow-y: auto;
   overscroll-behavior: contain;

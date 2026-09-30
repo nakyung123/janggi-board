@@ -111,7 +111,11 @@ export default function App() {
   const [selected, setSelected] = useState<Square | null>(null);
   /** 기보 칸에 마우스를 올린 수. 판에 화살표로 미리 보여준다. */
   const [hover, setHover] = useState<string | null>(null);
-  /** 한 번 말하고 마는 알림(toast). 4초 뒤 사라진다. */
+  /**
+   * 화면 읽기 프로그램에 한 번 말하고 마는 알림. 4초 뒤 비운다. 화면에는 띄우지 않는다 -
+   * 보이는 알림은 누른 자리에 있다(넣은 판의 카드, 목록 제목 아래 한 줄, 링크 버튼의 글자).
+   * 떠 있는 알림은 오른쪽 칸의 무언가(복기 설명, 쪽 번호)를 가렸다.
+   */
   const [notice, setNotice] = useState<string | null>(null);
 
   // --- 대국 설정 (브라우저에 남는다) ----------------------------------------
@@ -155,6 +159,10 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(null);
   /** 목록에서 보던 쪽. 한 판을 열었다가 '목록' 으로 돌아오면 이 쪽으로 온다. */
   const [listPage, setListPage] = useState(0);
+  /** 파일·링크를 못 읽은 까닭. 목록 제목 아래에 남고, 다음에 무언가를 누르면 지운다. */
+  const [listError, setListError] = useState<string | null>(null);
+  /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
+  const [freshId, setFreshId] = useState<string | null>(null);
   const [viewCursor, setViewCursor] = useState(0);
   /** 연 판은 그 판에서 내가 잡은 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 뒤집기는 그대로다. */
   const [viewFlipped, setViewFlipped] = useState(false);
@@ -670,24 +678,32 @@ export default function App() {
       setMode(next);
       setOpenId(null);
       setListPage(0);
+      setListError(null);
       setSelected(null);
       setHover(null);
     },
     [review.running]
   );
 
-  /** 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. */
-  const openArchived = (id: string) => {
+  /**
+   * 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. 판 객체를 바로
+   * 받는다 - 방금 목록에 넣은 판은 아직 games 에 없다(같은 렌더에서 넣고 연다).
+   */
+  const showGame = (game: ArchivedGame) => {
     if (review.running) return;
-    const game = games.find((g) => g.id === id);
-    if (!game) return;
     setMode("games");
-    setOpenId(id);
+    setOpenId(game.id);
     setViewCursor(game.history.length - 1);
     setViewFlipped(game.mySide === "han");
+    setListError(null);
     setSelected(null);
     setHover(null);
     review.clearError();
+  };
+
+  const openArchived = (id: string) => {
+    const game = games.find((g) => g.id === id);
+    if (game) showGame(game);
   };
 
   const closeArchived = () => {
@@ -719,33 +735,49 @@ export default function App() {
   };
 
   /**
-   * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
+   * 밖에서 들어온 판(파일·공유 링크)의 수가 모두 규칙에 맞는지 엔진에 묻는다. 틀린 수가
+   * 있으면 그 수를 들어 Error 를 던진다.
    *
-   * 규칙에 맞지 않는 수가 하나라도 있으면 넣지 않는다. 화면은 그 수를 둔 판을 그리는데
-   * 엔진은 그 수를 받지 않고 앞 국면에 머물러서, 장군·복기가 화면과 다른 판을 두고 말한다.
-   * 판을 열 때와 같은 규칙으로 가린다(위의 variant 와 같은 식).
+   * 규칙에 맞지 않는 수가 하나라도 있으면 목록에 넣지 않는다. 화면은 그 수를 둔 판을
+   * 그리는데 엔진은 그 수를 받지 않고 앞 국면에 머물러서, 장군·복기가 화면과 다른 판을
+   * 두고 말한다. 판을 열 때와 같은 규칙으로 가린다(위의 variant 와 같은 식).
    */
-  const loadRecord = async (file: File) => {
-    if (!engine) return;
-    try {
-      const game = gameOfRecord(parseRecord(await file.text()));
-      const bad = await engine.firstIllegalMove(
-        isVariant(game.variant) ? game.variant : prefs.variant,
-        game.history[0].fen,
-        movesOf(game.history)
-      );
-      if (bad !== null) {
-        throw new Error(
-          `${bad + 1}번째 수(${game.history[bad + 1].notation})가 규칙에 맞지 않아 기보를 불러오지 않았습니다.`
-        );
-      }
-      setGames((list) => upsertGame(list, game));
-      setListPage(0);
-      setNotice(`기보를 불러왔습니다. ${game.history.length - 1}수.`);
-    } catch (err) {
-      setNotice(err instanceof Error ? err.message : String(err));
+  const checkMoves = async (game: ArchivedGame) => {
+    if (!engine) throw new Error("엔진이 아직 준비되지 않았습니다.");
+    const bad = await engine.firstIllegalMove(
+      isVariant(game.variant) ? game.variant : prefs.variant,
+      game.history[0].fen,
+      movesOf(game.history)
+    );
+    if (bad !== null) {
+      throw new Error(`${bad + 1}번째 수(${game.history[bad + 1].notation})가 규칙에 맞지 않습니다.`);
     }
   };
+
+  /**
+   * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
+   * 넣은 판의 카드가 잠깐 도드라지고(freshId), 못 넣으면 목록 제목 아래에 까닭이 남는다.
+   */
+  const loadRecord = async (file: File) => {
+    setListError(null);
+    try {
+      const game = gameOfRecord(parseRecord(await file.text()));
+      await checkMoves(game);
+      setGames((list) => upsertGame(list, game));
+      setListPage(0);
+      setFreshId(game.id);
+      setNotice(`기보를 불러왔습니다. ${game.history.length - 1}수.`);
+    } catch (err) {
+      setListError(`기보를 불러오지 못했습니다. ${messageOf(err)}`);
+    }
+  };
+
+  // 방금 넣은 판의 카드는 3초 동안 도드라진다(GameList).
+  useEffect(() => {
+    if (!freshId) return;
+    const t = window.setTimeout(() => setFreshId(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [freshId]);
 
   // --- 복기 -------------------------------------------------------------
 
@@ -860,13 +892,6 @@ export default function App() {
   const thinking = engineTurn && Boolean(snapshot?.running);
   const openTag = openGame ? resultTag(openGame) : null;
 
-  // 알림은 자리를 차지하지 않고 오른쪽 칸 아래에 떴다 사라진다(판은 가리지 않는다).
-  const toast = (
-    <div className="toast" role="status">
-      {notice}
-    </div>
-  );
-
   return (
     <div className="app">
       <AppHeader
@@ -877,6 +902,10 @@ export default function App() {
         soundOn={soundOn}
         onToggleSound={() => setSoundOn((on) => !on)}
       />
+      {/* 처음부터 있어야 새 말을 읽어 준다. 내용이 없어도 요소는 남겨 둔다. */}
+      <p className="sr-only" role="status">
+        {notice}
+      </p>
 
       {listView ? (
         <main className="layout list">
@@ -886,9 +915,13 @@ export default function App() {
             onOpen={openArchived}
             onLoad={loadRecord}
             page={listPage}
-            onPage={setListPage}
+            onPage={(page) => {
+              setListPage(page);
+              setListError(null);
+            }}
+            error={listError}
+            freshId={freshId}
           />
-          {toast}
         </main>
       ) : (
         <main className="layout">
@@ -1029,8 +1062,6 @@ export default function App() {
               </>
             )}
           </section>
-
-          {toast}
         </main>
       )}
 
@@ -1082,3 +1113,9 @@ export default function App() {
     </div>
   );
 }
+
+/** 던져진 값에서 사람에게 보일 말을 꺼낸다. */
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+

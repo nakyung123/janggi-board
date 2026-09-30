@@ -29,6 +29,10 @@ interface Props {
    */
   page: number;
   onPage: (page: number) => void;
+  /** 파일·공유 링크를 못 읽은 까닭. 누른 버튼(파일 불러오기) 옆에 남는다. */
+  error: string | null;
+  /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
+  freshId: string | null;
 }
 
 /** 카드 한 줄의 높이를 재기 전에 쓰는 값(작은 판 112 + 안쪽 여백 16×2). */
@@ -42,7 +46,7 @@ const CARD_H = 144;
 const PHONE_PER_PAGE = 10;
 const NARROW = "(max-width: 900px)";
 
-export function GameList({ games, now, onOpen, onLoad, page, onPage }: Props) {
+export function GameList({ games, now, onOpen, onLoad, page, onPage, error, freshId }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -96,6 +100,11 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage }: Props) {
           기보
           <span className="panel-meta">{games.length}판</span>
         </h2>
+        {error && (
+          <p className="games-error" role="alert">
+            {error}
+          </p>
+        )}
         <button type="button" className="ghost" onClick={() => fileRef.current?.click()}>
           파일 불러오기
         </button>
@@ -124,7 +133,11 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage }: Props) {
             const tag = resultTag(g);
             return (
               <li key={g.id}>
-                <button type="button" className="game-card" onClick={() => onOpen(g.id)}>
+                <button
+                  type="button"
+                  className={"game-card" + (g.id === freshId ? " fresh" : "")}
+                  onClick={() => onOpen(g.id)}
+                >
                   <span className="game-text">
                     <span className="game-title">vs {g.levelName}</span>
                     <span className="game-meta">
