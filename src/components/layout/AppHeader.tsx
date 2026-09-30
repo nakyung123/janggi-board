@@ -1,16 +1,17 @@
-// 헤더 한 줄 — 앱 이름 · 모드 탭 ········ 판 상태 · 버전 · 소리 버튼
+// 헤더 한 줄 — 앱 이름 · 모드 탭 ········ 판 상태 · 업데이트 내역
 //
 // 높이가 늘 모드 탭과 같은 40(터치 44)이다. 이 앱은 남는 세로가 곧 판 크기라,
 // 헤더에 무엇이 뜨고 져도 줄 높이는 바뀌지 않아야 한다.
 //
 // 둘 차례·생각 중은 여기서 말하지 않는다. 대국자 카드가 이미 말한다. 헤더에는 판이
 // 규칙에 맞지 않을 때(불러온 기보가 이상할 때)만 짧게 "잘못된 판" 을 건다. 360 폰에서
-// 앱 이름·탭과 소리 버튼 사이에 남는 자리가 105 라 그보다 긴 말은 두 줄로 떨어진다.
+// 앱 이름·탭과 오른쪽 끝 사이에 남는 자리가 105 라 그보다 긴 말은 두 줄로 떨어진다.
+//
+// 소리 버튼은 뺐다. 켜고 끄고 싶다는 말이 실제로 나오면 그때 두면 된다 - 아직 아무도
+// 쓰지 않는 앱에서 헤더 한 칸은 비싸다.
 
-import { Volume2, VolumeX } from "lucide-react";
 import { ModeTabs } from "./ModeTabs";
 import type { Mode } from "./ModeTabs";
-import { APP_VERSION } from "../../updates/log";
 
 interface Props {
   mode: Mode;
@@ -19,14 +20,9 @@ interface Props {
   problems: string[] | null;
   /** 화면 읽기 프로그램에 한 줄로 알릴 판 상태(장군·결과·잘못된 판) */
   spoken: string;
-  soundOn: boolean;
-  onToggleSound: () => void;
 }
 
-const ICON = { size: 20, strokeWidth: 2, "aria-hidden": true } as const;
-
-export function AppHeader({ mode, onMode, problems, spoken, soundOn, onToggleSound }: Props) {
-  const soundLabel = soundOn ? "소리 끄기" : "소리 켜기";
+export function AppHeader({ mode, onMode, problems, spoken }: Props) {
   return (
     <header className="top">
       <h1>장기 AI</h1>
@@ -37,31 +33,18 @@ export function AppHeader({ mode, onMode, problems, spoken, soundOn, onToggleSou
           <span className="turn-tag">잘못된 판</span>
         )}
         {/*
-          버전이 곧 업데이트 내역으로 가는 문이다.
-          버전만 따로 적으면 헤더에 자리를 한 칸 더 써야 하고, '업데이트' 라고만
-          적으면 지금 쓰는 것이 몇 버전인지 화면에서 볼 길이 없다. 툴팁은 두지
-          않기로 했으므로(DESIGN.md) 글자 자체가 값이면서 문이 되게 했다.
-
-          새 탭으로 연다. 같은 탭에서 옮기면 돌아올 때 엔진을 다시 붙여야 한다.
+          새 탭으로 연다. 같은 탭에서 옮기면 돌아올 때 엔진을 다시 붙여야 한다
+          (13MB 를 다시 받지는 않지만 wasm 초기화는 다시 걸린다). 새 탭이면 두던
+          판이 그대로 살아 있다. 지금 버전은 그 쪽 맨 위에 적혀 있다.
         */}
         <a
           className="ver"
           href="/updates/"
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`업데이트 내역 v${APP_VERSION}`}
         >
-          v{APP_VERSION}
+          업데이트 내역
         </a>
-        {/* 착수음·집는 소리·초읽기 소리를 한 번에 켜고 끈다. 고른 값은 브라우저에 남는다. */}
-        <button
-          type="button"
-          className="ghost icon"
-          onClick={onToggleSound}
-          aria-label={soundLabel}
-        >
-          {soundOn ? <Volume2 {...ICON} /> : <VolumeX {...ICON} />}
-        </button>
       </div>
 
       <p className="sr-only" role="status">

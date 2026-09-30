@@ -30,7 +30,7 @@ import type { Mode } from "./components/layout/ModeTabs";
 import { GameOverDialog } from "./components/play/GameOverDialog";
 import { PlayPanel } from "./components/play/PlayPanel";
 
-import { playMoveSound, playPickSound, setSoundEnabled } from "./audio/sound";
+import { playMoveSound, playPickSound } from "./audio/sound";
 import {
   DEFAULT_LEVEL_ID,
   DEFAULT_REVIEW_DEPTH_ID,
@@ -85,10 +85,6 @@ export default function App() {
   const { engine, status, progress, error } = useEngine();
   const [mode, setMode] = useState<Mode>("play");
   const narrow = useNarrow();
-
-  // 헤더의 소리 버튼. 소리를 내는 effect 들보다 먼저 두어 같은 렌더에서 먼저 돈다.
-  const [soundOn, setSoundOn] = usePersisted("soundOn", true, (v) => typeof v === "boolean");
-  useEffect(() => setSoundEnabled(soundOn), [soundOn]);
 
   // --- 두던 판 (대국 탭) --------------------------------------------------
 
@@ -910,8 +906,6 @@ export default function App() {
         onMode={goMode}
         problems={problems}
         spoken={spoken}
-        soundOn={soundOn}
-        onToggleSound={() => setSoundOn((on) => !on)}
       />
       {/* 처음부터 있어야 새 말을 읽어 준다. 내용이 없어도 요소는 남겨 둔다. */}
       <p className="sr-only" role="status">

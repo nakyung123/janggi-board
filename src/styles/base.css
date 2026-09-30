@@ -182,13 +182,6 @@ body {
    */
   word-break: keep-all;
   overflow-wrap: break-word;
-  /*
-   * 글자를 고르지 못하게 한다. 고를 수 있으면 글자를 누를 때마다 그 자리에 빈 선택이
-   * 생기고, 크롬·엣지의 캐럿 브라우징(F7)이 켜져 있으면 거기에 캐럿이 깜박인다. 이 앱의
-   * 글자는 읽는 것이지 베껴 가는 것이 아니다 - 기보는 파일로 건넨다.
-   */
-  -webkit-user-select: none;
-  user-select: none;
 }
 
 button,
@@ -211,6 +204,16 @@ button {
   align-items: center;
   justify-content: center;
   gap: 4px;
+  /*
+   * 버튼 글자만 고르지 못하게 한다.
+   *
+   * 예전에는 body 전체를 막았다. 캐럿 브라우징(F7)에서 누른 자리마다 캐럿이
+   * 깜박이는 것을 잡으려던 것인데, 그러면서 화면의 모든 글자를 베낄 수 없게
+   * 됐다. 읽는 글(복기 설명, 판 정보)은 옮겨 적을 일이 있다. 빈 선택이 생기는
+   * 것은 누르는 것들이니 거기만 막는다.
+   */
+  -webkit-user-select: none;
+  user-select: none;
   min-height: 40px;
   background: var(--panel);
   border: 1px solid var(--line-strong);
