@@ -63,7 +63,7 @@ export function PlayerCard(props: Props) {
       <span className="player-name">
         {name}
         <span className="player-kind muted small">
-          {kind === "engine" ? "엔진" : "사람"}
+          {kind === "engine" ? "AI" : "사람"}
         </span>
       </span>
 

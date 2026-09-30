@@ -157,7 +157,7 @@ export interface ReviewInput {
 }
 
 /**
- * 한 수의 설명. 복기 카드가 줄마다 이름을 붙여 보여준다(엔진의 수 / 그 뒤).
+ * 한 수의 설명. 복기가 줄마다 이름을 붙여 보여준다(AI의 수 / 그 뒤). 화면에서는 엔진을 'AI' 라고 부른다.
  * 한 덩어리 문장으로 두면 무엇이 최선이고 무엇이 벌어지는지 가려 읽기 어려웠다.
  */
 export interface MoveNote {
@@ -165,7 +165,7 @@ export interface MoveNote {
   verdict: string | null;
   /** 엔진이 고른 수(기보 표기). 최선수를 뒀으면 null. */
   best: string | null;
-  /** 엔진의 수가 무엇을 하는 자리였는지. 예: "마를 잡는 자리" */
+  /** 엔진이 고른 수가 무엇을 하는 자리였는지. 예: "마를 잡는 자리" */
   bestDoes: string | null;
   /** 둔 뒤 벌어지는 일. 예: "초가 43졸33으로 마를 가져갑니다." */
   after: string | null;
@@ -257,8 +257,8 @@ function buildNote(c: NoteInput): MoveNote {
   if (c.playedBest) {
     const played = describeMove(c.played, c.before);
     note.verdict = played.captured
-      ? `엔진도 같은 수를 골랐습니다. ${을를(played.captured)} 잡는 자리입니다.`
-      : "엔진도 같은 수를 골랐습니다.";
+      ? `AI도 같은 수를 골랐습니다. ${을를(played.captured)} 잡는 자리입니다.`
+      : "AI도 같은 수를 골랐습니다.";
     return note;
   }
 

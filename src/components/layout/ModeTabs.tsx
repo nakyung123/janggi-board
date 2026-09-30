@@ -14,7 +14,7 @@ interface Props {
 }
 
 const TABS: { id: Mode; label: string; desc: string }[] = [
-  { id: "play", label: "대국", desc: "급수를 골라 엔진과 둔다" },
+  { id: "play", label: "대국", desc: "급수를 골라 AI와 둔다" },
   { id: "games", label: "기보", desc: "지난 판을 골라 한 수씩 되짚는다" },
 ];
 

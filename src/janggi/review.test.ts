@@ -156,20 +156,20 @@ describe("손해 계산", () => {
     expect(r.grade).toBe("best");
   });
 
-  it("악수에는 엔진의 수와 그 뒤에 벌어지는 일이 함께 적힌다", () => {
+  it("악수에는 AI의 수와 그 뒤에 벌어지는 일이 함께 적힌다", () => {
     const r = reviewMove(수({ scoreBefore: 1, scoreAfter: -4 }));
     expect(r.grade).toBe("blunder");
     expect(r.note.best).toBe("73졸63");
     // 잡히는 기물이 없으면 자리가 나빠진다고, 손해가 기물로 치면 얼마쯤인지 적는다
     expect(r.note.after).toBe("당장 잡히는 기물은 없지만 자리가 나빠집니다. 마나 포 한 짝쯤 손해입니다.");
-    // 손해를 봤다면서 엔진도 같은 수를 골랐다고 하면 안 된다
+    // 손해를 봤다면서 AI도 같은 수를 골랐다고 하면 안 된다
     expect(r.note.verdict).toBeNull();
   });
 
   it("최선수를 뒀으면 한마디만 한다", () => {
     const r = reviewMove(수({ played: "c4c5", best: "c4c5" }));
     expect(r.note).toEqual({
-      verdict: "엔진도 같은 수를 골랐습니다.", best: null, bestDoes: null, after: null,
+      verdict: "AI도 같은 수를 골랐습니다.", best: null, bestDoes: null, after: null,
     });
   });
 
