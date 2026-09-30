@@ -48,3 +48,16 @@ export const 은는 = (w: string) => josa(w, "은", "는");
 export const 을를 = (w: string) => josa(w, "을", "를");
 /** "…이었습니다 / …였습니다" */
 export const 이었였 = (w: string) => josa(w, "이었", "였");
+
+/**
+ * "…으로 / …로". ㄹ 받침 뒤에는 받침이 있어도 '로' 다("길로", "11로").
+ * 숫자는 소리를 따라 1(일)·7(칠)·8(팔)이 ㄹ 받침이다. "43졸33으로", "43졸31로".
+ */
+export function 으로(word: string): string {
+  const last = word.trim().slice(-1);
+  const code = last.charCodeAt(0);
+  const rieul =
+    (last !== "" && "178".includes(last)) ||
+    (code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 === 8);
+  return word + (hasFinalConsonant(word) && !rieul ? "으로" : "로");
+}

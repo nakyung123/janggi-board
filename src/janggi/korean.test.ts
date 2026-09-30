@@ -4,7 +4,7 @@
 // 그렇게 나간 적이 있어서 테스트로 묶어둔다.
 
 import { describe, expect, it } from "vitest";
-import { hasFinalConsonant, josa, 은는, 을를, 이가, 이었였 } from "./korean";
+import { hasFinalConsonant, josa, 으로, 은는, 을를, 이가, 이었였 } from "./korean";
 
 describe("받침 판정", () => {
   it("받침이 있으면 true", () => {
@@ -44,6 +44,24 @@ describe("…이었습니다 / …였습니다", () => {
     // "최선은 63 였습니다" 로 나가던 자리
     expect(이었였("73졸63")).toBe("73졸63이었");
     expect(이었였("73졸62")).toBe("73졸62였");
+  });
+});
+
+describe("…으로 / …로", () => {
+  it("받침이 있으면 으로, 없으면 로", () => {
+    expect(으로("43졸33")).toBe("43졸33으로");
+    expect(으로("43졸36")).toBe("43졸36으로");
+    expect(으로("43졸30")).toBe("43졸30으로");
+    expect(으로("43졸32")).toBe("43졸32로");
+    expect(으로("43졸35")).toBe("43졸35로");
+  });
+
+  it("ㄹ 받침 뒤에는 로 - 숫자 1·7·8 과 한글", () => {
+    expect(으로("43졸31")).toBe("43졸31로");
+    expect(으로("43졸37")).toBe("43졸37로");
+    expect(으로("43졸38")).toBe("43졸38로");
+    expect(으로("길")).toBe("길로");
+    expect(으로("한")).toBe("한으로");
   });
 });
 

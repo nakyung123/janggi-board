@@ -1,5 +1,5 @@
-/* 기보 탭에서 연 판의 오른쪽 칸 — 목록으로 돌아가는 머리, 복기(진행률·성적표·고른 수
-   설명·수 목록), 기보, 형세 그래프. 복기 등급 색도 여기 둔다. */
+/* 기보 탭에서 연 판의 오른쪽 칸 — 머리 줄(목록으로·저장·공유), 형세(승률·그래프),
+   복기(진행률·지금 수의 설명·아쉬운 수 오가기·수 목록·성적표). 복기 등급 색도 여기 둔다. */
 
 /* --- 등급 색 ----------------------------------------------------------- */
 
@@ -76,11 +76,6 @@
   flex: none;
 }
 
-/* 복기 등급을 어느 급수 눈높이로 매겼는지. 성적표 바로 위에 조용히 둔다. */
-.review-basis {
-  margin-bottom: 8px;
-}
-
 /* --- 복기 진행률 ------------------------------------------------------- */
 
 .review-bar {
@@ -97,248 +92,156 @@
   transition: width 0.2s;
 }
 
-/* --- 복기 성적표 ------------------------------------------------------- */
+/* --- 지금 수의 설명 — 이 패널의 알맹이 --------------------------------- */
 
-/* 초·한 성적표 두 장.
-   minmax(0, ...) 가 있어야 한다. 그냥 1fr 은 칸의 최소 크기가 '자식의
-   min-content' 라서, 안에 든 등급 이름(최선수·부정확·실수·악수)이 줄지 않고
-   카드가 패널 밖으로 삐져나간다. 실제로 '악수' 가 잘려 나갔다. */
-/*
- * 초·한 성적표를 위아래로 쌓는다. 나란히 두면 한 쪽이 170 남짓이라 등급 다섯이 한 줄에
- * 못 들어가 2·2·1 로 서고, '악수' 하나만 셋째 줄에 혼자 남는다. 쌓으면 다섯이 한 줄에
- * 서고, 두 표의 같은 등급이 위아래로 맞아 초와 한을 견주기도 쉽다.
- */
-.review-summary {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.review-side {
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-}
-
-.review-side-name {
-  font-weight: 600;
-  font-size: var(--fs-base);
-  margin-bottom: 8px;
-}
-
-.review-side-name .muted {
-  font-weight: 400;
-  font-size: var(--fs-base);
-}
-
-.review-counts {
-  list-style: none;
-  display: grid;
-  /*
-   * 다섯 등급을 한 줄에. '좋은 수' 가 16px 글자로 52 쯤이라 칸 사이를 띄우지 않는다 -
-   * 360 폰에서 칸이 54 라 사이를 두면 이름끼리 맞붙는다. 이름은 가운데 맞춤이라
-   * 칸 사이가 없어도 떨어져 보인다.
-   */
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px 0;
-  margin-bottom: 8px;
-}
-
-.review-counts li {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.2;
-}
-
-/* 성적표의 숫자가 이 패널의 알맹이다. 이름(16)보다 크게(24) 둬서 표를 읽지 않고도
-   한눈에 세어지게 한다. */
-.review-counts b {
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  color: var(--grade, var(--text));
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
-/* 좁아지면 등급 이름이 카드를 벌리지 못하게 한다. */
-.review-counts li {
-  min-width: 0;
-}
-
-.review-counts span {
-  font-size: var(--fs-base);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-/* "가장 큰 실수 5수 71졸61" 이 '큰 / 실수' 사이에서 잘리면 읽기 나쁘다. */
-.review-side > .small {
-  text-wrap: balance;
-}
-
-/* --- 고른 수의 설명 — 이 패널의 알맹이 --------------------------------- */
-
-.review-detail {
+/* 등급 색 띠(왼쪽 4)를 두른 한 톤 짙은 칸. 띠 색만 보고도 어떤 수였는지 먼저 읽힌다. */
+.review-move {
   border: 1px solid var(--grade, var(--line));
   border-left-width: 4px;
   border-radius: var(--radius-sm);
   padding: 12px;
-  margin-bottom: 12px;
   background: var(--panel-2);
 }
 
-.review-detail-head {
+.review-move-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  flex-wrap: wrap;
   margin-bottom: 8px;
+}
+
+/* "한의 6번째 수 14사24" - 둔 수는 진영 색 굵은 글자로. */
+.review-move-title {
+  min-width: 0;
+  color: var(--muted);
+}
+
+.review-move-title b {
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 .review-grade {
+  margin-left: auto;
+  flex: none;
   font-weight: 600;
-  font-size: var(--fs-base);
+  white-space: nowrap;
   color: var(--grade, var(--text));
 }
 
-.review-played {
-  font-size: var(--fs-base);
+.review-verdict {
+  margin-bottom: 8px;
+}
+
+/*
+ * 이름 붙은 줄: 승률 / 엔진의 수 / 그 뒤. 이름 칸을 72 로 박아 내용이 모두 같은 자리에서
+ * 시작한다('엔진의 수' 가 16 글자로 64 쯤). 긴 내용은 이름 칸 오른쪽에서 줄을 바꾼다.
+ */
+.review-facts {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 4px 12px;
+}
+
+.review-facts dt {
   color: var(--muted);
-}
-
-.review-played b {
-  font-size: var(--fs-base);
-  color: var(--text);
-}
-
-.review-loss {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  font-weight: 600;
-  color: var(--grade, var(--muted));
-}
-
-.review-comment {
-  font-size: var(--fs-base);
-  color: var(--text);
-}
-
-.review-best {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-
-.review-best .label {
-  color: var(--muted);
-  font-size: var(--fs-base);
   white-space: nowrap;
 }
 
-.review-line {
-  font-size: var(--fs-base);
-  color: var(--cho);
-}
-
-/* --- 복기 수 목록 ------------------------------------------------------ */
-
-.review-list {
-  list-style: none;
-  max-height: 240px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 12px;
-}
-
-/* 버튼이지만 목록의 한 줄이라 40 높이를 따르지 않는다. */
-.review-item {
-  width: 100%;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 32px 1fr 24px 44px;
-  gap: 8px;
-  align-items: baseline;
-  background: transparent;
-  border-color: transparent;
-  padding: 4px 8px;
-  font-weight: 400;
-  text-align: left;
-}
-
-/* 손가락으로는 44. 기보 칸(.move-cell)과 같은 까닭. */
-@media (pointer: coarse) {
-  .review-item {
-    min-height: 44px;
-    align-content: center;
-  }
-}
-
-@media (hover: hover) {
-  .review-item:hover:not(:disabled) {
-    background: var(--panel-2);
-  }
-}
-
-.review-item.active {
-  background: var(--panel-2);
-  border-color: var(--accent);
-}
-
-.review-item-no {
-  color: var(--muted);
-  font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  text-align: right;
-}
-
-.review-item-move {
-  font-size: var(--fs-base);
-  letter-spacing: 0;
-}
-
-.review-item-grade {
-  color: var(--grade, var(--muted));
+.review-facts dd b {
   font-weight: 600;
-  text-align: center;
+  letter-spacing: 0;
 }
 
-.review-item-loss {
-  color: var(--grade, var(--muted));
+/* 카드가 없을 때(시작 국면)와 짚을 수가 없을 때의 한 줄. */
+.review-hint {
+  padding: 8px 0;
+}
+
+.review-move + .review-hint {
+  margin-top: 4px;
+}
+
+/* 이전·다음 아쉬운 수. 두 칸을 반씩 나눠 판 조작 줄의 이전·다음처럼 선다. */
+.review-nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.review-nav button {
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+/* 수 목록. 위 묶음(카드·버튼, 복기 시작)과 여백 16 으로 가른다. */
+.review-moves {
+  margin-top: 16px;
+}
+
+/* --- 복기 성적표 ------------------------------------------------------- */
+
+/*
+ * 초·한 한 줄씩, 칸은 일치율 · 부정확 · 실수 · 악수. 같은 등급이 위아래로 맞아 두 쪽을
+ * 견주기 쉽다. 전에는 등급 다섯을 큰 숫자로 쪽마다 따로 늘어놓아(숫자 열 개에 평균 손해까지)
+ * 무엇부터 봐야 할지 몰랐다.
+ */
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.review-table th,
+.review-table td {
+  padding: 6px 0;
   font-size: var(--fs-base);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.review-table thead th {
+  font-weight: 500;
+  color: var(--grade, var(--muted));
+}
+
+.review-table tbody tr {
+  border-top: 1px solid var(--line);
+}
+
+.review-table tbody th {
+  text-align: left;
+  font-weight: 400;
+}
+
+.review-table tbody th span {
+  font-weight: 600;
+}
+
+.review-table tbody td {
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-  text-align: right;
+  color: var(--grade, var(--text));
 }
 
-/* --- 기보 -------------------------------------------------------------- */
+/* 0 은 흐리게 둬서 실제로 나온 실수만 눈에 걸리게 한다. */
+.review-table tbody td.zero {
+  font-weight: 400;
+  color: var(--muted);
+}
 
+.review-table-note {
+  margin: 8px 0 12px;
+}
+
+/* --- 수 목록 ----------------------------------------------------------- */
+
+/* 여덟 줄(열여섯 수)쯤 보이고 나머지는 제 안에서 굴린다. 지금 수는 MoveList 가 보이게 굴린다. */
 .move-scroll {
   max-height: 260px;
   overflow-y: auto;
-}
-
-.move-start {
-  width: 100%;
-  margin-bottom: 8px;
-  font-size: var(--fs-base);
-}
-
-/* 지금 시작 국면을 보고 있다는 표시. 기보 칸의 '보고 있는 수' 와 같은 말투
-   (한 톤 짙은 바탕)로 맞춘다. 전체 폭 버튼이라 먹색 테두리를 주면 주 버튼만큼
-   눈을 끈다. */
-.move-start.active {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
 }
 
 .move-table {
@@ -465,9 +368,10 @@
   stroke-width: 0.5;
 }
 
+/* 선은 먹색. 초 색으로 두면 한이 앞선 구간(한 색 채움)에서 초 색 선이 겉돈다. */
 .eval-line {
   fill: none;
-  stroke: var(--cho);
+  stroke: var(--ink);
   stroke-width: 1.4;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
@@ -488,7 +392,7 @@
   margin-top: 8px;
 }
 
-/* --- 기보 칸에 붙는 등급 기호 ------------------------------------------ */
+/* --- 수 목록 칸에 붙는 등급 기호 --------------------------------------- */
 
 .move-cell {
   display: flex;

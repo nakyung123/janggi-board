@@ -2,22 +2,27 @@
 //
 //   복기 전     깊이를 고르고 시작한다
 //   도는 중     진행률과 중단 버튼
-//   복기 뒤     양쪽 성적표(등급별 개수·일치율), 고른 수의 설명, 수 목록
+//   복기 뒤     지금 수의 설명 카드, 이전·다음 아쉬운 수, 수 목록, 양쪽 성적표 한 줄씩
 //
-// 수를 고르면 판이 그 국면으로 가고, 뒀어야 할 수가 판에 화살표로 뜬다. 복기를
-// 돌리는 일은 hooks/useReview.ts, 무엇을 어떻게 재는지는 janggi/review.ts 에 있다.
+// 판에 떠 있는 수를 카드 하나가 설명한다. 이전·다음·그래프·수 목록 어디로 옮겨 가든 카드가
+// 따라간다. 설명은 줄마다 이름을 붙인다 - 승률이 어떻게 바뀌었나, 엔진이라면 무엇을
+// 뒀나, 그 뒤에 무엇이 벌어지나. 한 덩어리 문장이던 때는 무엇이 최선이고 무엇이
+// 벌어지는지 가려 읽기 어려웠다. 손해는 점수(−1.88) 대신 승률 변화로 말한다.
+//
+// 수 목록(MoveList)은 복기 전·중·뒤 어느 때나 이 칸 안에 선다. 수를 고르면 판이 그
+// 국면으로 가고, 뒀어야 할 수가 판에 화살표로 뜬다. 복기를 돌리는 일은 hooks/useReview.ts,
+// 무엇을 어떻게 재는지는 janggi/review.ts 에 있다.
 
-import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   REVIEW_DEPTHS,
   reviewDepthById,
   reviewSeconds,
   어림시간,
 } from "../../engine/levels";
-import { rowNumbers } from "../../janggi/notation";
-import type { ReviewProgress, ReviewedMove } from "../../janggi/review";
-import { GRADE_LABEL, GRADE_MARK, summarize } from "../../janggi/review";
-import type { MoveGrade } from "../../janggi/review";
+import type { MoveGrade, ReviewProgress, ReviewedMove } from "../../janggi/review";
+import { GRADE_LABEL, GRADE_MARK, isSlip, summarize, winPercent } from "../../janggi/review";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import type { Side } from "../../janggi/pieces";
 
@@ -27,6 +32,8 @@ interface Props {
    * 등급을 어느 급수 눈높이로 매겼는지. 화면에 적어서 절대 평가인 척하지 않는다.
    */
   levelName: string;
+  /** 성적표 줄에 붙일 이름. 예: { cho: "나", han: "6급" } */
+  names: Record<Side, string>;
   depthId: string;
   onDepth: (id: string) => void;
   running: boolean;
@@ -38,36 +45,25 @@ interface Props {
   onStart: () => void;
   onStop: () => void;
   onJump: (historyIndex: number) => void;
+  /** 수 목록. 카드·진행률 아래에 선다. */
+  moves: ReactNode;
 }
 
 /**
- * 성적표에 세어서 보여줄 등급. 다섯 가지를 다 센다 - 하나라도 빼면 바로 옆에 적은
- * 총 수와 합이 맞지 않아("한 3수 / 최선수 1 · 부정확 0 · 실수 0 · 악수 0") 나머지
- * 수가 어디로 갔는지 모른다.
+ * 성적표에 세어 보여줄 등급. 최선수는 일치율(%)이 말하고, 좋은 수는 짚을 까닭이 없다.
+ * 총 수를 적지 않아서, 다섯 등급을 다 세지 않아도 합이 어긋나 보이지 않는다.
  */
-const COUNTED: MoveGrade[] = ["best", "good", "inaccuracy", "mistake", "blunder"];
+const SLIPS: MoveGrade[] = ["inaccuracy", "mistake", "blunder"];
+
+const ICON = { size: 20, strokeWidth: 2, "aria-hidden": true } as const;
 
 export function ReviewPanel(props: Props) {
   const {
-    moveCount, levelName, depthId, onDepth, running, progress, reviewed,
-    cursor, error, onStart, onStop, onJump,
+    moveCount, levelName, names, depthId, onDepth, running, progress, reviewed,
+    cursor, error, onStart, onStop, onJump, moves,
   } = props;
 
-  const [onlyProblems, setOnlyProblems] = useState(false);
   const depth = reviewDepthById(depthId);
-
-  /*
-   * 기보와 같은 번호로 말하기 위한 표.
-   *
-   * 복기는 한 수가 한 줄이고 기보는 초·한 두 수가 한 줄이라, 각자 세면 복기가
-   * "3수" 라고 짚은 수가 기보에서는 2번 줄에 있게 된다. 복기 결과에 모든 수가 순서대로
-   * 들어 있으므로 여기서 기보와 같은 번호표를 만든다.
-   */
-  const rowOf = useMemo(
-    () => rowNumbers([null, ...(reviewed ?? []).map((r) => r.mover)]),
-    [reviewed]
-  );
-  const rowNo = (index: number) => rowOf.get(index) ?? index;
 
   // 아직 복기를 돌리지 않았을 때
   if (!reviewed && !running) {
@@ -106,6 +102,8 @@ export function ReviewPanel(props: Props) {
           </button>
         </div>
         {error && <p className="error">{error}</p>}
+
+        <div className="review-moves">{moves}</div>
       </div>
     );
   }
@@ -133,145 +131,159 @@ export function ReviewPanel(props: Props) {
             ■ 중단
           </button>
         </div>
+
+        <div className="review-moves">{moves}</div>
       </div>
     );
   }
 
   const all = reviewed ?? [];
-  const shown = onlyProblems
-    ? all.filter((r) => r.grade === "mistake" || r.grade === "blunder")
-    : all;
   const current = all.find((r) => r.index === cursor) ?? null;
+  const slips = all.filter(isSlip).map((r) => r.index);
+  const prevSlip = slips.filter((i) => i < cursor).pop();
+  const nextSlip = slips.find((i) => i > cursor);
 
   return (
     <div className="panel review">
       <div className="panel-title">
         복기
-        <span className="panel-meta">{all.length}수</span>
+        <span className="panel-meta">{levelName} 눈높이</span>
       </div>
 
-      <p className="muted small review-basis">
-        등급은 <b>{levelName} 눈높이</b>로 매겼습니다. 같은 판이라도 높은 급수로
-        보면 더 엄해집니다.
-      </p>
-
-      {/* 양쪽 성적표 */}
-      <div className="review-summary">
-        {(["cho", "han"] as Side[]).map((side) => {
-          const s = summarize(all, side);
-          return (
-            <div key={side} className="review-side">
-              <div className={"review-side-name " + side}>
-                {SIDE_LABEL[side]} <span className="muted">{s.moves}수</span>
-              </div>
-              <ul className="review-counts">
-                {COUNTED.map((g) => (
-                  <li key={g} className={"g-" + g}>
-                    <b>{s.counts[g]}</b>
-                    <span>{GRADE_LABEL[g]}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="muted small">
-                <b>
-                  일치율 {Math.round(s.accuracy * 100)}%
-                </b>
-                {" · 한 수당 평균 "}
-                {s.avgLoss.toFixed(2)}점 손해
-                {s.worst && (
-                  <>
-                    {" · 가장 아쉬운 수 "}
-                    <button
-                      type="button"
-                      className="linkish"
-                      onClick={() => onJump(s.worst!.index)}
-                    >
-                      {rowNo(s.worst.index)}수 {s.worst.playedNotation}
-                    </button>
-                  </>
-                )}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* 고른 수의 설명 — 이 패널에서 가장 중요한 부분 */}
+      {/* 지금 수의 설명 — 이 패널에서 가장 중요한 부분 */}
       {current ? (
-        <div className={"review-detail g-" + current.grade}>
-          <div className="review-detail-head">
-            <span className="review-grade">
-              {GRADE_MARK[current.grade]} {GRADE_LABEL[current.grade]}
-            </span>
-            <span className="review-played">
-              {current.index}수 · {SIDE_LABEL[current.mover]}{" "}
-              <b>{current.playedNotation}</b>
-            </span>
-            {current.loss > 0 && (
-              <span className="review-loss">−{current.loss.toFixed(2)}</span>
-            )}
-          </div>
-
-          <p className="review-comment">{current.comment}</p>
-
-          {current.bestNotation && current.best !== current.played && (
-            <div className="review-best">
-              <span className="label">이렇게 뒀다면</span>
-              <span className="review-line">{current.bestLine.join("  ")}</span>
-            </div>
-          )}
-        </div>
+        <MoveCard
+          r={current}
+          nth={all.filter((r) => r.mover === current.mover && r.index <= current.index).length}
+        />
       ) : (
-        <p className="muted pad">
-          아래에서 수를 고르면 그 자리에서 무엇이 좋았는지 설명이 뜹니다.
+        <p className="muted review-hint">
+          수를 고르면 그 수를 엔진이 어떻게 보는지 여기에 뜹니다.
         </p>
       )}
 
-      <label className="row toggle">
-        <input
-          type="checkbox"
-          checked={onlyProblems}
-          onChange={(e) => setOnlyProblems(e.target.checked)}
-        />
-        <span>실수·악수만 보기</span>
-      </label>
+      {slips.length > 0 ? (
+        <div className="review-nav">
+          <button
+            type="button"
+            disabled={prevSlip === undefined}
+            onClick={() => prevSlip !== undefined && onJump(prevSlip)}
+          >
+            <ChevronLeft {...ICON} />
+            이전 아쉬운 수
+          </button>
+          <button
+            type="button"
+            disabled={nextSlip === undefined}
+            onClick={() => nextSlip !== undefined && onJump(nextSlip)}
+          >
+            다음 아쉬운 수
+            <ChevronRight {...ICON} />
+          </button>
+        </div>
+      ) : (
+        <p className="muted review-hint">부정확 이상으로 짚을 수가 없습니다.</p>
+      )}
 
-      <ul className="review-list">
-        {shown.length === 0 ? (
-          <li className="muted pad">실수랄 만한 수가 없습니다.</li>
-        ) : (
-          shown.map((r) => (
-            <li key={r.index}>
-              <button
-                type="button"
-                className={
-                  "review-item g-" + r.grade + (cursor === r.index ? " active" : "")
-                }
-                onClick={() => onJump(r.index)}
-              >
-                <span className="review-item-no">{rowNo(r.index)}</span>
-                <span className={"review-item-move " + r.mover}>
-                  {r.playedNotation}
-                </span>
-                <span className="review-item-grade">{GRADE_MARK[r.grade]}</span>
-                <span className="review-item-loss">
-                  {r.loss >= 0.05 ? "−" + r.loss.toFixed(1) : ""}
-                </span>
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
+      <div className="review-moves">{moves}</div>
+
+      {/* 양쪽 성적표. 한 쪽에 한 줄, 같은 등급이 위아래로 맞아 견주기 쉽다. */}
+      <table className="review-table">
+        <thead>
+          <tr>
+            <td />
+            <th scope="col">일치율</th>
+            {SLIPS.map((g) => (
+              <th key={g} scope="col" className={"g-" + g}>
+                {GRADE_MARK[g]} {GRADE_LABEL[g]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {(["cho", "han"] as Side[]).map((side) => {
+            const s = summarize(all, side);
+            return (
+              <tr key={side}>
+                <th scope="row">
+                  <span className={side}>{SIDE_LABEL[side]}</span> {names[side]}
+                </th>
+                <td>{Math.round(s.accuracy * 100)}%</td>
+                {SLIPS.map((g) => (
+                  <td key={g} className={"g-" + g + (s.counts[g] === 0 ? " zero" : "")}>
+                    {s.counts[g]}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="muted small review-table-note">
+        일치율은 엔진이 고른 수(★)와 같은 수를 둔 비율입니다.
+      </p>
 
       <div className="row">
         <button type="button" className="ghost" onClick={onStart}>
           다시 복기
         </button>
-        <span className="muted small">
-          깊이 {depth.name} · 국면당 {depth.nodes.toLocaleString()}노드
-        </span>
+        <span className="muted small">깊이 {depth.name}</span>
       </div>
       {error && <p className="error">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * 한 수의 설명 카드.
+ *
+ *   한의 6번째 수 14사24                 ?! 부정확
+ *   승률        한 38% → 29%
+ *   엔진의 수   32포35 · 마를 잡는 자리
+ *   그 뒤       초가 43졸33으로 마를 가져갑니다.
+ *
+ * 몇 번째 수인지는 둔 쪽의 수를 센다. 수 목록의 줄 번호(초·한 한 쌍이 한 줄)와 같은 수다.
+ */
+function MoveCard({ r, nth }: { r: ReviewedMove; nth: number }) {
+  const cho = [winPercent(r.scoreBefore), winPercent(r.scoreAfter)];
+  const [before, after] = r.mover === "cho" ? cho : cho.map((p) => 100 - p);
+  const { verdict, best, bestDoes, after: then } = r.note;
+
+  return (
+    <div className={"review-move g-" + r.grade}>
+      <div className="review-move-head">
+        <span className="review-move-title">
+          {SIDE_LABEL[r.mover]}의 {nth}번째 수 <b className={r.mover}>{r.playedNotation}</b>
+        </span>
+        <span className="review-grade">
+          {r.grade !== "good" && GRADE_MARK[r.grade] + " "}
+          {GRADE_LABEL[r.grade]}
+        </span>
+      </div>
+
+      {verdict && <p className="review-verdict">{verdict}</p>}
+
+      <dl className="review-facts">
+        <dt>승률</dt>
+        <dd>
+          {SIDE_LABEL[r.mover]} {before}% → <b>{after}%</b>
+        </dd>
+        {best && (
+          <>
+            <dt>엔진의 수</dt>
+            <dd>
+              <b className={r.mover}>{best}</b>
+              {bestDoes && ` · ${bestDoes}`}
+            </dd>
+          </>
+        )}
+        {then && (
+          <>
+            <dt>그 뒤</dt>
+            <dd>{then}</dd>
+          </>
+        )}
+      </dl>
     </div>
   );
 }

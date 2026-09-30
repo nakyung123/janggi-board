@@ -9,7 +9,7 @@ import { START_FEN, parseFen } from "./board";
 import type { Board } from "./board";
 import type { ReviewInput, ReviewedMove } from "./review";
 import {
-  clampScore, gradeOf, reviewMove, summarize, bestArrowOf, winChance, winPercent,
+  clampScore, gradeOf, isSlip, reviewMove, summarize, bestArrowOf, winChance, winPercent,
 } from "./review";
 
 const before: Board = parseFen(START_FEN).board;
@@ -144,19 +144,32 @@ describe("손해 계산", () => {
     expect(r.grade).toBe("best");
   });
 
-  it("악수에는 더 나은 수와 손해가 함께 적힌다", () => {
+  it("악수에는 엔진의 수와 그 뒤에 벌어지는 일이 함께 적힌다", () => {
     const r = reviewMove(수({ scoreBefore: 1, scoreAfter: -4 }));
     expect(r.grade).toBe("blunder");
-    expect(r.comment).toContain("최선은");
-    expect(r.comment).toContain("손해");
+    expect(r.note.best).toBe("73졸63");
+    // 잡히는 기물이 없으면 자리가 나빠진다고, 손해가 기물로 치면 얼마쯤인지 적는다
+    expect(r.note.after).toBe("당장 잡히는 기물은 없지만 자리가 나빠집니다. 마나 포 한 짝쯤 손해입니다.");
     // 손해를 봤다면서 엔진도 같은 수를 골랐다고 하면 안 된다
-    expect(r.comment).not.toContain("엔진도 같은 수");
+    expect(r.note.verdict).toBeNull();
   });
 
-  it("설명의 조사가 숫자 뒤에서도 맞는다", () => {
-    // "최선은 63 였습니다" 로 나가던 자리
-    const r = reviewMove(수({ best: "c4c5", scoreBefore: 1, scoreAfter: 0.2 }));
-    expect(r.comment).not.toMatch(/[0-9] ?였습니다/);
+  it("최선수를 뒀으면 한마디만 한다", () => {
+    const r = reviewMove(수({ played: "c4c5", best: "c4c5" }));
+    expect(r.note).toEqual({
+      verdict: "엔진도 같은 수를 골랐습니다.", best: null, bestDoes: null, after: null,
+    });
+  });
+
+  it("상대가 무엇을 가져가는지 조사까지 맞게 적는다", () => {
+    // 초의 졸이 c6 까지 나가 한의 병(c7) 바로 앞에 선 판. 한이 c7c6 으로 졸을 잡는다.
+    // "43병53로" 로 나가던 자리 - 3(삼) 뒤에는 '으로' 다.
+    const 앞선판: Board = { ...before, c6: before.c4 };
+    delete 앞선판.c4;
+    const r = reviewMove(
+      수({ played: "c4c6", after: 앞선판, replyPv: ["c7c6"], scoreBefore: 0, scoreAfter: -2 })
+    );
+    expect(r.note.after).toBe("한이 43병53으로 졸을 가져갑니다.");
   });
 
   it("기보 표기를 함께 낸다", () => {
@@ -171,7 +184,8 @@ describe("성적표", () => {
     ({
       index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
       best: null, bestNotation: null, bestLine: [],
-      scoreBefore: 0, scoreAfter: 0, loss: 0, grade: "good", comment: "",
+      scoreBefore: 0, scoreAfter: 0, loss: 0, grade: "good",
+      note: { verdict: null, best: null, bestDoes: null, after: null },
       ...over,
     }) as ReviewedMove;
 
@@ -196,43 +210,18 @@ describe("성적표", () => {
     expect(s.counts.blunder).toBe(2);
   });
 
-  it("평균 손해를 낸다", () => {
-    const s = summarize([만든수({ loss: 1 }), 만든수({ loss: 2 })], "cho");
-    expect(s.avgLoss).toBeCloseTo(1.5, 5);
-  });
-
-  it("실수가 없는 기보에서는 '가장 아쉬운 수' 를 짚지 않는다", () => {
-    // 0.1 짜리 수를 가장 아쉬운 수라고 내놓으면 복기가 우스워진다
-    const s = summarize(
-      [만든수({ loss: 0.1, grade: "good" }), 만든수({ loss: 0.05, grade: "good" })],
-      "cho"
-    );
-    expect(s.worst).toBeNull();
-  });
-
-  it("부정확 이상이면 짚는다", () => {
-    const s = summarize(
-      [만든수({ loss: 0.1, grade: "good" }), 만든수({ loss: 0.4, grade: "inaccuracy", index: 7 })],
-      "cho"
-    );
-    expect(s.worst?.index).toBe(7);
+  it("부정확 이상이면 아쉬운 수로 짚는다", () => {
+    expect(isSlip(만든수({ loss: 0.4, grade: "inaccuracy" }))).toBe(true);
+    expect(isSlip(만든수({ loss: 2, grade: "mistake" }))).toBe(true);
+    expect(isSlip(만든수({ loss: 5, grade: "blunder" }))).toBe(true);
   });
 
   it("등급이 '좋은 수' 면 손해가 커도 짚지 않는다", () => {
-    // 급수 눈높이를 낮추면 경계가 늘어난다. 그때 여기만 절대 기준으로 재면
-    // 등급은 "좋은 수" 라면서 같은 수를 "가장 아쉬운 수" 로 짚게 된다.
+    // 급수 눈높이를 낮추면 경계가 늘어난다. 그때 손해 숫자를 절대 기준으로 다시 재면
+    // 등급은 "좋은 수" 라면서 같은 수를 아쉬운 수로 짚게 된다.
     // 12급과 둔 4수짜리 판에서 실제로 그랬다.
-    const s = summarize([만든수({ loss: 0.59, grade: "good" })], "cho");
-    expect(s.worst).toBeNull();
-  });
-
-  it("최선수는 아무리 많아도 짚지 않는다", () => {
-    const s = summarize([만든수({ loss: 0, grade: "best" })], "cho");
-    expect(s.worst).toBeNull();
-  });
-
-  it("수가 없으면 평균도 0", () => {
-    expect(summarize([], "cho").avgLoss).toBe(0);
+    expect(isSlip(만든수({ loss: 0.59, grade: "good" }))).toBe(false);
+    expect(isSlip(만든수({ loss: 0, grade: "best" }))).toBe(false);
   });
 
   // 일치율 — 한국장기가 돈 받고 파는 값이다. 0으로 나누는 자리가 있어서

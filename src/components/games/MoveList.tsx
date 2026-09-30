@@ -1,14 +1,15 @@
-// 기보 — 연 판의 수 목록
+// 수 목록 — 연 판의 기보
 //
 // 한 줄에 초·한 한 수씩. 수를 누르면 그 국면으로 가고, 마우스를 올리면 판에 그 수를
 // 화살표로 미리 보여준다. 복기를 돌린 뒤에는 수마다 등급 기호가 붙는다.
 //
-// 기보 탭에서 연 판에만 붙는다. 두는 중에는 수 목록을 볼 일이 드물고(무르기·다시는
-// 판 조작 줄에 있다) 끝난 판은 기보 탭에서 본다. 파일로 저장·링크 공유는 연 판의 머리
-// 줄(App 의 gameBar)에 있다.
+// 복기 칸 안에 선다(ReviewPanel 의 moves). 전에는 형세 아래에 기보 칸이 따로 있었는데,
+// 복기 칸에도 한 수에 한 줄짜리 수 목록이 있어 같은 수가 두 번 나왔다. 하나로 합치고
+// 모양은 두 수에 한 줄인 기보 쪽을 남겼다 - 장기 기보의 모양이고 높이가 절반이다.
+// 기보 목록에 든 판은 수가 하나 이상이라 빈 목록은 없다. 시작 국면으로는 판 조작 줄의
+// '처음으로' 가 간다. 파일로 저장·링크 공유는 연 판의 머리 줄(App 의 gameBar)에 있다.
 
-import { useMemo } from "react";
-import { ListOrdered } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
 import type { HistoryEntry } from "../../janggi/history";
 import { moveRows } from "../../janggi/notation";
 import { SIDE_LABEL } from "../../janggi/pieces";
@@ -34,13 +35,12 @@ interface Props {
 
 export function MoveList(props: Props) {
   const { history, cursor, reviewed, onJump, onHoverMove } = props;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const gradeOf = (index: number) =>
     reviewed?.find((r) => r.index === index) ?? null;
 
-  // 한 줄에 초·한 한 수씩 짝지어 보여준다.
-  // 줄을 나누는 규칙은 복기 패널과 함께 쓴다 — 두 곳이 따로 세면 같은 수를
-  // 서로 다른 번호로 부르게 된다 (notation.ts 의 moveRows 주석 참고).
+  // 한 줄에 초·한 한 수씩 짝지어 보여준다. 줄 나누는 규칙은 notation.ts 의 moveRows 에 있다.
   const rows = useMemo(
     () => moveRows(history.map((h) => h.mover)),
     [history]
@@ -48,75 +48,65 @@ export function MoveList(props: Props) {
   const cellAt = (i: number | null) =>
     i === null ? null : { ...history[i], i };
 
+  /*
+   * 지금 수가 목록 밖에 있으면 그 줄이 보이게 목록만 굴린다. 이전·다음이나 '다음 아쉬운 수'
+   * 로 옮겨 가도 목록에서 어디쯤인지 보인다. scrollIntoView 는 쓰지 않는다 - 목록을 품은
+   * 오른쪽 칸(폰에서는 페이지)까지 굴려서 보던 카드가 화면 밖으로 밀린다.
+   */
+  useEffect(() => {
+    const box = scrollRef.current;
+    const cell = box?.querySelector<HTMLElement>(".move-cell.active");
+    if (!box || !cell) return;
+    const b = box.getBoundingClientRect();
+    const c = cell.getBoundingClientRect();
+    if (c.top < b.top) box.scrollTop -= b.top - c.top;
+    else if (c.bottom > b.bottom) box.scrollTop += c.bottom - b.bottom;
+  }, [cursor]);
+
   return (
-    <div className="panel moves">
-      <div className="panel-title">
-        기보
-        <span className="panel-meta">{history.length - 1}수</span>
-      </div>
-
-      <div className="move-scroll">
-        <button
-          type="button"
-          className={"move-start" + (cursor === 0 ? " active" : "")}
-          onClick={() => onJump(0)}
-        >
-          시작 국면
-        </button>
-
-        {rows.length === 0 ? (
-          <div className="empty">
-            <ListOrdered size={24} strokeWidth={1.75} aria-hidden />
-            <p className="empty-title">아직 둔 수가 없습니다</p>
-            <p>판에서 기물을 옮기면 한 수씩 여기에 쌓입니다.</p>
-          </div>
-        ) : (
-          <table className="move-table">
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.no}>
-                  <td className="move-no">{row.no}</td>
-                  {(["cho", "han"] as Side[]).map((side) => {
-                    const cell = cellAt(row[side]);
-                    if (!cell) return <td key={side} />;
-                    const graded = gradeOf(cell.i);
-                    return (
-                      <td key={side}>
-                        <button
-                          type="button"
-                          className={
-                            "move-cell " +
-                            side +
-                            (cursor === cell.i ? " active" : "") +
-                            (graded ? " g-" + graded.grade : "")
-                          }
-                          onClick={() => onJump(cell.i)}
-                          onMouseEnter={() => onHoverMove(cell.move)}
-                          onMouseLeave={() => onHoverMove(null)}
-                          onFocus={() => onHoverMove(cell.move)}
-                          onBlur={() => onHoverMove(null)}
-                          aria-label={
-                            graded
-                              ? `${SIDE_LABEL[side]} ${cell.notation} ${GRADE_LABEL[graded.grade]}`
-                              : `${SIDE_LABEL[side]} ${cell.notation}`
-                          }
-                        >
-                          <span>{cell.notation}</span>
-                          {graded && graded.grade !== "good" && (
-                            <em className="move-grade">
-                              {GRADE_MARK[graded.grade]}
-                            </em>
-                          )}
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+    <div className="move-scroll" ref={scrollRef}>
+      <table className="move-table">
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.no}>
+              <td className="move-no">{row.no}</td>
+              {(["cho", "han"] as Side[]).map((side) => {
+                const cell = cellAt(row[side]);
+                if (!cell) return <td key={side} />;
+                const graded = gradeOf(cell.i);
+                return (
+                  <td key={side}>
+                    <button
+                      type="button"
+                      className={
+                        "move-cell " +
+                        side +
+                        (cursor === cell.i ? " active" : "") +
+                        (graded ? " g-" + graded.grade : "")
+                      }
+                      onClick={() => onJump(cell.i)}
+                      onMouseEnter={() => onHoverMove(cell.move)}
+                      onMouseLeave={() => onHoverMove(null)}
+                      onFocus={() => onHoverMove(cell.move)}
+                      onBlur={() => onHoverMove(null)}
+                      aria-label={
+                        graded
+                          ? `${SIDE_LABEL[side]} ${cell.notation} ${GRADE_LABEL[graded.grade]}`
+                          : `${SIDE_LABEL[side]} ${cell.notation}`
+                      }
+                    >
+                      <span>{cell.notation}</span>
+                      {graded && graded.grade !== "good" && (
+                        <em className="move-grade">{GRADE_MARK[graded.grade]}</em>
+                      )}
+                    </button>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

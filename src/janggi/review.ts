@@ -26,7 +26,7 @@ import { parseFen } from "./board";
 import { describeLine, describeMove, splitMove } from "./notation";
 import type { Side } from "./pieces";
 import { SIDE_LABEL } from "./pieces";
-import { 을를, 이가, 이었였 } from "./korean";
+import { 으로, 을를, 이가 } from "./korean";
 
 export type MoveGrade =
   /** 엔진과 같은 수 */
@@ -158,6 +158,21 @@ export interface ReviewInput {
   tolerance?: number;
 }
 
+/**
+ * 한 수의 설명. 복기 카드가 줄마다 이름을 붙여 보여준다(엔진의 수 / 그 뒤).
+ * 한 덩어리 문장으로 두면 무엇이 최선이고 무엇이 벌어지는지 가려 읽기 어려웠다.
+ */
+export interface MoveNote {
+  /** 둔 수를 한마디로. 최선수·좋은 수, 예전 복기의 설명 한 덩어리가 여기 온다. */
+  verdict: string | null;
+  /** 엔진이 고른 수(기보 표기). 최선수를 뒀으면 null. */
+  best: string | null;
+  /** 엔진의 수가 무엇을 하는 자리였는지. 예: "마를 잡는 자리" */
+  bestDoes: string | null;
+  /** 둔 뒤 벌어지는 일. 예: "초가 43졸33으로 마를 가져갑니다." */
+  after: string | null;
+}
+
 export interface ReviewedMove {
   index: number;
   mover: Side;
@@ -172,8 +187,8 @@ export interface ReviewedMove {
   /** 둔 쪽이 본 손해. 최선수면 0. */
   loss: number;
   grade: MoveGrade;
-  /** 화면에 그대로 띄우는 설명 */
-  comment: string;
+  /** 화면에 띄우는 설명 */
+  note: MoveNote;
 }
 
 export function reviewMove(input: ReviewInput): ReviewedMove {
@@ -208,14 +223,14 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
     scoreAfter,
     loss,
     grade,
-    comment: buildComment({
+    note: buildNote({
       grade, loss, mover, before, after,
       played, best, bestGivesCheck, replyPv, playedBest,
     }),
   };
 }
 
-interface CommentInput {
+interface NoteInput {
   grade: MoveGrade;
   loss: number;
   mover: Side;
@@ -228,24 +243,22 @@ interface CommentInput {
   playedBest: boolean;
 }
 
-function buildComment(c: CommentInput): string {
-  const parts: string[] = [];
+function buildNote(c: NoteInput): MoveNote {
   const opponent: Side = c.mover === "cho" ? "han" : "cho";
+  const note: MoveNote = { verdict: null, best: null, bestDoes: null, after: null };
 
   // ① 최선수를 그대로 뒀으면 더 할 말이 없다.
   if (c.playedBest) {
     const played = describeMove(c.played, c.before);
-    parts.push(
-      played.captured
-        ? `엔진도 같은 수를 골랐습니다. ${을를(played.captured)} 잡는 자리입니다.`
-        : "엔진도 같은 수를 골랐습니다."
-    );
-    return parts.join(" ");
+    note.verdict = played.captured
+      ? `엔진도 같은 수를 골랐습니다. ${을를(played.captured)} 잡는 자리입니다.`
+      : "엔진도 같은 수를 골랐습니다.";
+    return note;
   }
 
   // ② 손해가 없으면 굳이 나무라지 않는다.
   if (c.grade === "good") {
-    parts.push("최선은 아니지만 손해는 없습니다.");
+    note.verdict = "최선은 아니지만 손해는 없습니다.";
   }
 
   // ③ 최선수가 무엇이었고, 그 수가 무엇을 하는지
@@ -254,11 +267,8 @@ function buildComment(c: CommentInput): string {
     const does: string[] = [];
     if (bestMove.captured) does.push(`${을를(bestMove.captured)} 잡`);
     if (c.bestGivesCheck) does.push("장군을 부르");
-    parts.push(
-      does.length > 0
-        ? `최선은 ${bestMove.short}. ${does.join("고 ")}는 자리였습니다.`
-        : `최선은 ${이었였(bestMove.short)}습니다.`
-    );
+    note.best = bestMove.short;
+    note.bestDoes = does.length > 0 ? `${does.join("고 ")}는 자리` : null;
   }
 
   // ④ 둔 수 때문에 무엇을 잃는가 — 상대의 응수에서 그대로 읽는다
@@ -266,31 +276,45 @@ function buildComment(c: CommentInput): string {
   const replyMove = reply ? describeMove(reply, c.after) : null;
   const loses = Boolean(replyMove?.captured && replyMove.short !== reply);
   if (replyMove && loses) {
-    parts.push(
-      `이 수 뒤에는 ${이가(SIDE_LABEL[opponent])} ${replyMove.short}로 ` +
-        `${을를(replyMove.captured!)} 가져갑니다.`
-    );
+    note.after =
+      `${이가(SIDE_LABEL[opponent])} ${으로(replyMove.short)} ` +
+      `${을를(replyMove.captured!)} 가져갑니다.`;
   } else if (c.grade === "mistake" || c.grade === "blunder") {
-    // 잡히는 기물이 없는데도 손해라면 자리가 나빠진 것이다.
-    // 이것도 엔진이 알려준 사실이므로 그대로 적는다.
-    parts.push("당장 잡히는 기물은 없지만 자리가 나빠집니다.");
+    // 잡히는 기물이 없는데도 손해라면 자리가 나빠진 것이다. 이것도 엔진이 알려준
+    // 사실이므로 그대로 적고, 손해가 기물로 치면 얼마쯤인지 붙인다.
+    //
+    // 무엇이 잡히는지 말했으면(위) 손해를 기물로 또 환산하지 않는다. 손해에는 놓친
+    // 기회까지 섞여 있어서, "포를 가져갑니다 … 차 한 짝쯤" 처럼 앞뒤가 어긋나 보인다.
+    const piece = lossInPieces(c.loss);
+    note.after = piece
+      ? `당장 잡히는 기물은 없지만 자리가 나빠집니다. ${piece} 손해입니다.`
+      : "당장 잡히는 기물은 없지만 자리가 나빠집니다.";
   }
 
-  // ⑤ 손해의 크기
-  //
-  // 무엇이 잡히는지 이미 말했으면 손해를 기물로 또 환산하지 않는다.
-  // 손해에는 놓친 기회까지 섞여 있어서, "포를 가져갑니다 … 차 한 짝쯤" 처럼
-  // 앞뒤가 어긋나 보이는 문장이 나온다.
-  if (c.grade === "mistake" || c.grade === "blunder") {
-    const piece = loses ? null : lossInPieces(c.loss);
-    parts.push(
-      piece
-        ? `${c.loss.toFixed(1)}점 손해 - ${piece} 됩니다.`
-        : `${c.loss.toFixed(1)}점 손해입니다.`
-    );
-  }
+  return note;
+}
 
-  return parts.join(" ");
+/**
+ * 짚어 볼 만한 수 - 부정확·실수·악수. 복기 카드의 '이전·다음 아쉬운 수' 가 이 수들을 오간다.
+ *
+ * 손해 숫자로 다시 재지 않고 매겨진 등급을 본다. 등급 경계는 급수 눈높이에 따라 늘어나는데
+ * 여기만 절대 기준으로 재면, 등급은 "좋은 수" 라면서 같은 수를 아쉬운 수로 짚게 된다.
+ */
+export const isSlip = (r: ReviewedMove): boolean =>
+  r.grade === "inaccuracy" || r.grade === "mistake" || r.grade === "blunder";
+
+/**
+ * 예전 복기(설명이 한 덩어리 문장 comment 였던 때)를 지금 모양으로. 그 문장을 한마디(verdict)
+ * 자리에 그대로 둔다 - 다시 쪼갤 재료(엔진의 응수)가 남아 있지 않다. 이미 지금 모양이면 그대로다.
+ */
+export function noteOf(r: ReviewedMove & { comment?: unknown }): MoveNote {
+  if (r.note && typeof r.note === "object") return r.note;
+  return {
+    verdict: typeof r.comment === "string" && r.comment ? r.comment : null,
+    best: null,
+    bestDoes: null,
+    after: null,
+  };
 }
 
 // --- 요약 ----------------------------------------------------------------
@@ -299,8 +323,6 @@ export interface SideSummary {
   side: Side;
   counts: Record<MoveGrade, number>;
   moves: number;
-  /** 한 수당 평균 손해 */
-  avgLoss: number;
   /**
    * 엔진의 최선수와 같은 수를 둔 비율 (0~1).
    *
@@ -308,8 +330,6 @@ export interface SideSummary {
    * 같이 봤는가" 일 뿐이다. 판이 짧으면 크게 흔들린다.
    */
   accuracy: number;
-  /** 가장 크게 어긋난 수. 짚을 만한 게 없으면 null */
-  worst: ReviewedMove | null;
 }
 
 export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
@@ -319,27 +339,11 @@ export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
   };
   for (const r of mine) counts[r.grade] += 1;
 
-  const total = mine.reduce((sum, r) => sum + r.loss, 0);
-  const worst = mine.reduce<ReviewedMove | null>(
-    (acc, r) => (acc === null || r.loss > acc.loss ? r : acc),
-    null
-  );
-
   return {
     side,
     counts,
     moves: mine.length,
-    avgLoss: mine.length ? total / mine.length : 0,
     accuracy: mine.length ? counts.best / mine.length : 0,
-    /*
-     * 손해가 거의 없는 수를 "가장 아쉬운 수" 라고 짚으면 복기가 우스워진다.
-     * 부정확 이상일 때만 내놓는다.
-     *
-     * 기준을 숫자(INACCURACY)로 다시 재지 않고 이미 매겨진 등급을 본다.
-     * 등급 경계는 급수에 따라 늘어나는데 여기만 절대 기준으로 재면,
-     * 등급은 "좋은 수" 라면서 같은 수를 "가장 아쉬운 수" 로 짚는 일이 생긴다.
-     */
-    worst: worst && worst.grade !== "good" && worst.grade !== "best" ? worst : null,
   };
 }
 

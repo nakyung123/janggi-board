@@ -1128,11 +1128,20 @@ export default function App() {
               />
             )}
 
+            {/*
+              형세가 위, 복기가 아래 - 판 전체의 흐름을 먼저 보고 한 수씩 들어간다. 형세는
+              복기 전에는 그릴 것이 없어 뜨지 않는다. 수 목록은 복기 칸 안에 선다.
+            */}
             {openGame && (
               <>
+                <EvalGraph history={history} cursor={cursor} onJump={goTo} />
                 <ReviewPanel
                   moveCount={openGame.history.length - 1}
                   levelName={openGame.levelName}
+                  names={{
+                    cho: openGame.mySide === "cho" ? "나" : openGame.levelName,
+                    han: openGame.mySide === "han" ? "나" : openGame.levelName,
+                  }}
                   depthId={reviewDepthId}
                   onDepth={setReviewDepthId}
                   running={review.running}
@@ -1143,14 +1152,15 @@ export default function App() {
                   onStart={() => void startReview()}
                   onStop={review.stop}
                   onJump={goTo}
-                />
-                <EvalGraph history={history} cursor={cursor} onJump={goTo} />
-                <MoveList
-                  history={history}
-                  cursor={cursor}
-                  reviewed={reviewed}
-                  onJump={goTo}
-                  onHoverMove={setHover}
+                  moves={
+                    <MoveList
+                      history={history}
+                      cursor={cursor}
+                      reviewed={reviewed}
+                      onJump={goTo}
+                      onHoverMove={setHover}
+                    />
+                  }
                 />
               </>
             )}

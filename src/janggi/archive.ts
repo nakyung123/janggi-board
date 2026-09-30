@@ -13,6 +13,7 @@ import { hangulHistory } from "./history";
 import { hangulNotation } from "./notation";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
+import { noteOf } from "./review";
 import type { Outcome } from "./status";
 
 /**
@@ -193,6 +194,8 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
  *   저장되던 때(2945fdb 까지)의 판이다 - 두면 '복기함' 이 붙은 채 성적표가 0수로 뜬다.
  * - 한자로 적힌 기보 표기(73卒63)는 한글(73졸63)로 바꾼다. 수 목록·복기 설명이 한 판
  *   안에서 두 표기로 섞이지 않게(notation.ts 의 hangulNotation).
+ * - 복기 설명이 한 덩어리 문장(comment)이던 판은 그 문장을 설명의 한마디 자리에 둔다
+ *   (review.ts 의 noteOf). 엔진의 수·그 뒤로 다시 쪼갤 재료는 남아 있지 않다.
  */
 export function readArchive(v: unknown): ArchivedGame[] {
   if (!Array.isArray(v)) return [];
@@ -207,16 +210,28 @@ export function readArchive(v: unknown): ArchivedGame[] {
     .slice(0, ARCHIVE_LIMIT);
 }
 
-/** 복기 한 수의 표기·설명을 한글 표기로. 저장된 값이라 모양을 믿지 않고 글자인 것만 바꾼다. */
+/**
+ * 복기 한 수를 지금 모양으로: 설명을 note 로 모으고, 표기·설명을 한글 표기로. 저장된 값이라
+ * 모양을 믿지 않고 글자인 것만 바꾼다.
+ */
 function hangulReview(r: ReviewedMove): ReviewedMove {
   const h = <T,>(t: T): T => (typeof t === "string" ? (hangulNotation(t) as T) : t);
-  return {
+  const note = noteOf(r);
+  const out = {
     ...r,
     playedNotation: h(r.playedNotation),
     bestNotation: h(r.bestNotation),
     bestLine: Array.isArray(r.bestLine) ? r.bestLine.map(h) : r.bestLine,
-    comment: h(r.comment),
+    note: {
+      verdict: h(note.verdict),
+      best: h(note.best),
+      bestDoes: h(note.bestDoes),
+      after: h(note.after),
+    },
   };
+  // 예전 설명 문장은 note 로 옮겼다. 남겨 두면 다음 저장 때 또 실린다.
+  delete (out as { comment?: unknown }).comment;
+  return out;
 }
 
 /**
