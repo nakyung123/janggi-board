@@ -1,0 +1,203 @@
+/* 업데이트 내역 페이지(/updates/)의 스타일.
+   앱과 진입점이 달라서 앱 스타일(index.css)을 읽지 않는다. 토큰과 기본 요소만
+   가져다 쓰고, 이 쪽에만 필요한 것을 여기서 더한다. 색은 전부 토큰에서 꺼낸다. */
+
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "./base.css";
+
+/*
+ * 앱은 페이지가 스크롤되지 않는다 - 남는 세로가 곧 판 크기라서다. 여기는 판이
+ * 없고 글이라 그 규칙이 해당되지 않는다. base.css 가 박아 둔 것을 되돌린다.
+ */
+html,
+body,
+#root {
+  height: auto;
+  min-height: 100%;
+}
+
+body {
+  overflow: auto;
+  /* 읽는 글이다. 앱의 글자를 못 고르게 막은 것은 조밀한 화면에서 누를 때마다
+     빈 선택이 생겨서인데, 여기서는 옮겨 적을 일이 있다. */
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* --- 머리 줄 ------------------------------------------------------------ */
+
+/*
+ * 앱 이름 · 무엇을 보는 화면인지 ········ [장기 두러 가기]
+ * 앱의 헤더와 같은 모양으로 둬서, 같은 도구의 다른 쪽이라는 것이 읽히게 한다.
+ */
+.up-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 680px;
+  margin-inline: auto;
+  padding: 16px var(--page-x);
+}
+
+.up-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.up-name b {
+  font-size: var(--fs-title);
+  font-weight: 700;
+}
+
+.up-name span {
+  color: var(--muted);
+}
+
+/* 링크지만 버튼으로 읽혀야 한다. base.css 의 button 치수를 그대로 따른다. */
+.up-back,
+.up-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.up-back {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+
+/* --- 본문 --------------------------------------------------------------- */
+
+.up-main {
+  max-width: 680px;
+  margin-inline: auto;
+  padding: 8px var(--page-x) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.up-lead {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+/* 카드는 테두리와 그림자를 둘 다 두지 않는다(경계가 두 겹이 된다).
+   테두리를 투명으로 남기는 건 윈도우 고대비 모드에서 칸이 보이게 하려는 것이다. */
+.up-card {
+  background: var(--panel);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  padding: var(--pad-panel);
+}
+
+/* 날짜와 버전. 버전은 헤더 버튼에 뜨는 것과 같은 글자라, 제보할 때 이 줄을
+   보고 자기 버전을 짚을 수 있다. */
+.up-when {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.up-when time {
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.up-ver {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* 점은 글자 왼쪽 바깥에 둔다. 두 줄로 넘어가도 글의 왼쪽 끝이 한 줄로 선다. */
+.up-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.up-items li {
+  position: relative;
+  padding-left: 16px;
+}
+
+.up-items li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--disabled);
+}
+
+/* --- 제보 --------------------------------------------------------------- */
+
+/*
+ * 바뀐 목록 바로 아래가 제보를 부탁하기 가장 좋은 자리다. "보내주신 것이 이렇게
+ * 반영됩니다" 를 위 목록이 이미 말한 뒤다. 묶음 사이는 선이 아니라 간격(24)으로 가른다.
+ */
+.up-feedback {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.up-feedback h2 {
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.up-feedback p {
+  color: var(--muted);
+}
+
+/* 이 쪽에서 채운 버튼은 이것 하나다. */
+.up-go {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  color: var(--on-ink);
+  padding: 0 20px;
+}
+
+@media (hover: hover) {
+  .up-back:hover {
+    background: var(--panel-2);
+  }
+
+  .up-go:hover {
+    background: var(--ink-hover);
+    border-color: var(--ink-hover);
+  }
+}
+
+@media (pointer: coarse) {
+  .up-back,
+  .up-go {
+    min-height: 44px;
+  }
+}
+
+/* 폰에서는 좌우 여백이 곧 읽는 폭이라 앱과 같은 12 로 좁힌다. */
+@media (max-width: 900px) {
+  .up-head,
+  .up-main {
+    padding-inline: 12px;
+  }
+}

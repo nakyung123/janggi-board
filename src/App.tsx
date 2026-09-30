@@ -20,6 +20,7 @@ import { Board } from "./components/board/Board";
 import { BoardControls } from "./components/board/BoardControls";
 import { PlayerCard } from "./components/board/PlayerCard";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
+import { APP_VERSION } from "./updates/log";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameList } from "./components/games/GameList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
@@ -1045,6 +1046,14 @@ export default function App() {
         </main>
       )}
 
+      {/*
+        제보 버튼. 어느 탭에서나 같은 자리에 있다 - 사고는 어디서든 나고, 그때
+        찾아 헤매게 하면 제보가 오지 않는다. 지금 보고 있는 판을 같이 담아 준다.
+      */}
+      <FeedbackButton
+        detail={`${mode === "play" ? "대국" : "기보"} · ${history.length - 1}수 · ${entry.fen}`}
+      />
+
       {/* 결과 창은 대국 탭에서 판이 끝나는 순간에만 뜬다. 기보 탭에서 끝난 판을 열 때는 뜨지 않는다. */}
       {mode === "play" && resultOpen && outcome && (
         <GameOverDialog
@@ -1097,4 +1106,68 @@ export default function App() {
 /** 던져진 값에서 사람에게 보일 말을 꺼낸다. */
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/*
+ * 제보 창구. 아직 열지 않았으면(값이 비어 있으면) 버튼을 아예 그리지 않는다 -
+ * 눌러도 갈 데가 없는 버튼을 두지 않는다. README 의 '환경 변수' 참고.
+ */
+const FEEDBACK_URL = import.meta.env.VITE_FEEDBACK_URL ?? "";
+
+/**
+ * 제보에 같이 붙일 것.
+ *
+ * "말이 안 움직여요" 만 오면 아무것도 못 한다. 어느 버전인지, 어떤 브라우저인지,
+ * 어떤 판이었는지를 매번 되물어야 하는데 - 제보는 몇 건 안 오고 되물으면 절반은
+ * 답이 오지 않는다. 그래서 누를 때 이걸 클립보드에 담아 준다. 보내는 사람은
+ * 붙여넣기만 하면 된다.
+ */
+function reportInfo(detail: string): string {
+  return [
+    `장기 AI v${APP_VERSION}`,
+    detail,
+    `창 ${window.innerWidth}×${window.innerHeight}`,
+    navigator.userAgent,
+  ].join("\n");
+}
+
+/**
+ * 제보 버튼.
+ *
+ * 화면 오른쪽 아래에 떠 있다. DESIGN.md 는 떠 있는 것을 두지 않기로 했는데(오른쪽
+ * 칸의 무언가를 가렸다) 이것만 예외다 - 까닭은 docs/DECISIONS.md 에 적었다.
+ * 가리지 않도록 오른쪽 칸과 목록 칸 아래에 이 버튼 높이만큼 여백을 둔다.
+ *
+ * 누르면 정보를 복사하고 제보 창구를 새 탭으로 연다. 복사했다는 말은 뜨는 알림이
+ * 아니라 누른 버튼 자리에서 한다(DESIGN.md 의 알림 규칙).
+ */
+function FeedbackButton({ detail }: { detail: string }) {
+  const [copied, setCopied] = useState(false);
+
+  if (!FEEDBACK_URL) return null;
+
+  const onClick = () => {
+    // 복사가 막혀도(권한·구형 브라우저) 제보 자체는 열려야 한다.
+    void navigator.clipboard
+      ?.writeText(reportInfo(detail))
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2400);
+      })
+      .catch(() => undefined);
+    window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+    /*
+     * 글자를 짧게 둔다.
+     *
+     * "피드백 · 버그 제보"(142)로 뒀더니 1280×720 에서 상차림 마지막 칸을 덮었다.
+     * 떠 있는 것은 넓을수록 많이 가린다. 여기서 몇 자를 아끼는 것이 가려지는
+     * 버튼 하나를 살린다.
+     */
+    <button type="button" className="feedback-fab" onClick={onClick}>
+      {copied ? "복사했어요" : "버그 제보"}
+    </button>
+  );
 }

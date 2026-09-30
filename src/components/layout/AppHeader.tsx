@@ -1,4 +1,4 @@
-// 헤더 한 줄 — 앱 이름 · 모드 탭 ········ 판 상태 · 소리 버튼
+// 헤더 한 줄 — 앱 이름 · 모드 탭 ········ 판 상태 · 버전 · 소리 버튼
 //
 // 높이가 늘 모드 탭과 같은 40(터치 44)이다. 이 앱은 남는 세로가 곧 판 크기라,
 // 헤더에 무엇이 뜨고 져도 줄 높이는 바뀌지 않아야 한다.
@@ -10,6 +10,7 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { ModeTabs } from "./ModeTabs";
 import type { Mode } from "./ModeTabs";
+import { APP_VERSION } from "../../updates/log";
 
 interface Props {
   mode: Mode;
@@ -35,6 +36,23 @@ export function AppHeader({ mode, onMode, problems, spoken, soundOn, onToggleSou
         {problems && (
           <span className="turn-tag">잘못된 판</span>
         )}
+        {/*
+          버전이 곧 업데이트 내역으로 가는 문이다.
+          버전만 따로 적으면 헤더에 자리를 한 칸 더 써야 하고, '업데이트' 라고만
+          적으면 지금 쓰는 것이 몇 버전인지 화면에서 볼 길이 없다. 툴팁은 두지
+          않기로 했으므로(DESIGN.md) 글자 자체가 값이면서 문이 되게 했다.
+
+          새 탭으로 연다. 같은 탭에서 옮기면 돌아올 때 엔진을 다시 붙여야 한다.
+        */}
+        <a
+          className="ver"
+          href="/updates/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`업데이트 내역 v${APP_VERSION}`}
+        >
+          v{APP_VERSION}
+        </a>
         {/* 착수음·집는 소리·초읽기 소리를 한 번에 켜고 끈다. 고른 값은 브라우저에 남는다. */}
         <button
           type="button"
