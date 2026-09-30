@@ -25,8 +25,8 @@ interface Props {
   cursor: number;
   /** 기보의 마지막 칸 번호 */
   last: number;
-  /** 지금 판을 건드릴 수 있는지. 한수쉼에만 쓴다. */
-  canTouch: boolean;
+  /** 한수쉼을 둘 수 있는지. 내 차례이고, 엔진이 한수쉼을 합법수로 알려 줬을 때만이다. */
+  canPass: boolean;
   /**
    * 대국 탭의 판이 끝났는지. 끝난 판은 무를 수 없어서 '무르기·다시' 가 기보
    * 탭처럼 한 칸씩 오가는 '이전·다음' 이 된다(판은 App 이 잠근다).
@@ -42,7 +42,7 @@ interface Props {
 }
 
 export function BoardControls(props: Props) {
-  const { mode, cursor, last, canTouch, finished, onJump, onUndo, onFlip, onPass, passTitle } =
+  const { mode, cursor, last, canPass, finished, onJump, onUndo, onFlip, onPass, passTitle } =
     props;
 
   const atStart = cursor === 0;
@@ -109,7 +109,7 @@ export function BoardControls(props: Props) {
         {mode === "play" && (
           <button
             type="button"
-            disabled={!canTouch}
+            disabled={!canPass}
             title={passTitle ?? "궁을 제자리에 두는 것이 장기의 한수쉼입니다"}
             onClick={onPass}
           >

@@ -598,12 +598,19 @@ export default function App() {
     else setSelected(null);
   };
 
-  /** 한수쉼 - 궁을 제자리에 둔다. 엔진이 한수쉼을 합법수로 준 때만 된다. */
-  const passMove = () => {
+  /**
+   * 한수쉼 - 궁을 제자리에 둔다. 엔진이 한수쉼을 합법수로 알려 준 때만 된다. 합법수를
+   * 받기 전(수를 둔 직후)이나 장군을 받고 있을 때는 없어서, 그동안은 버튼도 잠근다.
+   * 잠그지 않으면 눌러도 아무 일이 없다.
+   */
+  const passSquare = useMemo(() => {
     const king = Object.entries(position.board).find(
       ([, p]) => p.toLowerCase() === "k" && sideOf(p) === position.turn
     );
-    if (king && legal.has(king[0] + king[0])) pushMove(king[0], king[0]);
+    return king && legal.has(king[0] + king[0]) ? king[0] : null;
+  }, [position, legal]);
+  const passMove = () => {
+    if (passSquare) pushMove(passSquare, passSquare);
   };
 
   // --- 판 새로 놓기 -------------------------------------------------------
@@ -949,7 +956,7 @@ export default function App() {
               mode={mode}
               cursor={cursor}
               last={history.length - 1}
-              canTouch={canTouchBoard}
+              canPass={canTouchBoard && passSquare !== null}
               finished={mode === "play" && ended}
               onJump={goTo}
               onUndo={undoMove}
