@@ -122,9 +122,10 @@ export function ReviewPanel(props: Props) {
         <div className="review-bar">
           <div style={{ width: `${pct}%` }} />
         </div>
+        {/* 멈춘 복기는 남기지 않는다(App.startReview) - 그 판은 복기 전(또는 지난 복기) 그대로다. */}
         <p className="muted small">
           엔진이 국면마다 {depth.nodes.toLocaleString()}노드씩 봅니다.
-          중간에 그만둬도 거기까지는 남습니다.
+          중간에 그만두면 이번 복기는 남지 않습니다.
         </p>
         <div className="row">
           <button type="button" className="ghost stop" onClick={onStop}>
