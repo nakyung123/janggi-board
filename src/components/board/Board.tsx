@@ -1,7 +1,10 @@
-// 장기판
+// 장기판 — 나무판, 기물, 판 위 표시, 눌러서·끌어서 두기
 //
 // 장기는 칸이 아니라 '선의 교차점' 위에 기물을 놓는다. 그래서 칸을 그리는 대신
 // 격자선을 긋고 교차점마다 기물을 얹는다. 궁성에는 사선이 추가로 들어간다.
+//
+// 판은 규칙을 모른다. 어느 기물을 집을 수 있는지(canPick)와 어디로 갈 수 있는지
+// (targets)는 App 이 엔진에게 받은 합법수로 정해 넘긴다.
 
 import { useCallback, useRef, useState } from "react";
 import type { Board as BoardMap, Square } from "../../janggi/board";
@@ -16,10 +19,9 @@ const CELL = 62;
 /*
  * 격자 바깥 여백.
  *
- * 좌표 숫자를 걷어낸 뒤로는 가장자리 기물이 판 밖으로 비어져 나오지 않을
+ * 판에 좌표 숫자를 그리지 않으므로 가장자리 기물이 판 밖으로 비어져 나오지 않을
  * 만큼만 있으면 된다. 가장 큰 가장자리 기물인 차의 반지름이 26.2 이고 팔각형의
- * 가로 반폭이 24.2 라, 30 이면 5.8px 이 남는다. 격자가 판 넓이의 89% 를
- * 차지한다(46 일 때는 86%).
+ * 가로 반폭이 24.2 라, 30 이면 5.8px 이 남는다. 격자가 판 넓이의 89% 를 차지한다.
  */
 const MARGIN = 30;
 const WIDTH = (FILES - 1) * CELL + MARGIN * 2;
@@ -32,40 +34,34 @@ export interface BoardProps {
   /** 지금 고른 기물이 갈 수 있는 곳 */
   targets: Square[];
   lastMove: { from: Square; to: Square } | null;
-  /** 엔진이 첫손에 꼽는 수. 파란 화살표. */
+  /** 복기한 판에서 고른 수 대신 뒀어야 할 수. 파란 화살표. */
   bestMove: { from: Square; to: Square } | null;
-  /** 기보의 수에 마우스를 올려 미리 보는 수. 노란 화살표라 최선수와 헷갈리지 않는다. */
+  /** 기보의 수에 마우스를 올려 미리 보는 수. 호박색 화살표라 뒀어야 할 수와 헷갈리지 않는다. */
   hoverMove?: { from: Square; to: Square } | null;
   /** 장군을 맞은 궁의 자리 */
   checkedKing?: Square | null;
   onSquareClick: (square: Square) => void;
   onMove: (from: Square, to: Square) => void;
   /**
-   * 기물을 집어 들었다. 갈 곳을 띄우는 데 쓴다.
-   *
-   * 끌어서 두는 것은 되는데 집어 든 동안 갈 곳 점이 뜨지 않았다. 눌러서 고를
-   * 때만 떴기 때문이다. 초보일수록 기물을 쥐고 어디로 갈 수 있는지 보면서
-   * 옮기는데, 그때가 정작 아무 표시도 없는 순간이었다.
+   * 기물을 집어 들었다(누르는 순간). 부르는 쪽이 그 기물을 고른 것으로 삼아 갈 곳을
+   * 띄운다. 끌어서 둘 때도 쥐고 있는 동안 어디로 갈 수 있는지 보여야 한다 - 초보일수록
+   * 기물을 쥐고 갈 곳을 보면서 옮긴다.
    */
   onPick?: (square: Square) => void;
   /**
    * 이 기물을 집어 들 수 있는지. 없으면 전부 들린다.
-   *
-   * 예전에는 눌러서 고르는 것만 막혀 있고 끌기는 아무 기물이나 들렸다. 초를
-   * 잡고 있는데 한의 차가 손에 딸려 오고, 놓으면 제자리로 돌아갔다. 엔진이
-   * 생각하는 동안에도, 복기 중에도 그랬다.
+   * 눌러서 고르기와 끌기가 같은 조건을 쓴다 - 끌기만 막지 않으면 초를 잡고 있는데
+   * 한의 차가 손에 딸려 오고, 엔진이 생각하는 동안에도 기물이 들린다.
    */
   canPick?: (square: Square) => boolean;
   /**
-   * 방금 둔 수. 있으면 도착한 기물이 출발 자리에서 날아온다.
-   *
-   * 예전에는 기물이 순간이동처럼 도착 자리에 나타났다. 엔진이 둔 수는 특히 어느
-   * 기물이 움직였는지 판을 훑어야 알았다. 끌어서 둔 수는 손으로 이미 옮겼으므로
-   * 부르는 쪽이 넘기지 않는다. 잡힌 기물은 날아오는 동안 제자리에서 사라진다.
-   * key 가 바뀔 때마다 한 번 난다.
+   * 방금 둔 수. 있으면 도착한 기물이 출발 자리에서 날아온다 - 순간이동하듯 나타나면
+   * 엔진이 어느 기물을 움직였는지 판을 훑어야 안다. 끌어서 둔 수는 손으로 이미
+   * 옮겼으므로 부르는 쪽이 넘기지 않는다. 잡힌 기물은 날아오는 동안 제자리에서
+   * 사라진다. key 가 바뀔 때마다 한 번 난다.
    */
   flyMove?: { from: Square; to: Square; captured?: PieceChar; key: number } | null;
-  /** 장군·멍군. 판 가운데에 잠깐 떴다 사라진다(CheckCallout). key 가 바뀔 때마다 한 번. */
+  /** 장군·멍군·빅장. 판 가운데에 잠깐 떴다 사라진다(CheckCallout). key 가 바뀔 때마다 한 번. */
   callout?: { text: string; key: number } | null;
 }
 
@@ -302,7 +298,7 @@ export function Board(props: BoardProps) {
     for (let f = 0; f < FILES; f++) squares.push(sq(f, r));
   }
 
-  // 최선수와 미리보기 수를 색으로 나눈다. 둘 다 파랗던 때는 구분이 안 됐다.
+  // 뒀어야 할 수(파랑)와 미리 보는 수(호박색)를 색으로 나눈다.
   const arrows = [
     bestMove && { key: "best", cls: "best-arrow", m: bestMove, head: "arrowBest" },
     hoverMove && { key: "hover", cls: "hover-arrow", m: hoverMove, head: "arrowHover" },
@@ -335,10 +331,9 @@ export function Board(props: BoardProps) {
           <path d="M23 0 V4" stroke="#7a5420" strokeWidth="0.6" opacity="0.02" />
         </pattern>
         {/*
-          직전 수 자리에 깔리는 흰 발광.
-          예전에는 파란 반투명 상자였다. 판이 밝은 나무색이라 파랑이 얹히면
-          회색 상자처럼 보였고, 무엇보다 장기판에 없는 물건이었다. 흰빛은
-          나무색 위에서 '밝아진다'로 읽혀서 기물을 가리지 않는다.
+          직전 수 자리에 깔리는 흰 발광. 색 상자는 밝은 나무색 위에서 회색 얼룩이
+          되고 장기판에 없는 물건으로 떠 보인다. 흰빛은 같은 나무판이 그 자리만
+          '밝아진' 것으로 읽혀서 기물을 가리지 않는다.
         */}
         <radialGradient id="lastGlow">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
@@ -347,9 +342,8 @@ export function Board(props: BoardProps) {
         </radialGradient>
         {/*
           도착 자리도 같은 발광을 쓰고 크기만 키운다(0.8칸). 같은 크기면 기물이
-          가운데를 덮어 가장자리의 옅은 테두리만 남는다. 한동안 도착 자리에 따로
-          진한 발광(70% 까지 거의 불투명)을 썼는데, 기물 둘레에 흰 고리가 박혀
-          "두고 나서 말이 빛나는 게 유독 더 밝다" 가 됐다. 같은 그라디언트를 넓게
+          가운데를 덮어 가장자리의 옅은 테두리만 남는다. 도착 자리에만 진한 발광을
+          쓰면 기물 둘레에 흰 고리가 박혀 도착 쪽만 유독 밝다. 같은 그라디언트를 넓게
           펴면 기물 밖으로 드러나는 부분이 출발 자리의 가장자리와 같은 밝기다.
         */}
         {/*
@@ -500,7 +494,7 @@ export function Board(props: BoardProps) {
       {squares.filter((s) => s !== flyMove?.to).map((s) => renderPiece(s, false))}
       {flyMove && renderPiece(flyMove.to, false)}
 
-      {/* 엔진 추천수(파랑)와 미리보기 수(노랑) */}
+      {/* 뒀어야 할 수(파랑)와 미리 보는 수(호박색) */}
       {arrows.map((a) => {
         const p = posOf(a.m.from);
         const q = posOf(a.m.to);

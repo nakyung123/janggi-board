@@ -313,7 +313,6 @@ export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
      * 기준을 숫자(INACCURACY)로 다시 재지 않고 이미 매겨진 등급을 본다.
      * 등급 경계는 급수에 따라 늘어나는데 여기만 절대 기준으로 재면,
      * 등급은 "좋은 수" 라면서 같은 수를 "가장 아쉬운 수" 로 짚는 일이 생긴다.
-     * 실제로 그랬다.
      */
     worst: worst && worst.grade !== "good" && worst.grade !== "best" ? worst : null,
   };

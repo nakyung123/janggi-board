@@ -92,9 +92,9 @@ describe("읽기", () => {
   });
 
   it("false 와 0 을 값이 없는 것으로 착각하지 않는다", () => {
-    // 훈수 끄기(false)를 저장했는데 다음에 켜져 있으면 곤란하다
-    const store = fakeStore({ "janggi:hintOn": "false", "janggi:n": "0" });
-    expect(readStored("hintOn", true, undefined, store)).toBe(false);
+    // 소리 끄기(false)를 저장했는데 다음에 켜져 있으면 곤란하다
+    const store = fakeStore({ "janggi:soundOn": "false", "janggi:n": "0" });
+    expect(readStored("soundOn", true, undefined, store)).toBe(false);
     expect(readStored("n", 5, undefined, store)).toBe(0);
   });
 });

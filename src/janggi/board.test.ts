@@ -158,7 +158,7 @@ describe("무르기", () => {
     expect(undoTarget(기보(3), 3, "han")).toBe(1);
   });
 
-  it("구경 중이면 한 칸만 간다", () => {
+  it("내 쪽이 없으면(null) 한 칸만 간다", () => {
     expect(undoTarget(기보(6), 6, null)).toBe(5);
   });
 

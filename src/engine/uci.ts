@@ -2,7 +2,7 @@
 //
 // 엔진은 탐색 중 아래 같은 줄을 초당 수십 번 흘려보낸다.
 //   info depth 11 seldepth 14 multipv 3 score cp -3 nodes 262135 nps 173944 ... pv b1c3 b10c8 ...
-// 이걸 UI 가 쓰기 좋은 형태로 바꾼다.
+// 이걸 앱이 쓰기 좋은 형태(AnalysisLine)로 바꾼다.
 
 import type { AnalysisLine } from "./types";
 

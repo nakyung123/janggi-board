@@ -100,7 +100,7 @@ export function applySetup(board: Board, side: Side, setup: Setup): Board {
   return next;
 }
 
-/** 현재 판이 어떤 상차림인지 되읽는다. 편집으로 흐트러졌으면 null. */
+/** 판이 어떤 상차림인지 되읽는다. 넷 중 어느 것도 아니면(불러온 판 등) null. */
 export function detectSetup(board: Board, side: Side): Setup | null {
   const s = slots(side);
   const elephant = side === "cho" ? "B" : "b";

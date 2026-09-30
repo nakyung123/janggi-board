@@ -184,7 +184,7 @@ describe("수 제한 점수 판정", () => {
     expect(s.kind).toBe("checkmate");
   });
 
-  it("수를 안 넘겨주면 예전처럼 동작한다", () => {
+  it("수를 안 넘겨주면 수 제한을 보지 않는다", () => {
     // pointsRule 만 켜고 plies 를 빼먹어도 대국이 멋대로 끝나면 안 된다
     expect(gameStatus(입력({ ...보통수, pointsRule: true })).kind).toBe("playing");
   });
@@ -334,7 +334,7 @@ describe("빅장", () => {
     expect(outcomeMessage(outcomeOf(s, null, null)!)).toBe("빅장 - 비겼습니다.");
   });
 
-  it("예전처럼 둘 차례인 쪽의 패(수몰)로 읽지 않는다", () => {
+  it("둘 차례인 쪽의 패(수몰)로 읽지 않는다", () => {
     // 받은 뒤 초 차례라, 수몰로 읽으면 초가 진다. 초가 차 하나 앞서는데도.
     const s = gameStatus(입력({ fen: 받음, legal: [], passesInRow: 1, ...표준 }));
     expect(s.kind).not.toBe("stalemate");
@@ -368,7 +368,7 @@ describe("양쪽 한수쉼", () => {
     expect(s).toMatchObject({ kind: "passes", winner: null });
   });
 
-  it("둘 다 아니면 예전처럼 수몰", () => {
+  it("빅장도 양쪽 한수쉼도 아니면 수몰", () => {
     const s = gameStatus(입력({ fen: 쉼, legal: [], passesInRow: 0, pointsRule: true, bikjangRule: true }));
     expect(s.kind).toBe("stalemate");
   });

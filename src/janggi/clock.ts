@@ -31,15 +31,11 @@ export interface ClockPreset extends ClockSettings {
 }
 
 /*
- * 시계는 두 가지뿐이다.
+ * 시계는 두 가지뿐이다 - '시계를 쓴다(5분) / 안 쓴다'. 고를 것이 많으면 처음 온
+ * 사람은 무엇이 보통인지 모르고, 실제로 쓰는 길이는 5분대 하나다. 이름은 짧게
+ * "5분" 이고, 초읽기까지 적은 전체 설명은 describeClock 이 버튼 툴팁으로 준다.
  *
- * 예전에는 3분·5분·10분·20분에 직접 입력까지 여섯 갈래였다. 고를 것이 많으면
- * 처음 온 사람은 무엇이 보통인지 모른다. 실제로 쓰는 길이는 5분대 하나라
- * '시계를 쓴다 / 안 쓴다' 로 줄였다. 이름은 짧게 "5분" 이고, 초읽기까지 적은
- * 전체 설명은 describeClock 이 버튼 툴팁으로 준다.
- *
- * 예전에 저장해 둔 id(normal·long·custom 같은 것)는 clockPresetById 가
- * 기본값으로 떨군다.
+ * 옛 판에서 남긴 id(normal·long·custom 같은 것)는 clockPresetById 가 기본값으로 떨군다.
  */
 export const CLOCK_PRESETS: ClockPreset[] = [
   { id: "off", name: "시계 없음", enabled: false, mainSeconds: 0, byoyomiSeconds: 0, byoyomiCount: 0 },
@@ -47,12 +43,9 @@ export const CLOCK_PRESETS: ClockPreset[] = [
 ];
 
 /*
- * 기본은 5분 + 30초 3회.
- *
- * 예전 기본은 10분이었는데, 한 판에 스무 분 넘게 잡아먹는다. 처음 들어와서
- * 한 판 두고 나가는 흐름에 맞지 않는다. 카카오 장기가 쓰는 5분대가 실제로
- * 사람들이 두는 길이다. 제한시간이 끝나도 초읽기로 넘어가므로 갑자기
- * 시간패하지는 않는다.
+ * 기본은 5분 + 30초 3회. 카카오 장기가 쓰는 5분대가 실제로 사람들이 두는 길이다.
+ * 10분이면 한 판에 스무 분 넘게 걸려 들어와서 한 판 두고 나가는 흐름에 맞지 않는다.
+ * 제한시간이 끝나도 초읽기로 넘어가므로 갑자기 시간패하지는 않는다.
  */
 export const DEFAULT_CLOCK_ID = "five";
 
@@ -72,9 +65,8 @@ export function describeClock(c: ClockSettings): string {
 }
 
 /*
- * 모르는 id 면 기본값으로 떨어진다. 예전에는 CLOCK_PRESETS[2] 라고 적혀
- * 있었는데, 목록 가운데에 하나를 끼워 넣자 뜻이 조용히 바뀌었다. 자리로
- * 가리키면 목록을 손댈 때마다 이런 일이 생긴다.
+ * 모르는 id 면 기본값으로 떨어진다. 기본값도 id 로 찾는다 - CLOCK_PRESETS[2] 처럼
+ * 자리로 가리키면 목록 가운데에 하나를 끼워 넣을 때 뜻이 조용히 바뀐다.
  */
 export const clockPresetById = (id: string): ClockPreset =>
   CLOCK_PRESETS.find((p) => p.id === id) ??
@@ -117,7 +109,7 @@ export const initialClocks = (s: ClockSettings): ClockState => ({
  * 되살린 판에 쓴다. 시계 자체는 저장하지 않는다 — 새로고침한 동안 시간이
  * 얼마나 흘렀는지 알 길이 없어서 되살린 값을 믿을 수 없기 때문이다. 다만
  * '시간패로 끝났다' 는 사실은 남겨두므로, 그 쪽 시계도 0 으로 맞춰준다.
- * 안 그러면 시계가 가득 찬 채로 "시간패" 배너가 떠서 앞뒤가 맞지 않는다.
+ * 안 그러면 시계가 가득 찬 채로 "시간패" 가 적혀 앞뒤가 맞지 않는다.
  */
 export function withFlagged(state: ClockState, side: Side | null): ClockState {
   if (!side) return state;
@@ -261,7 +253,7 @@ export interface ClockView {
 /** 이 시간부터 초를 센다. */
 const COUNTDOWN_FROM_MS = 5_000;
 
-/** 이 시간부터 초읽기 소리를 낸다(App.tsx). 숫자를 키우는 5초보다 앞서 귀로 먼저 알린다. */
+/** 이 시간부터 초읽기 소리를 낸다(hooks/useGameClock.ts). 숫자를 키우는 5초보다 앞서 귀로 먼저 알린다. */
 const ALARM_FROM_MS = 10_000;
 
 /**

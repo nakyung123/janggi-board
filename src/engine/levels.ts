@@ -150,9 +150,8 @@ export const REVIEW_DEPTHS: ReviewDepth[] = [
 /**
  * 이 기보를 이 깊이로 복기하면 얼마나 걸릴지(초).
  *
- * 예전에는 "100수에 약 3분" 이라고 붙박이로 적어 뒀는데, 4수짜리 기보에도
- * 그렇게 나와서 기다릴 각오를 잘못 하게 만들었다. 실제 수를 넣어 잰다.
- * 급수와 같은 기준(보통 PC 초당 25만 노드)을 쓴다.
+ * 그 판의 실제 수로 잰다 - "100수에 약 3분" 처럼 박아 두면 4수짜리 기보에도 3분이라
+ * 적혀 기다릴 각오를 잘못 하게 만든다. 급수와 같은 기준(보통 PC 초당 25만 노드)을 쓴다.
  */
 export function reviewSeconds(depth: ReviewDepth, moves: number): number {
   return (Math.max(0, moves) * depth.nodes) / 250_000;

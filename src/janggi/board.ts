@@ -1,4 +1,4 @@
-// 좌표계와 FEN 변환
+// 판 — 좌표계, FEN 변환, 수 두기, 판 검사, 무르기가 돌아갈 자리
 //
 // 장기판은 9줄(가로) × 10단(세로)이고, 기물은 칸이 아니라 '선의 교차점'에 놓인다.
 // Fairy-Stockfish 는 파일을 a~i, 랭크를 1~10 으로 부르며
@@ -124,7 +124,7 @@ export function applyMove(pos: Position, from: Square, to: Square): Position {
   };
 }
 
-/** 편집 중인 판이 엔진에 넘길 만한 상태인지 미리 걸러낸다. */
+/** 판이 엔진에 넘길 만한 상태인지(궁이 하나씩, 궁·사는 제 궁성 안). 불러온 기보를 거른다. */
 export function validate(pos: Position): string[] {
   const problems: string[] = [];
   const chars = Object.values(pos.board);
@@ -160,7 +160,7 @@ export function validate(pos: Position): string[] {
  *
  * @param fens   기보의 각 국면 FEN. fens[0] 이 시작 국면이다.
  * @param cursor 지금 보고 있는 자리
- * @param mySide 내가 잡은 쪽. 구경 중이거나 대국이 아니면 null — 이때는 한 칸만 간다.
+ * @param mySide 내가 잡은 쪽. null 이면 한 칸만 간다.
  */
 export function undoTarget(
   fens: string[],

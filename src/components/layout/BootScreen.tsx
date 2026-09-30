@@ -6,7 +6,7 @@
 import type { LoadProgress } from "../../engine/types";
 
 interface Props {
-  /** error 면 까닭(error)을 보여주고, 아니면 내려받는 진행률을 보여준다. */
+  /** true 면 까닭(error)을 보여주고, 아니면 내려받는 진행률을 보여준다. */
   failed: boolean;
   progress: LoadProgress | null;
   error: string | null;
