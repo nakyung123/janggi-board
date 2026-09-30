@@ -6,7 +6,7 @@
 
 import type { Square } from "./board";
 import { applyMove, parseFen, toFen } from "./board";
-import { describeMove } from "./notation";
+import { describeMove, hangulNotation } from "./notation";
 import type { Side } from "./pieces";
 
 export interface HistoryEntry {
@@ -14,7 +14,7 @@ export interface HistoryEntry {
   fen: string;
   /** 이 국면을 만든 수(엔진 좌표, 예: a4b4). 시작 국면은 null. */
   move: string | null;
-  /** 기보 표기(예: 03 馬 84). 시작 국면은 "시작". */
+  /** 기보 표기(예: 03마84). 시작 국면은 "시작". */
   notation: string;
   /** 이 수를 둔 쪽. 시작 국면은 null. */
   mover: Side | null;
@@ -37,6 +37,11 @@ export function nextEntry(before: string, from: Square, to: Square): HistoryEntr
     mover: pos.turn,
     score: null,
   };
+}
+
+/** 기보 표기를 지금 표기(한글)로. 브라우저에 남은 예전 판은 한자로 적혀 있다(hangulNotation). */
+export function hangulHistory(history: HistoryEntry[]): HistoryEntry[] {
+  return history.map((h) => ({ ...h, notation: hangulNotation(h.notation) }));
 }
 
 /** 기보에서 실제로 둔 수만(시작 국면 빼고). 엔진에 국면을 넘길 때 쓴다. */

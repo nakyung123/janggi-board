@@ -24,9 +24,7 @@ export const charOf = (type: PieceType, side: Side): PieceChar =>
   (side === "cho" ? type.toUpperCase() : type) as PieceChar;
 
 export interface PieceInfo {
-  /** 판 위에 새기는 한자 */
-  glyph: string;
-  /** 한글 이름 */
+  /** 한글 이름. 기보 표기에 쓴다(03마84). */
   name: string;
   /** 기물 점수 (장기 점수제) */
   score: number;
@@ -34,36 +32,36 @@ export interface PieceInfo {
   size: number;
 }
 
-// 궁과 졸은 진영에 따라 새기는 한자가 다르다(楚/漢, 卒/兵).
-// 나머지는 양쪽 모두 같은 글자를 쓴다.
+// 졸은 진영에 따라 이름이 다르다(초는 졸, 한은 병). 판 위에 새기는 한자(楚/漢, 卒/兵…)는
+// 글꼴이 아니라 그림이라 glyphs.ts 가 따로 들고 있다.
 const PIECES: Record<PieceType, Record<Side, PieceInfo>> = {
   k: {
-    cho: { glyph: "楚", name: "궁", score: 0, size: 1.0 },
-    han: { glyph: "漢", name: "궁", score: 0, size: 1.0 },
+    cho: { name: "궁", score: 0, size: 1.0 },
+    han: { name: "궁", score: 0, size: 1.0 },
   },
   r: {
-    cho: { glyph: "車", name: "차", score: 13, size: 0.9 },
-    han: { glyph: "車", name: "차", score: 13, size: 0.9 },
+    cho: { name: "차", score: 13, size: 0.9 },
+    han: { name: "차", score: 13, size: 0.9 },
   },
   c: {
-    cho: { glyph: "包", name: "포", score: 7, size: 0.9 },
-    han: { glyph: "包", name: "포", score: 7, size: 0.9 },
+    cho: { name: "포", score: 7, size: 0.9 },
+    han: { name: "포", score: 7, size: 0.9 },
   },
   n: {
-    cho: { glyph: "馬", name: "마", score: 5, size: 0.82 },
-    han: { glyph: "馬", name: "마", score: 5, size: 0.82 },
+    cho: { name: "마", score: 5, size: 0.82 },
+    han: { name: "마", score: 5, size: 0.82 },
   },
   b: {
-    cho: { glyph: "象", name: "상", score: 3, size: 0.82 },
-    han: { glyph: "象", name: "상", score: 3, size: 0.82 },
+    cho: { name: "상", score: 3, size: 0.82 },
+    han: { name: "상", score: 3, size: 0.82 },
   },
   a: {
-    cho: { glyph: "士", name: "사", score: 3, size: 0.72 },
-    han: { glyph: "士", name: "사", score: 3, size: 0.72 },
+    cho: { name: "사", score: 3, size: 0.72 },
+    han: { name: "사", score: 3, size: 0.72 },
   },
   p: {
-    cho: { glyph: "卒", name: "졸", score: 2, size: 0.72 },
-    han: { glyph: "兵", name: "병", score: 2, size: 0.72 },
+    cho: { name: "졸", score: 2, size: 0.72 },
+    han: { name: "병", score: 2, size: 0.72 },
   },
 };
 

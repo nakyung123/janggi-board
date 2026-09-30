@@ -9,6 +9,8 @@
 // ARCHIVE_LIMIT 판만 두고, 그래도 넘치면 hooks/useArchive.ts 가 오래된 판부터 버린다.
 
 import type { HistoryEntry } from "./history";
+import { hangulHistory } from "./history";
+import { hangulNotation } from "./notation";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
 import type { Outcome } from "./status";
@@ -186,18 +188,35 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
 /**
  * 읽어 온 목록에서 멀쩡한 판만 새 순서로. 목록 모양조차 아니면 빈 목록.
  *
- * 수보다 복기 결과가 적은 판은 '복기 전' 으로 되돌린다. 중간에 멈춘 복기가 그대로
- * 저장되던 때(2945fdb 까지)의 판이다 - 두면 '복기함' 이 붙은 채 성적표가 0수로 뜬다.
+ * 예전 판을 지금 모양으로 고쳐 읽는 것이 둘 있다.
+ * - 수보다 복기 결과가 적은 판은 '복기 전' 으로 되돌린다. 중간에 멈춘 복기가 그대로
+ *   저장되던 때(2945fdb 까지)의 판이다 - 두면 '복기함' 이 붙은 채 성적표가 0수로 뜬다.
+ * - 한자로 적힌 기보 표기(73卒63)는 한글(73졸63)로 바꾼다. 수 목록·복기 설명이 한 판
+ *   안에서 두 표기로 섞이지 않게(notation.ts 의 hangulNotation).
  */
 export function readArchive(v: unknown): ArchivedGame[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter(isArchivedGame)
-    .map((g) =>
-      g.reviewed && g.reviewed.length !== g.history.length - 1 ? { ...g, reviewed: null } : g
-    )
+    .map((g) => {
+      const reviewed =
+        g.reviewed && g.reviewed.length === g.history.length - 1 ? g.reviewed.map(hangulReview) : null;
+      return { ...g, history: hangulHistory(g.history), reviewed };
+    })
     .sort((a, b) => b.endedAt - a.endedAt)
     .slice(0, ARCHIVE_LIMIT);
+}
+
+/** 복기 한 수의 표기·설명을 한글 표기로. 저장된 값이라 모양을 믿지 않고 글자인 것만 바꾼다. */
+function hangulReview(r: ReviewedMove): ReviewedMove {
+  const h = <T,>(t: T): T => (typeof t === "string" ? (hangulNotation(t) as T) : t);
+  return {
+    ...r,
+    playedNotation: h(r.playedNotation),
+    bestNotation: h(r.bestNotation),
+    bestLine: Array.isArray(r.bestLine) ? r.bestLine.map(h) : r.bestLine,
+    comment: h(r.comment),
+  };
 }
 
 /**

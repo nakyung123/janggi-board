@@ -88,8 +88,8 @@ export function PlayPanel(props: Props) {
         <div className="seg">
           {(
             [
-              ["cho", "초 楚"],
-              ["han", "한 漢"],
+              ["cho", SIDE_LABEL.cho],
+              ["han", SIDE_LABEL.han],
             ] as const
           ).map(([id, label]) => (
             <button

@@ -131,7 +131,7 @@ describe("손해 계산", () => {
 describe("성적표", () => {
   const 만든수 = (over: Partial<ReviewedMove>): ReviewedMove =>
     ({
-      index: 1, mover: "cho", played: "a4a5", playedNotation: "71卒61",
+      index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
       best: null, bestNotation: null, bestLine: [],
       scoreBefore: 0, scoreAfter: 0, loss: 0, grade: "good", comment: "",
       ...over,

@@ -30,20 +30,20 @@ describe("받침 판정", () => {
   });
 
   it("숫자로 끝나면 숫자의 소리를 따른다", () => {
-    // 기보 표기는 "73卒63" 처럼 숫자로 끝난다
+    // 기보 표기는 "73졸63" 처럼 숫자로 끝난다
     expect(hasFinalConsonant("63")).toBe(true); // 삼
     expect(hasFinalConsonant("61")).toBe(true); // 일
     expect(hasFinalConsonant("62")).toBe(false); // 이
     expect(hasFinalConsonant("64")).toBe(false); // 사
-    expect(hasFinalConsonant("73卒65")).toBe(false); // 오
+    expect(hasFinalConsonant("73졸65")).toBe(false); // 오
   });
 });
 
 describe("…이었습니다 / …였습니다", () => {
   it("기보 표기 뒤에 제대로 붙는다", () => {
     // "최선은 63 였습니다" 로 나가던 자리
-    expect(이었였("73卒63")).toBe("73卒63이었");
-    expect(이었였("73卒62")).toBe("73卒62였");
+    expect(이었였("73졸63")).toBe("73졸63이었");
+    expect(이었였("73졸62")).toBe("73졸62였");
   });
 });
 

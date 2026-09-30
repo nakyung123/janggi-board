@@ -28,7 +28,7 @@ const 판 = (patch: Partial<ArchivedGame> = {}): ArchivedGame => ({
   result: { kind: "resign", winner: "han" },
   history: [
     { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
-    { fen: START_FEN, move: "a4a5", notation: "71卒61", mover: "cho", score: null },
+    { fen: START_FEN, move: "a4a5", notation: "71졸61", mover: "cho", score: null },
   ],
   reviewed: null,
   ...patch,
@@ -135,6 +135,28 @@ describe("읽어 온 목록", () => {
   it("중간에 멈춘 복기는 복기 전으로 읽는다", () => {
     // 수는 하나인데 복기 결과가 없다(빈 목록) - 멈춘 복기가 저장된 판
     expect(readArchive([판({ reviewed: [] })])[0].reviewed).toBeNull();
+  });
+
+  it("한자로 적힌 예전 기보 표기는 한글로 읽는다 - 수 목록도 복기 설명도", () => {
+    const old = 판({
+      history: [
+        { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
+        { fen: START_FEN, move: "a4a5", notation: "71卒61", mover: "cho", score: null },
+      ],
+      reviewed: [
+        {
+          index: 1, mover: "cho", played: "a4a5", playedNotation: "71卒61",
+          best: "b1c3", bestNotation: "02馬83", bestLine: ["02馬83", "12馬33"],
+          scoreBefore: 0, scoreAfter: 0, loss: 0.5, grade: "inaccuracy",
+          comment: "최선은 02馬83이었습니다.",
+        },
+      ],
+    });
+    const [g] = readArchive([old]);
+    expect(g.history[1].notation).toBe("71졸61");
+    const r = g.reviewed![0];
+    expect([r.playedNotation, r.bestNotation, ...r.bestLine]).toEqual(["71졸61", "02마83", "02마83", "12마33"]);
+    expect(r.comment).toBe("최선은 02마83이었습니다.");
   });
 
   it("목록이 아니면 빈 목록", () => {

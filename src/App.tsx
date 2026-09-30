@@ -60,7 +60,7 @@ import type { Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
 import { CLOCK_PRESETS, DEFAULT_CLOCK_ID, clockPresetById, moveBudgetMs } from "./janggi/clock";
 import type { HistoryEntry } from "./janggi/history";
-import { movesOf, nextEntry, startHistory } from "./janggi/history";
+import { hangulHistory, movesOf, nextEntry, startHistory } from "./janggi/history";
 import { arrowOf, splitMove } from "./janggi/notation";
 import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
@@ -97,7 +97,8 @@ export default function App() {
   /** 새로고침 전에 두던 판. 한 수 이상 둔 판만 되살린다. */
   const savedGame = useMemo(() => {
     const g = readStored<SavedGame | null>("game", null, isSavedGame);
-    return g && g.history.length > 1 ? g : null;
+    // 예전 판은 기보 표기가 한자다(73卒63). 이 판이 끝나 목록에 들 때 한글 표기와 섞이지 않게.
+    return g && g.history.length > 1 ? { ...g, history: hangulHistory(g.history) } : null;
   }, []);
 
   const [playHistory, setPlayHistory] = useState<HistoryEntry[]>(

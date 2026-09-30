@@ -13,6 +13,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
 import { parseFen } from "../../janggi/board";
 import { pageItems, resultTag, whenLabel } from "../../janggi/archive";
+import { SIDE_LABEL } from "../../janggi/pieces";
 import type { ArchivedGame } from "../../janggi/archive";
 import { MiniBoard } from "./MiniBoard";
 
@@ -143,7 +144,7 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
                     <span className="game-meta">
                       {whenLabel(g.endedAt, now)} ·{" "}
                       <span className={"game-side " + g.mySide}>
-                        {g.mySide === "cho" ? "초 楚" : "한 漢"}
+                        {SIDE_LABEL[g.mySide]}
                       </span>{" "}
                       <b className={"game-result " + tag.tone}>{tag.text}</b>
                     </span>

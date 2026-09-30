@@ -5,7 +5,10 @@
 //   가로줄: 위에서부터 1~9, 마지막 열째 줄은 0
 //   좌표는 '가로줄 먼저, 세로줄 나중' 순서로 읽는다.
 // 그래서 초의 궁 자리는 95, 한의 궁 자리는 25가 된다.
-// 기보 한 수는 "출발좌표 기물명 도착좌표" 로 적는다. 예) 03 馬 84
+// 기보 한 수는 "출발좌표 기물명 도착좌표" 로 적는다. 예) 03마84
+//
+// 기물명은 한글이다(차·포·마·상·사·졸·병·궁). 한자(車·馬…)로 적으면 앱 글꼴(Pretendard)에
+// 없는 글자라 기기마다 다른 글꼴로 그려진다. 한자는 판 위 기물에만 새긴다(글꼴이 아니라 그림).
 
 import type { Board } from "./board";
 import { fileIdxOf, rankOf } from "./board";
@@ -46,7 +49,7 @@ export function arrowOf(move: string | null): { from: string; to: string } | nul
 }
 
 export interface MoveNotation {
-  /** 기보용 짧은 표기. 예) 03馬84 */
+  /** 기보용 짧은 표기. 예) 03마84 */
   short: string;
   /** 읽기용 긴 표기. 예) 03 마 → 84 */
   long: string;
@@ -78,7 +81,7 @@ export function describeMove(move: string, before: Board): MoveNotation {
   const b = toJanggiCoord(to);
 
   return {
-    short: `${a}${info.glyph}${b}`,
+    short: `${a}${info.name}${b}`,
     long: `${a} ${info.name} → ${b}${captured ? ` (${captured} 잡음)` : ""}`,
     from,
     to,
@@ -102,6 +105,21 @@ export function describeLine(moves: string[], start: Board): string[] {
     }
   }
   return out;
+}
+
+const HANGUL_OF: Record<string, string> = {
+  車: "차", 包: "포", 馬: "마", 象: "상", 士: "사", 卒: "졸", 兵: "병", 楚: "궁", 漢: "궁",
+};
+
+/**
+ * 한자로 적힌 예전 기보 표기(73卒63)를 지금 표기(73졸63)로.
+ *
+ * 브라우저에 남은 지난 판·두던 판·복기 설명에는 예전 표기가 그대로 들어 있다(2026-09-30
+ * 까지 둔 판). 읽을 때 한 번 거친다. 한자는 기보 표기에만 들어가므로 글자만 바꾸면 되고,
+ * 표기는 숫자로 끝나서 뒤에 붙은 조사(이었/였)도 그대로 맞다.
+ */
+export function hangulNotation(text: string): string {
+  return text.replace(/[車包馬象士卒兵楚漢]/g, (c) => HANGUL_OF[c]);
 }
 
 /**

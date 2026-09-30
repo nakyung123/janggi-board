@@ -19,7 +19,7 @@ const RECORD_FORMAT_V1 = "janggi-board/1";
 export interface RecordMove {
   /** 엔진 좌표. 예: a4b4 */
   move: string;
-  /** 장기 기보 표기. 예: 71卒72 */
+  /** 장기 기보 표기. 예: 71졸72 */
   notation: string;
   /** 초(楚) 기준 평가치. 분석 전이면 없다. */
   score?: number;
