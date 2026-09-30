@@ -7,7 +7,7 @@
 // 복기 칸에도 한 수에 한 줄짜리 수 목록이 있어 같은 수가 두 번 나왔다. 하나로 합치고
 // 모양은 두 수에 한 줄인 기보 쪽을 남겼다 - 장기 기보의 모양이고 높이가 절반이다.
 // 기보 목록에 든 판은 수가 하나 이상이라 빈 목록은 없다. 시작 국면으로는 판 조작 줄의
-// '처음으로' 가 간다. 파일로 저장·링크 공유는 연 판의 머리 줄(App 의 gameBar)에 있다.
+// '처음으로' 가 간다. 파일로 저장은 연 판의 머리 줄(App 의 gameBar)에 있다.
 
 import { useEffect, useMemo, useRef } from "react";
 import type { HistoryEntry } from "../../janggi/history";

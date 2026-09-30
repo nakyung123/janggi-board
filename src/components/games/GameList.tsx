@@ -7,7 +7,7 @@
 // 카카오장기의 기보 타임라인을 따랐다. 한 칸에 상대·언제·어떻게 끝났는지를 적고
 // 오른쪽에 끝난 모양을 작은 판으로 붙인다. 나눌 사람을 전제로 한 것(친구 초대,
 // 프로필 사진, 공개 여부, 좋아요·댓글·즐겨찾기, 전적)은 두지 않는다 - 혼자 엔진과
-// 두는 앱이다. 판을 남에게 보이는 길은 연 판의 '링크 공유' 하나다(받은 판도 이 목록에 든다).
+// 두는 앱이다. 판을 남에게 건네는 길은 연 판의 '저장'(기보 파일) 하나다.
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
@@ -30,7 +30,7 @@ interface Props {
    */
   page: number;
   onPage: (page: number) => void;
-  /** 파일·공유 링크를 못 읽은 까닭. 누른 버튼(파일 불러오기) 옆에 남는다. */
+  /** 파일을 못 읽은 까닭. 누른 버튼(파일 불러오기) 옆에 남는다. */
   error: string | null;
   /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
   freshId: string | null;

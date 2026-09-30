@@ -2,7 +2,7 @@
 //
 // 국면 하나(FEN)만으로는 어떻게 그 자리에 왔는지 알 수 없다. 그래서
 // 시작 국면과 둔 수를 함께 담는다. 평가치도 같이 저장해 두면 다시 열었을 때
-// 형세 그래프가 그대로 살아난다. 공유 링크(share.ts)는 이 모양을 줄여 URL 에 담는다.
+// 형세 그래프가 그대로 살아난다.
 
 import type { ArchivedGame } from "./archive";
 import { newGameId } from "./archive";
@@ -86,10 +86,9 @@ export function parseRecord(text: string): GameRecord {
 }
 
 /**
- * 읽어 들인 값이 기보인지 하나씩 확인해 기보로 만든다. 파일(parseRecord)과 공유 링크
- * (share.ts)가 함께 쓴다 - 들어오는 길이 달라도 같은 검사를 지난다.
+ * 읽어 들인 값(JSON 을 푼 것)이 기보인지 하나씩 확인해 기보로 만든다.
  */
-export function readRecord(raw: unknown): GameRecord {
+function readRecord(raw: unknown): GameRecord {
   if (!raw || typeof raw !== "object") {
     throw new Error("기보가 아닙니다.");
   }
@@ -167,8 +166,8 @@ export function recordOfGame(game: ArchivedGame): GameRecord {
  * 시작 국면에서 수를 하나씩 다시 두며 국면을 되살린다. 출발 자리에 기물이 없는
  * 수를 만나면 그 수를 들어 Error 를 던진다. 수가 규칙에 맞는지는 엔진만 알아서, 불러올 때
  * App 이 따로 묻는다(engine.firstIllegalMove).
- * 기보 표기는 파일에 적힌 것을 쓰지 않고 수순에서 다시 만든다. 공유 링크는 표기를 싣지
- * 않고, 파일의 표기도 대국 탭에서 둔 수와 같은 규칙(nextEntry)으로 만들어야 서로 맞는다.
+ * 기보 표기는 파일에 적힌 것을 쓰지 않고 수순에서 다시 만든다. 예전 파일은 표기가 한자이고,
+ * 대국 탭에서 둔 수와 같은 규칙(nextEntry)으로 만들어야 서로 맞는다.
  * 파일에는 누가 이겼는지만 있고 어떻게 끝났는지는 없어서 결과는 '불러온 기보' 다.
  * 사람이 잡은 쪽을 '나' 로 보고, 둘 다 사람이면 초로 본다.
  */

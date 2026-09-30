@@ -65,7 +65,6 @@ import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
 import { downloadRecord, gameOfRecord, parseRecord, recordOfGame } from "./janggi/record";
 import { bestArrowOf } from "./janggi/review";
-import { decodeShare, encodeShare, sharePayloadOf, shareUrl } from "./janggi/share";
 import type { SavedGame } from "./janggi/savedGame";
 import { isSavedGame } from "./janggi/savedGame";
 import { applySetup, detectSetup } from "./janggi/setups";
@@ -115,7 +114,7 @@ export default function App() {
   const [hover, setHover] = useState<string | null>(null);
   /**
    * 화면 읽기 프로그램에 한 번 말하고 마는 알림. 4초 뒤 비운다. 화면에는 띄우지 않는다 -
-   * 보이는 알림은 누른 자리에 있다(넣은 판의 카드, 목록 제목 아래 한 줄, 링크 버튼의 글자).
+   * 보이는 알림은 누른 자리에 있다(넣은 판의 카드, 목록 제목 아래 한 줄).
    * 떠 있는 알림은 오른쪽 칸의 무언가(복기 설명, 쪽 번호)를 가렸다.
    */
   const [notice, setNotice] = useState<string | null>(null);
@@ -161,12 +160,10 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(null);
   /** 목록에서 보던 쪽. 한 판을 열었다가 '목록' 으로 돌아오면 이 쪽으로 온다. */
   const [listPage, setListPage] = useState(0);
-  /** 파일·링크를 못 읽은 까닭. 목록 제목 아래에 남고, 다음에 무언가를 누르면 지운다. */
+  /** 파일을 못 읽은 까닭. 목록 제목 아래에 남고, 다음에 무언가를 누르면 지운다. */
   const [listError, setListError] = useState<string | null>(null);
   /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
   const [freshId, setFreshId] = useState<string | null>(null);
-  /** 링크 공유를 누른 결과. 공유 버튼의 글자가 2초 동안 말한다. */
-  const [shared, setShared] = useState<ShareResult | null>(null);
   const [viewCursor, setViewCursor] = useState(0);
   /** 연 판은 그 판에서 내가 잡은 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 뒤집기는 그대로다. */
   const [viewFlipped, setViewFlipped] = useState(false);
@@ -689,12 +686,10 @@ export default function App() {
     [review.running]
   );
 
-  /**
-   * 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. 판 객체를 바로
-   * 받는다 - 방금 목록에 넣은 판은 아직 games 에 없다(같은 렌더에서 넣고 연다).
-   */
-  const showGame = (game: ArchivedGame) => {
-    if (review.running) return;
+  /** 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. */
+  const openArchived = (id: string) => {
+    const game = games.find((g) => g.id === id);
+    if (!game || review.running) return;
     setMode("games");
     setOpenId(game.id);
     setViewCursor(game.history.length - 1);
@@ -703,11 +698,6 @@ export default function App() {
     setSelected(null);
     setHover(null);
     review.clearError();
-  };
-
-  const openArchived = (id: string) => {
-    const game = games.find((g) => g.id === id);
-    if (game) showGame(game);
   };
 
   const closeArchived = () => {
@@ -739,7 +729,7 @@ export default function App() {
   };
 
   /**
-   * 밖에서 들어온 판(파일·공유 링크)의 수가 모두 규칙에 맞는지 엔진에 묻는다. 틀린 수가
+   * 파일로 들어온 판의 수가 모두 규칙에 맞는지 엔진에 묻는다. 틀린 수가
    * 있으면 그 수를 들어 Error 를 던진다.
    *
    * 규칙에 맞지 않는 수가 하나라도 있으면 목록에 넣지 않는다. 화면은 그 수를 둔 판을
@@ -775,86 +765,6 @@ export default function App() {
       setListError(`기보를 불러오지 못했습니다. ${messageOf(err)}`);
     }
   };
-
-  // --- 공유 링크 ----------------------------------------------------------
-
-  /**
-   * 연 판을 링크로 건넨다. 폰은 휴대폰 공유 창(카카오톡·메시지 등)을 띄우고, 컴퓨터는
-   * 클립보드에 복사한다. 컴퓨터에도 공유 창을 띄우는 브라우저가 있지만(윈도우의 크롬),
-   * 컴퓨터에서 링크를 건네는 흔한 길은 붙여넣기다. 결과는 공유 버튼이 글자로 알린다(SHARE_SAID).
-   */
-  const shareGame = async (): Promise<ShareResult> => {
-    if (!openGame) return "failed";
-    const url = shareUrl(window.location.href, await encodeShare(recordOfGame(openGame)));
-    if (window.matchMedia("(pointer: coarse)").matches && navigator.share) {
-      try {
-        await navigator.share({ title: "장기 기보", url });
-        return "shared";
-      } catch (err) {
-        // 공유 창을 닫았으면 거기서 끝낸다 - 건네지 않기로 한 것이다. 공유 창을 못 띄웠으면 복사로.
-        if (err instanceof DOMException && err.name === "AbortError") return "cancelled";
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setNotice("링크를 복사했습니다.");
-      return "copied";
-    } catch {
-      return "failed";
-    }
-  };
-
-  /**
-   * 주소의 #g=… 로 받은 판을 기보 목록에 넣고 연다. 파일 불러오기와 같은 검사를 지난다.
-   * 같은 판(시작 국면과 수순이 같은 판)이 이미 목록에 있으면 새로 넣지 않고 그 판을 연다 -
-   * 같은 링크를 두 번 열어도 목록에 두 줄이 생기지 않게. 두던 대국은 그대로다.
-   */
-  const openShared = async (payload: string) => {
-    try {
-      const game = gameOfRecord(await decodeShare(payload));
-      const known = games.find((g) => sameGame(g, game));
-      if (known) {
-        showGame(known);
-        return;
-      }
-      await checkMoves(game);
-      setGames((list) => upsertGame(list, game));
-      showGame(game);
-      setNotice(`받은 기보를 열었습니다. ${game.history.length - 1}수.`);
-    } catch (err) {
-      goMode("games");
-      setListError(`공유 링크를 열지 못했습니다. ${messageOf(err)}`);
-    }
-  };
-
-  /*
-   * 엔진이 준비되면 주소를 본다. 앱이 떠 있는 탭에 다른 링크를 붙여 넣으면 페이지는 새로
-   * 읽히지 않고 # 뒤만 바뀌므로(hashchange) 그것도 듣는다. 읽은 링크는 주소에서 지운다 -
-   * 새로고침할 때마다 같은 판을 또 열지 않게. 듣는 쪽은 한 번만 걸고, 부를 때는 지금 렌더의
-   * openShared(지금의 목록을 본다)를 부른다.
-   */
-  const openSharedRef = useRef(openShared);
-  useEffect(() => {
-    openSharedRef.current = openShared;
-  });
-  useEffect(() => {
-    if (status !== "ready") return;
-    const take = () => {
-      const payload = sharePayloadOf(window.location.hash);
-      if (!payload) return;
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-      void openSharedRef.current(payload);
-    };
-    take();
-    window.addEventListener("hashchange", take);
-    return () => window.removeEventListener("hashchange", take);
-  }, [status]);
-
-  useEffect(() => {
-    if (!shared) return;
-    const t = window.setTimeout(() => setShared(null), 2000);
-    return () => window.clearTimeout(t);
-  }, [shared]);
 
   // 방금 넣은 판의 카드는 3초 동안 도드라진다(GameList).
   useEffect(() => {
@@ -977,11 +887,11 @@ export default function App() {
   const openTag = openGame ? resultTag(openGame) : null;
 
   /*
-   * 연 판의 머리 한 줄: 목록으로 · 어떤 판인지 · 저장 · 공유.
+   * 연 판의 머리 한 줄: 목록으로 · 어떤 판인지 · 저장.
    *
    * 목록으로는 이전·다음과 같은 테두리 버튼이다. 테두리 없는 글자 버튼일 때는 버튼으로
-   * 보이지 않았다. 저장·공유도 이 판에 하는 일이라 같은 줄에 둔다. 폰은 오른쪽 칸이 판
-   * 아래로 내려가 판을 지나야 보이므로, 이 줄만 판 위로 올린다.
+   * 보이지 않았다. 저장도 이 판에 하는 일이라 같은 줄에 둔다. 폰은 오른쪽 칸이 판 아래로
+   * 내려가 판을 지나야 보이므로, 이 줄만 판 위로 올린다.
    */
   const gameBar = openGame && openTag && (
     <div className="game-back">
@@ -994,18 +904,9 @@ export default function App() {
         <b className={"game-result " + openTag.tone}>{openTag.text}</b> · vs {openGame.levelName} ·{" "}
         {whenLabel(openGame.endedAt)}
       </span>
-      <span className="game-back-actions">
-        <button type="button" onClick={saveRecord} aria-label="파일로 저장">
-          저장
-        </button>
-        <button
-          type="button"
-          onClick={async () => setShared(await shareGame())}
-          aria-label={shared && SHARE_SAID[shared] ? SHARE_SAID[shared] : "링크 공유"}
-        >
-          {(shared && SHARE_SAID[shared]) ?? "공유"}
-        </button>
-      </span>
+      <button type="button" className="save" onClick={saveRecord} aria-label="파일로 저장">
+        저장
+      </button>
     </div>
   );
 
@@ -1218,23 +1119,6 @@ export default function App() {
 }
 
 /** 던져진 값에서 사람에게 보일 말을 꺼낸다. */
-/**
- * 링크 공유를 누른 결과. 폰의 공유 창은 그 창이 곧 알림이라 따로 알리지 않고,
- * 복사는 눈에 보이는 것이 없어서 버튼 글자가 2초 동안 결과를 말한다.
- */
-type ShareResult = "copied" | "shared" | "cancelled" | "failed";
-const SHARE_SAID: Partial<Record<ShareResult, string>> = {
-  copied: "복사됨",
-  failed: "복사 못 함",
-};
-
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
-}
-
-/** 시작 국면과 수순이 같은 판인가. 공유 링크로 이미 받은 판을 또 받았는지 가린다. */
-function sameGame(a: ArchivedGame, b: ArchivedGame): boolean {
-  const key = (g: ArchivedGame) =>
-    positionKey({ startFen: g.history[0].fen, moves: movesOf(g.history) });
-  return key(a) === key(b);
 }
