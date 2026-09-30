@@ -511,15 +511,43 @@ export default function App() {
 
   // --- 기보 오가기 --------------------------------------------------------
 
+  /*
+   * 기보를 오간다. 한 칸만 움직일 때는 기물이 날아간다.
+   *
+   * 예전에는 되짚어 볼 때 기물이 순간이동했다. 한 수씩 짚어 보는 것이 복기의 전부인데,
+   * 무엇이 어디서 어디로 갔는지를 눈이 따라가지 못해 매번 두 판을 머릿속에서 비교해야
+   * 했다. 날려 주면 그 일을 눈이 한다.
+   *
+   * 두 칸 이상(처음·끝·무르기·슬라이더로 멀리)은 날리지 않는다. 지나친 수를 다 건너뛰는
+   * 것이라 날릴 '한 수' 가 없고, 한 수만 날리면 나머지가 순간이동한 것처럼 보여 오히려
+   * 거짓말이 된다.
+   */
   const goTo = useCallback(
     (i: number) => {
-      setCursor((c) => {
-        const next = Math.max(0, Math.min(history.length - 1, i));
-        if (next !== c) setSelected(null);
-        return next;
-      });
+      const next = Math.max(0, Math.min(history.length - 1, i));
+      if (next === cursor) return;
+      setSelected(null);
+
+      // 앞으로 한 칸이면 그 수를, 뒤로 한 칸이면 그 수를 거꾸로 날린다.
+      const step = next === cursor + 1 ? history[next].move : null;
+      const back = next === cursor - 1 ? history[cursor].move : null;
+      const mv = step ?? back;
+      const { from, to } = mv ? splitMove(mv) : { from: "", to: "" };
+      setFly(
+        from && to && from !== to
+          ? {
+              from: (step ? from : to) as Square,
+              to: (step ? to : from) as Square,
+              // 앞으로 갈 때 잡힌 기물은 날아오는 동안 제자리에 남는다.
+              captured: step ? parseFen(history[cursor].fen).board[to] : undefined,
+              ply: next,
+              key: Date.now(),
+            }
+          : null
+      );
+      setCursor(next);
     },
-    [history.length, setCursor]
+    [cursor, history, setCursor]
   );
 
   /**
@@ -675,6 +703,9 @@ export default function App() {
       setListPage(0);
       setListError(null);
       setSelected(null);
+      // 탭을 옮기면 판이 통째로 바뀐다. 남아 있던 '날아가는 수' 가 새 판에서 같은 국면
+      // 번호를 만나 엉뚱하게 날지 않도록 지운다.
+      setFly(null);
     },
     [review.running]
   );
@@ -689,6 +720,7 @@ export default function App() {
     setViewFlipped(game.mySide === "han");
     setListError(null);
     setSelected(null);
+    setFly(null);
     review.clearError();
   };
 
@@ -954,8 +986,8 @@ export default function App() {
                   onMove={handleMove}
                   onPick={handleSquareClick}
                   canPick={canPick}
-                  // 대국 탭에서, 방금 둔 그 국면을 보고 있을 때만 난다.
-                  flyMove={mode === "play" && fly && fly.ply === playCursor ? fly : null}
+                  // 지금 보고 있는 국면이 방금 난 그 국면일 때만 난다. 두 탭 모두에서.
+                  flyMove={fly && fly.ply === cursor ? fly : null}
                   callout={mode === "play" ? callout : null}
                 />
               </div>
@@ -1016,12 +1048,13 @@ export default function App() {
             )}
 
             {/*
-              형세가 위, 복기가 아래 - 판 전체의 흐름을 먼저 보고 한 수씩 들어간다. 형세는
-              복기 전에는 그릴 것이 없어 뜨지 않는다. 수는 판 조작 줄과 형세 그래프로 옮긴다.
+              형세가 위, 복기가 아래 - 지금 국면의 형세를 보고 그 수의 설명으로 들어간다.
+              형세는 복기 전에는 그릴 것이 없어 뜨지 않는다. 수를 옮기는 것은 판 조작 줄이
+              (이전·다음과 수 슬라이더로) 맡는다.
             */}
             {openGame && (
               <>
-                <EvalGraph history={history} cursor={cursor} onJump={goTo} />
+                <EvalGraph history={history} cursor={cursor} />
                 <ReviewPanel
                   moveCount={openGame.history.length - 1}
                   depthId={reviewDepthId}

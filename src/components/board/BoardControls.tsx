@@ -1,6 +1,7 @@
 // 판 조작 줄 — 오른쪽 칸의 버튼 두 줄
 //
 //   윗줄: 처음 · 무르기(이전) · 다시(다음) · 끝   — 기보를 오간다
+//   가운데: 수 슬라이더 (되짚어 보는 판에만)       — 멀리 있는 수로 건너뛴다
 //   아랫줄: 판 뒤집기 · 한수쉼                     — 판에 손댄다
 //
 // 판 아래가 아니라 오른쪽 칸에 둔다. 이 앱은 페이지가 스크롤되지 않아 남는 세로가 곧
@@ -48,6 +49,18 @@ export function BoardControls(props: Props) {
   const undoing = mode === "play" && !finished;
 
   /*
+   * 수 슬라이더. 되짚어 보는 판(기보 탭·끝난 판)에만, 오갈 수가 있을 때만 둔다.
+   *
+   * 예전에는 형세 그래프를 눌러 건너뛰었다. 그래프를 빼면서 이리로 옮겼는데, 오히려
+   * 이 자리가 맞다 - 그래프는 복기를 돌린 뒤에야 떠서 그 전에는 건너뛸 방법이 아예
+   * 없었다. 슬라이더는 수가 몇이든 모양이 같고 복기와도 무관하다.
+   *
+   * 두는 중인 대국에는 두지 않는다. 거기서 뒤로 가는 것은 '무르기' 라 내 차례까지
+   * 되감는 규칙이 따로 있고, 끌어서 아무 데나 가면 그 규칙과 어긋난다.
+   */
+  const scrubbing = !undoing && last > 0;
+
+  /*
    * 두 줄로 나눈다.
    *
    * 여섯 개를 한 줄에 두면 오른쪽 칸(400px) 에 다 들어가지 않아 마지막 하나가
@@ -93,6 +106,23 @@ export function BoardControls(props: Props) {
           <ChevronsRight {...ICON} />
         </button>
       </div>
+
+      {scrubbing && (
+        <div className="move-scrub">
+          <input
+            type="range"
+            min={0}
+            max={last}
+            step={1}
+            value={cursor}
+            onChange={(e) => onJump(Number(e.target.value))}
+            aria-label="수 옮기기"
+          />
+          <span className="move-scrub-no">
+            {cursor}/{last}수
+          </span>
+        </div>
+      )}
 
       <div className="board-actions">
         <button type="button" onClick={onFlip}>

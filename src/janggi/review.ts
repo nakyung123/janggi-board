@@ -55,14 +55,13 @@ export const GRADE_LABEL: Record<MoveGrade, string> = {
   blunder: "악수",
 };
 
-/** 목록에서 한눈에 구분되게 붙이는 기호 */
-export const GRADE_MARK: Record<MoveGrade, string> = {
-  best: "★",
-  good: "·",
-  inaccuracy: "?!",
-  mistake: "?",
-  blunder: "??",
-};
+/*
+ * 등급 기호(★ · ?! ? ??)는 두지 않는다.
+ *
+ * 체스에서 온 표기라 장기 두는 사람에게는 배경 지식을 요구한다. 게다가 바로 옆에
+ * "악수" 라고 이름이 적혀 있어서, 기호는 같은 말을 한 번 더 하는 것이었다.
+ * 등급은 이름과 색으로만 말한다.
+ */
 
 /**
  * 둔 쪽 승률이 떨어진 폭(0~1)을 등급으로 나누는 경계. chess.com·lichess 처럼 승률로
@@ -174,6 +173,11 @@ export interface ReviewedMove {
   mover: Side;
   played: string;
   playedNotation: string;
+  /**
+   * 좌표를 몰라도 읽히게 풀어 쓴 말. 예) "차를 앞으로 1칸 옮겼습니다."
+   * 브라우저에 남아 있는 예전 복기에는 없어서 물음표를 붙인다.
+   */
+  playedPlain?: string;
   best: string | null;
   bestNotation: string | null;
   scoreBefore: number;
@@ -208,7 +212,8 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
   const winDrop = playedBest ? 0 : Math.max(0, mover === "cho" ? choDrop : -choDrop);
   const grade = gradeOf(winDrop, playedBest);
 
-  const playedNotation = describeMove(played, before).short;
+  const playedTold = describeMove(played, before);
+  const playedNotation = playedTold.short;
   const bestNotation = best ? describeMove(best, before).short : null;
 
   return {
@@ -216,6 +221,7 @@ export function reviewMove(input: ReviewInput): ReviewedMove {
     mover,
     played,
     playedNotation,
+    playedPlain: playedTold.plain,
     best,
     bestNotation,
     scoreBefore,

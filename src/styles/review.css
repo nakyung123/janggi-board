@@ -236,3 +236,9 @@
 .graph .muted.small {
   margin-top: 8px;
 }
+
+/* 기보 표기를 풀어 쓴 한 줄. 표기 바로 아래, 평가 문장 위에 둔다 -
+   '무슨 수였나' 를 먼저 알아야 '그래서 어땠나' 가 읽힌다. */
+.review-plain {
+  margin-bottom: 8px;
+}

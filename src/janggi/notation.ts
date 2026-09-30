@@ -13,6 +13,7 @@
 import type { Board } from "./board";
 import { fileIdxOf, rankOf } from "./board";
 import { pieceInfo, sideOf } from "./pieces";
+import { 을를 } from "./korean";
 
 /** 엔진 좌표(a1~i10) → 장기 좌표 두 자리 문자열 */
 export function toJanggiCoord(square: string): string {
@@ -56,6 +57,43 @@ export interface MoveNotation {
   to: string;
   /** 잡은 기물의 한글 이름 */
   captured: string | null;
+  /**
+   * 좌표를 모르는 사람도 읽을 수 있게 풀어 쓴 말. 예) "차를 앞으로 1칸 옮겼습니다."
+   *
+   * 기보 표기(59차69)는 좌표를 읽을 줄 알아야 뜻이 생긴다. 장기를 처음 보는 사람에게는
+   * 네 자리 숫자일 뿐이라, 복기가 무슨 수를 말하는지부터 막힌다.
+   */
+  plain: string;
+}
+
+/**
+ * 한 수를 진영 기준으로 풀어 쓴다.
+ *
+ * '위/아래' 가 아니라 '앞/뒤' 로 적는다. 판은 뒤집을 수 있어서 위아래가 보는 사람마다
+ * 다르지만, 앞뒤는 둔 쪽이 정해지면 하나로 정해진다. 초는 가로줄 번호가 작아지는 쪽이
+ * (한 진영 쪽이) 앞이고, 한은 반대다.
+ */
+function plainMove(
+  from: string,
+  to: string,
+  side: "cho" | "han",
+  piece: string,
+  captured: string | null
+): string {
+  // 엔진 좌표의 rank 는 아래(초 뒷줄)가 1, 위(한 뒷줄)가 10이다.
+  const dRank = rankOf(to) - rankOf(from);
+  const dFile = fileIdxOf(to) - fileIdxOf(from);
+  const 앞 = side === "cho" ? dRank : -dRank;
+  const 오른 = side === "cho" ? dFile : -dFile;
+
+  const 걸음: string[] = [];
+  if (앞 !== 0) 걸음.push(`${앞 > 0 ? "앞으로" : "뒤로"} ${Math.abs(앞)}칸`);
+  if (오른 !== 0) 걸음.push(`${오른 > 0 ? "오른쪽으로" : "왼쪽으로"} ${Math.abs(오른)}칸`);
+
+  const 움직임 = 걸음.join(" ");
+  // 을를 은 낱말까지 함께 돌려준다("사" → "사를"). 낱말을 앞에 또 붙이면 "사사를" 이 된다.
+  if (captured) return `${을를(piece)} ${움직임} 옮겨 ${을를(captured)} 잡았습니다.`;
+  return `${을를(piece)} ${움직임} 옮겼습니다.`;
 }
 
 /** 두기 직전의 판을 기준으로 한 수를 기보로 옮긴다. */
@@ -64,11 +102,18 @@ export function describeMove(move: string, before: Board): MoveNotation {
   const piece = before[from];
 
   if (!piece) {
-    return { short: move, long: move, from, to, captured: null };
+    return { short: move, long: move, from, to, captured: null, plain: move };
   }
 
   if (from === to) {
-    return { short: "한수쉼", long: "한수쉼", from, to, captured: null };
+    return {
+      short: "한수쉼",
+      long: "한수쉼",
+      from,
+      to,
+      captured: null,
+      plain: "한수쉼 - 궁을 제자리에 두었습니다.",
+    };
   }
 
   const info = pieceInfo(piece);
@@ -85,6 +130,7 @@ export function describeMove(move: string, before: Board): MoveNotation {
     from,
     to,
     captured,
+    plain: plainMove(from, to, sideOf(piece), info.name, captured),
   };
 }
 

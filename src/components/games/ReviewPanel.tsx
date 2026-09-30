@@ -16,7 +16,7 @@ import {
   어림시간,
 } from "../../engine/levels";
 import type { ReviewProgress, ReviewedMove } from "../../janggi/review";
-import { GRADE_LABEL, GRADE_MARK, winPercent } from "../../janggi/review";
+import { GRADE_LABEL, winPercent } from "../../janggi/review";
 import { SIDE_LABEL } from "../../janggi/pieces";
 
 interface Props {
@@ -143,11 +143,14 @@ function MoveComment({ r, nth }: { r: ReviewedMove; nth: number }) {
         <span className="muted">
           {SIDE_LABEL[r.mover]}의 {nth}번째 수
         </span>
-        <span className="review-grade">
-          {r.grade !== "good" && GRADE_MARK[r.grade] + " "}
-          {GRADE_LABEL[r.grade]}
-        </span>
+        {/* 등급은 이름과 색으로만 말한다. 체스 기호(??·?!)는 뺐다 - 옆에 "악수" 라고
+            이미 적혀 있어서 같은 말을 한 번 더 하는 것이었다. */}
+        <span className="review-grade">{GRADE_LABEL[r.grade]}</span>
       </div>
+
+      {/* 기보 표기(59차69)는 좌표를 읽을 줄 알아야 뜻이 생긴다. 무슨 수였는지를
+          먼저 말로 한 줄 적는다. 예전에 둔 판의 복기에는 이 값이 없다. */}
+      {r.playedPlain && <p className="review-plain muted">{r.playedPlain}</p>}
 
       {verdict && <p className="review-verdict">{verdict}</p>}
 

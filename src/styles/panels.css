@@ -349,6 +349,82 @@
 }
 
 /* 기보를 오가는 줄과 판에 손대는 줄 사이. */
-.board-controls .board-actions + .board-actions {
+.board-controls .board-actions + .board-actions,
+.board-controls .move-scrub + .board-actions {
   margin-top: 8px;
+}
+
+/* --- 수 슬라이더 -------------------------------------------------------- */
+
+/*
+ * 되짚어 보는 판에서 멀리 있는 수로 건너뛴다(BoardControls.tsx). 예전에는 형세
+ * 그래프를 눌러 갔는데, 그건 복기를 돌린 뒤에야 떴다.
+ *
+ * 브라우저 기본 모양을 지우고 직접 그린다. 크롬·사파리(-webkit-)와 파이어폭스(-moz-)의
+ * 손잡이 이름이 달라서 같은 값을 두 번 적는다 - 한 줄에 묶으면 모르는 규칙 하나 때문에
+ * 둘 다 버려진다.
+ */
+.move-scrub {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.move-scrub input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.move-scrub input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--line-strong);
+}
+
+.move-scrub input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--line-strong);
+}
+
+/* 손잡이는 먹. 판 위 표시가 아니라 손으로 쥐는 것이라 진영색·파랑을 쓰지 않는다.
+   터치 기기에서도 40 높이 안에서 잡히므로 크기는 그대로 둔다. */
+.move-scrub input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--ink);
+}
+
+.move-scrub input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 9999px;
+  background: var(--ink);
+}
+
+.move-scrub input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* 숫자 칸은 자릿수가 바뀌어도 흔들리지 않게 고정폭. */
+.move-scrub-no {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
