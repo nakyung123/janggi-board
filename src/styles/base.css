@@ -237,9 +237,16 @@ button {
   transition: background 0.14s, border-color 0.14s;
 }
 
-button:hover:not(:disabled) {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
+/*
+ * hover 모양은 마우스가 있는 기기에서만 쓴다(아래 hover 규칙은 전부 이렇게 감싼다).
+ * 터치 기기는 누른 자리에 :hover 가 다른 곳을 누를 때까지 남아서, 방금 누른 버튼·카드가
+ * 골라 둔 것처럼 보인다.
+ */
+@media (hover: hover) {
+  button:hover:not(:disabled) {
+    background: var(--panel-2);
+    border-color: var(--line-strong);
+  }
 }
 
 select,
@@ -274,9 +281,11 @@ button.ghost {
   border-color: transparent;
 }
 
-button.ghost:hover:not(:disabled) {
-  background: var(--panel-2);
-  border-color: transparent;
+@media (hover: hover) {
+  button.ghost:hover:not(:disabled) {
+    background: var(--panel-2);
+    border-color: transparent;
+  }
 }
 
 button.primary {
@@ -286,9 +295,11 @@ button.primary {
   padding: 0 20px;
 }
 
-button.primary:hover:not(:disabled) {
-  background: var(--ink-hover);
-  border-color: var(--ink-hover);
+@media (hover: hover) {
+  button.primary:hover:not(:disabled) {
+    background: var(--ink-hover);
+    border-color: var(--ink-hover);
+  }
 }
 
 /*
@@ -302,9 +313,11 @@ button.primary.danger {
   border-color: var(--han);
 }
 
-button.primary.danger:hover:not(:disabled) {
-  background: var(--han-strong);
-  border-color: var(--han-strong);
+@media (hover: hover) {
+  button.primary.danger:hover:not(:disabled) {
+    background: var(--han-strong);
+    border-color: var(--han-strong);
+  }
 }
 
 /* 글 속의 링크 같은 버튼. 문장 줄 높이를 따른다. */

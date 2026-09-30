@@ -120,9 +120,11 @@
   white-space: nowrap;
 }
 
-.seg button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.6);
-  border-color: transparent;
+@media (hover: hover) {
+  .seg button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.6);
+    border-color: transparent;
+  }
 }
 
 .seg button.active {
@@ -216,9 +218,11 @@
   text-align: left;
 }
 
-.dropdown-trigger:hover:not(:disabled) {
-  background: var(--panel);
-  border-color: var(--ink);
+@media (hover: hover) {
+  .dropdown-trigger:hover:not(:disabled) {
+    background: var(--panel);
+    border-color: var(--ink);
+  }
 }
 
 .dropdown-trigger[aria-expanded="true"] {

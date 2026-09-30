@@ -256,8 +256,10 @@
   }
 }
 
-.review-item:hover:not(:disabled) {
-  background: var(--panel-2);
+@media (hover: hover) {
+  .review-item:hover:not(:disabled) {
+    background: var(--panel-2);
+  }
 }
 
 .review-item.active {

@@ -80,9 +80,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.pager button:hover:not(:disabled) {
-  background: var(--panel-2);
-  border-color: transparent;
+@media (hover: hover) {
+  .pager button:hover:not(:disabled) {
+    background: var(--panel-2);
+    border-color: transparent;
+  }
 }
 
 .pager button[aria-current="page"],
@@ -126,8 +128,10 @@
   font-weight: 400;
 }
 
-.game-card:hover {
-  border-color: var(--line-strong);
+@media (hover: hover) {
+  .game-card:hover {
+    border-color: var(--line-strong);
+  }
 }
 
 .game-text {
