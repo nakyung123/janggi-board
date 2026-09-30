@@ -954,9 +954,6 @@ export default function App() {
                 levelId={levelId}
                 started={started}
                 ended={ended}
-                status={gstatus}
-                resigned={resigned}
-                flagged={flagged}
                 clockId={clockId}
                 onClock={setClockId}
                 variant={prefs.variant}
