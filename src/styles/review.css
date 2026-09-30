@@ -81,9 +81,13 @@
    minmax(0, ...) 가 있어야 한다. 그냥 1fr 은 칸의 최소 크기가 '자식의
    min-content' 라서, 안에 든 등급 이름(최선수·부정확·실수·악수)이 줄지 않고
    카드가 패널 밖으로 삐져나간다. 실제로 '악수' 가 잘려 나갔다. */
+/*
+ * 초·한 성적표를 위아래로 쌓는다. 나란히 두면 한 쪽이 170 남짓이라 등급 다섯이 한 줄에
+ * 못 들어가 2·2·1 로 서고, '악수' 하나만 셋째 줄에 혼자 남는다. 쌓으면 다섯이 한 줄에
+ * 서고, 두 표의 같은 등급이 위아래로 맞아 초와 한을 견주기도 쉽다.
+ */
 .review-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -110,12 +114,12 @@
   list-style: none;
   display: grid;
   /*
-   * 2×2 다. 한 줄에 넷을 놓으면 칸이 44px 밖에 안 되는데 '최선수'·'부정확' 은
-   * 16px 글자로 64px 쯤 필요해서 이름끼리 맞붙는다. 글자를 줄이지 않기로 한
-   * 이상 줄을 나누는 쪽이 맞다.
+   * 다섯 등급을 한 줄에. '좋은 수' 가 16px 글자로 52 쯤이라 칸 사이를 띄우지 않는다 -
+   * 360 폰에서 칸이 54 라 사이를 두면 이름끼리 맞붙는다. 이름은 가운데 맞춤이라
+   * 칸 사이가 없어도 떨어져 보인다.
    */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px 0;
   margin-bottom: 8px;
 }
 
