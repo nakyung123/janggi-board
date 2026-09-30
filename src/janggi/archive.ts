@@ -186,11 +186,19 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
   );
 }
 
-/** 읽어 온 목록에서 멀쩡한 판만 새 순서로. 목록 모양조차 아니면 빈 목록. */
+/**
+ * 읽어 온 목록에서 멀쩡한 판만 새 순서로. 목록 모양조차 아니면 빈 목록.
+ *
+ * 수보다 복기 결과가 적은 판은 '복기 전' 으로 되돌린다. 중간에 멈춘 복기가 그대로
+ * 저장되던 때(2945fdb 까지)의 판이다 - 두면 '복기함' 이 붙은 채 성적표가 0수로 뜬다.
+ */
 export function readArchive(v: unknown): ArchivedGame[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter(isArchivedGame)
+    .map((g) =>
+      g.reviewed && g.reviewed.length !== g.history.length - 1 ? { ...g, reviewed: null } : g
+    )
     .sort((a, b) => b.endedAt - a.endedAt)
     .slice(0, ARCHIVE_LIMIT);
 }

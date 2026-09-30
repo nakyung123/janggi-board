@@ -132,6 +132,11 @@ describe("읽어 온 목록", () => {
     expect(isArchivedGame(판({ history: 판().history.slice(0, 1) }))).toBe(false);
   });
 
+  it("중간에 멈춘 복기는 복기 전으로 읽는다", () => {
+    // 수는 하나인데 복기 결과가 없다(빈 목록) - 멈춘 복기가 저장된 판
+    expect(readArchive([판({ reviewed: [] })])[0].reviewed).toBeNull();
+  });
+
   it("목록이 아니면 빈 목록", () => {
     expect(readArchive({ 판: 1 })).toEqual([]);
     expect(readArchive(null)).toEqual([]);

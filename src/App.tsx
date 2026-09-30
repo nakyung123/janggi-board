@@ -725,7 +725,10 @@ export default function App() {
 
   // --- 복기 -------------------------------------------------------------
 
-  /** 연 판을 복기하고, 얻은 평가치·등급을 목록의 그 판에 남긴다(다시 열 때 또 돌리지 않게). */
+  /**
+   * 연 판을 복기하고, 얻은 평가치·등급을 목록의 그 판에 남긴다(다시 열 때 또 돌리지 않게).
+   * 중간에 멈춘 복기는 남기지 않는다 - 그 판은 복기 전(또는 지난 복기) 그대로다.
+   */
   const startReview = async () => {
     const game = openGame;
     if (!game) return;
@@ -734,11 +737,11 @@ export default function App() {
       { ...prefs, variant, multiPV: 1, skill: 20 },
       reviewDepthById(reviewDepthId).nodes
     );
-    if (!run) return;
+    if (!run?.complete) return;
     setGames((list) =>
       list.map((g) => (g.id === game.id ? { ...g, history: run.history, reviewed: run.reviewed } : g))
     );
-    if (!run.stopped) setNotice("복기가 끝났습니다.");
+    setNotice("복기가 끝났습니다.");
   };
 
   useEffect(() => {

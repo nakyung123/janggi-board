@@ -21,8 +21,11 @@ export interface ReviewRun {
   /** 국면마다 복기로 얻은 평가치를 적은 기보. 형세 그래프의 재료가 된다. */
   history: HistoryEntry[];
   reviewed: ReviewedMove[];
-  /** 사람이 멈췄는지 */
-  stopped: boolean;
+  /**
+   * 모든 수를 다 짚었는지. 중간에 멈추면 runReview 가 빈 목록이나 앞쪽 일부만
+   * 돌려준다. 그것을 저장하면 목록에 '복기함' 이 붙고 성적표가 0수로 뜬다.
+   */
+  complete: boolean;
 }
 
 export function useReview(engine: JanggiEngine | null) {
@@ -72,7 +75,7 @@ export function useReview(engine: JanggiEngine | null) {
           if (history[r.index]) history[r.index] = { ...history[r.index], score: r.scoreAfter };
         }
       }
-      return { history, reviewed, stopped: stopRequested.current };
+      return { history, reviewed, complete: reviewed.length === moves.length };
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       return null;
