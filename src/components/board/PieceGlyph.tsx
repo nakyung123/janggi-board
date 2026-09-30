@@ -64,6 +64,7 @@ export function PieceGlyph({ piece, radius, color }: GlyphProps) {
   const glyph = GLYPHS[piece];
   return (
     <g
+      className="piece-glyph"
       fill={color ?? GLYPH_COLOR[sideOf(piece)]}
       transform={glyphTransform(glyph, radius)}
       pointerEvents="none"

@@ -6,10 +6,14 @@
 //
 // 큰 판(Board.tsx)과 같은 좌표를 쓰되 눌리지 않고, 빗면·그림자·나무결 없이
 // 납작하게 그린다. 목록에 수십 장이 서므로 가벼워야 한다.
+//
+// 기물 글자는 7px 남짓이라 화면 밀도가 낮으면(컴퓨터 화면) 뭉개진 얼룩이 된다. 그런
+// 화면에서는 글자를 빼고 몸통을 진영색으로 칠한다(games.css). 폰처럼 밀도가 높으면
+// 車·包 정도는 알아볼 만해서 글자를 그대로 둔다. 그래서 진영을 data-side 로 달아 둔다.
 
 import type { Board as BoardMap } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
-import { pieceInfo } from "../../janggi/pieces";
+import { pieceInfo, sideOf } from "../../janggi/pieces";
 import type { PieceChar } from "../../janggi/pieces";
 import { PieceBody } from "../board/PieceGlyph";
 
@@ -72,6 +76,7 @@ export function MiniBoard({ board, flipped }: Props) {
             // 뒤집어도 글자는 바로 서야 한다. 판을 돌린 만큼 기물을 되돌린다.
             <g
               key={s}
+              data-side={sideOf(piece as PieceChar)}
               transform={
                 `translate(${cx} ${cy})` + (flipped ? " rotate(180)" : "")
               }

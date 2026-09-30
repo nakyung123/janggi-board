@@ -214,8 +214,7 @@
 /* --- 작은 판 ------------------------------------------------------------ */
 /*
  * 목록 카드의 끝난 모양(MiniBoard.tsx). 나무색은 판 그림의 일부라 토큰과 따로
- * 둔다(큰 판과 같은 값). 이 크기에서는 기물 글자가 읽히지 않지만, 진영색 점의
- * 배치만으로 어떤 판이었는지 떠오른다.
+ * 둔다(큰 판과 같은 값). 기물이 어디에 어느 편으로 남았는지로 어떤 판이었는지 떠오른다.
  */
 .mini-board {
   width: 112px;
@@ -231,6 +230,26 @@
   stroke: #6b4a1f;
   stroke-width: 2.5;
   opacity: 0.55;
+}
+
+/*
+ * 화면 밀도가 낮으면(1.5 배 아래 - 대개 컴퓨터 화면) 기물 글자를 빼고 몸통을 진영색으로
+ * 칠한다. 112 폭에서 글자는 7px 남짓이라 그런 화면에서는 뭉개진 얼룩이 된다 - 얼룩보다
+ * 또렷한 진영색 점이 낫다. 폰처럼 밀도가 2 배 넘는 화면은 車·包 정도가 알아볼 만해서
+ * 글자를 둔다.
+ */
+@media (max-resolution: 1.49dppx) {
+  .mini-board .piece-glyph {
+    display: none;
+  }
+
+  .mini-board [data-side="cho"] .piece-rim.flat {
+    fill: var(--cho);
+  }
+
+  .mini-board [data-side="han"] .piece-rim.flat {
+    fill: var(--han);
+  }
 }
 
 @media (max-width: 900px) {
