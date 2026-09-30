@@ -711,10 +711,27 @@ export default function App() {
     if (openGame) downloadRecord(recordOfGame(openGame));
   };
 
-  /** 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다. */
+  /**
+   * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
+   *
+   * 규칙에 맞지 않는 수가 하나라도 있으면 넣지 않는다. 화면은 그 수를 둔 판을 그리는데
+   * 엔진은 그 수를 받지 않고 앞 국면에 머물러서, 장군·복기가 화면과 다른 판을 두고 말한다.
+   * 판을 열 때와 같은 규칙으로 가린다(위의 variant 와 같은 식).
+   */
   const loadRecord = async (file: File) => {
+    if (!engine) return;
     try {
       const game = gameOfRecord(parseRecord(await file.text()));
+      const bad = await engine.firstIllegalMove(
+        isVariant(game.variant) ? game.variant : prefs.variant,
+        game.history[0].fen,
+        movesOf(game.history)
+      );
+      if (bad !== null) {
+        throw new Error(
+          `${bad + 1}번째 수(${game.history[bad + 1].notation})가 규칙에 맞지 않아 기보를 불러오지 않았습니다.`
+        );
+      }
       setGames((list) => upsertGame(list, game));
       setListPage(0);
       setNotice(`기보를 불러왔습니다. ${game.history.length - 1}수.`);

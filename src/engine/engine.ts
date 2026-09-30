@@ -11,6 +11,7 @@ import type {
   EngineOptions,
   LoadProgress,
   SearchLimits,
+  Variant,
 } from "./types";
 import { positionCommand } from "./types";
 import { parseInfo, parsePerftMoves } from "./uci";
@@ -264,6 +265,40 @@ export class JanggiEngine {
       const legal = parsePerftMoves(await listed);
 
       return { fen: normalized, checkers, legal };
+    });
+  }
+
+  /**
+   * 기보의 수가 모두 규칙에 맞는지 가린다. 맞지 않는 첫 수의 번호(0부터)를, 다 맞으면
+   * null 을 돌려준다.
+   *
+   * 앞에서부터 한 수씩 국면을 물리고 합법수(go perft 1)에 다음 수가 있는지 본다. 수순을
+   * 통째로 넘겨서는 알 수 없다 - position 명령은 규칙에 어긋난 수를 만나면 말없이 거기서
+   * 멈추고, 엔진은 그 앞 국면에 머문 채 아무 일 없다는 듯 답한다.
+   *
+   * 합법수는 규칙마다 다를 수 있어 기보의 규칙으로 잠깐 바꿔 묻고, 끝나면 지금 설정으로
+   * 되돌린다. 되돌릴 때는 설정 전체를 다시 건다 - 규칙을 바꾸면 신경망도 다시 물려야 한다
+   * (applyOptions 주석 참고).
+   */
+  async firstIllegalMove(
+    variant: Variant,
+    startFen: string,
+    moves: string[]
+  ): Promise<number | null> {
+    return this.queue(async () => {
+      const switched = variant !== this.options.variant;
+      if (switched) this.send("setoption name UCI_Variant value " + variant);
+      try {
+        for (let i = 0; i < moves.length; i++) {
+          this.send(positionCommand({ startFen, moves: moves.slice(0, i) }));
+          const listed = this.collect((l) => l.startsWith("Nodes searched"));
+          this.send("go perft 1");
+          if (!parsePerftMoves(await listed).includes(moves[i])) return i;
+        }
+        return null;
+      } finally {
+        if (switched) await this.applyOptions();
+      }
     });
   }
 
