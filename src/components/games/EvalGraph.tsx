@@ -8,7 +8,7 @@
 // 대국 중에는 점수를 매기지 않으므로, 복기를 돌려야 그래프가 생긴다.
 
 import { ChartLine } from "lucide-react";
-import type { HistoryEntry } from "./MoveList";
+import type { HistoryEntry } from "../../janggi/history";
 
 interface Props {
   history: HistoryEntry[];

@@ -5,7 +5,7 @@
 
 import { useId } from "react";
 import { LEVELS, levelById, levelWaitLabel } from "../../engine/levels";
-import type { EngineOptions } from "../../engine/types";
+import type { Variant } from "../../engine/types";
 import { CLOCK_PRESETS, describeClock } from "../../janggi/clock";
 import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
@@ -34,7 +34,7 @@ import { Dropdown } from "../common/Dropdown";
  * 설명은 무엇이 다른지만 적는다. 셋 다 한 줄 남짓이 되게 줄였다.
  * 양쪽이 한수쉼을 이어 두면 판이 끝나는 것은 셋이 같다(점수제면 점수로, 전통은 비김).
  */
-const VARIANTS: { id: EngineOptions["variant"]; label: string; desc: string }[] = [
+const VARIANT_OPTIONS: { id: Variant; label: string; desc: string }[] = [
   { id: "janggi", label: "표준", desc: "빅장은 점수로 · 200수 뒤 점수로" },
   { id: "janggimodern", label: "현대(카카오)", desc: "빅장 없음 · 같은 수 되풀이 금지 · 200수 뒤 점수로" },
   { id: "janggitraditional", label: "전통", desc: "빅장은 무승부 · 점수제 없음" },
@@ -57,8 +57,8 @@ interface Props {
   flagged: Side | null;
   clockId: string;
   onClock: (id: string) => void;
-  variant: EngineOptions["variant"];
-  onVariant: (v: EngineOptions["variant"]) => void;
+  variant: Variant;
+  onVariant: (v: Variant) => void;
   /** 엔진이 지금 생각하고 있는지 */
   thinking: boolean;
   onMySide: (side: Side) => void;
@@ -180,7 +180,7 @@ export function PlayPanel(props: Props) {
           title={started ? startedTitle : "승부가 어떻게 갈리는지를 정합니다"}
           onChange={onVariant}
           // 설명은 예전에 option 의 툴팁에만 있어서 무슨 규칙인지 고르면서 알 수 없었다.
-          options={VARIANTS.map((v) => ({ value: v.id, label: v.label, desc: v.desc }))}
+          options={VARIANT_OPTIONS.map((v) => ({ value: v.id, label: v.label, desc: v.desc }))}
         />
       </div>
       {/*

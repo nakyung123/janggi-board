@@ -4,6 +4,13 @@
 // 시작 국면과 둔 수를 함께 담는다. 평가치도 같이 저장해 두면 다시 열었을 때
 // 형세 그래프가 그대로 살아난다.
 
+import type { ArchivedGame } from "./archive";
+import { newGameId } from "./archive";
+import { applyMove, parseFen, toFen } from "./board";
+import type { HistoryEntry } from "./history";
+import { splitMove } from "./notation";
+import type { Side } from "./pieces";
+
 export const RECORD_FORMAT = "janggi-board/2";
 /** 급수·대국 결과가 없던 첫 형식. 읽기만 지원한다. */
 const RECORD_FORMAT_V1 = "janggi-board/1";
@@ -122,6 +129,77 @@ function readPlayer(p: unknown): RecordPlayer {
 
 function readResult(v: unknown): RecordResult {
   return v === "cho" || v === "han" || v === "draw" ? v : "unfinished";
+}
+
+/** 기보 목록의 한 판을 파일에 담을 모양으로. 누가 어느 쪽을 어떤 급수로 잡았는지와 승부까지. */
+export function recordOfGame(game: ArchivedGame): GameRecord {
+  const player = (side: Side): RecordPlayer =>
+    game.mySide === side
+      ? { kind: "human", label: "나" }
+      : { kind: "engine", level: game.levelId, label: game.levelName };
+  return buildRecord({
+    startFen: game.history[0].fen,
+    moves: game.history.slice(1).map((h) => ({
+      move: h.move ?? "",
+      notation: h.notation,
+      score: h.score ?? undefined,
+    })),
+    variant: game.variant,
+    players: { cho: player("cho"), han: player("han") },
+    result: game.result.kind === "abandoned" ? "unfinished" : (game.result.winner ?? "draw"),
+  });
+}
+
+/**
+ * 파일에서 읽은 기보를 기보 목록의 한 판으로.
+ *
+ * 시작 국면에서 수를 하나씩 다시 두며 국면을 되살린다. 출발 자리에 기물이 없는
+ * 수를 만나면 그 수를 들어 Error 를 던진다(규칙에 맞는지는 판을 열 때 엔진이 가린다).
+ * 파일에는 누가 이겼는지만 있고 어떻게 끝났는지는 없어서 결과는 '불러온 기보' 다.
+ * 사람이 잡은 쪽을 '나' 로 보고, 둘 다 사람이면 초로 본다.
+ */
+export function gameOfRecord(record: GameRecord, now = Date.now()): ArchivedGame {
+  const history: HistoryEntry[] = [
+    { fen: record.startFen, move: null, notation: "시작", mover: null, score: null },
+  ];
+  let pos = parseFen(record.startFen);
+  for (const m of record.moves) {
+    const { from, to } = splitMove(m.move);
+    if (!from || !pos.board[from]) {
+      throw new Error(
+        `${m.notation || m.move} 을(를) 둘 수 없습니다. 기보가 국면과 맞지 않습니다.`
+      );
+    }
+    const mover = pos.turn;
+    pos = applyMove(pos, from, to);
+    history.push({
+      fen: toFen(pos),
+      move: m.move,
+      notation: m.notation || m.move,
+      mover,
+      score: m.score ?? null,
+    });
+  }
+  if (history.length < 2) throw new Error("수가 하나도 없는 기보입니다.");
+
+  const me: Side =
+    record.players.han.kind === "human" && record.players.cho.kind !== "human" ? "han" : "cho";
+  const opponent = record.players[me === "cho" ? "han" : "cho"];
+  return {
+    id: newGameId(now),
+    // 목록은 끝난 때 순서라, 파일의 저장 날짜로 두면 불러온 판이 한참 아래에 묻힌다.
+    endedAt: now,
+    mySide: me,
+    levelId: opponent.level ?? "",
+    levelName: opponent.label,
+    variant: record.variant,
+    result:
+      record.result === "unfinished"
+        ? { kind: "abandoned", winner: null }
+        : { kind: "record", winner: record.result === "draw" ? null : record.result },
+    history,
+    reviewed: null,
+  };
 }
 
 /** 저장 파일 이름. 날짜를 넣어 여러 판을 구분한다. */

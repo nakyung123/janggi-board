@@ -11,19 +11,10 @@
 // 판이 4만 자 남짓이라 100판이면 한도(대개 500만 자)에 가깝다. 그래서 최근
 // ARCHIVE_LIMIT 판만 두고, 그래도 넘치면 App 이 오래된 판부터 버린다.
 
+import type { HistoryEntry } from "./history";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
 import type { Outcome } from "./status";
-
-/** 한 국면. 기보 패널의 HistoryEntry 와 같은 모양이다. */
-export interface ArchivedPly {
-  fen: string;
-  /** 이 국면을 만든 수. 첫 국면은 null. */
-  move: string | null;
-  notation: string;
-  mover: Side | null;
-  score: number | null;
-}
 
 /**
  * 판이 어떻게 끝났는지.
@@ -49,7 +40,7 @@ export interface ArchivedGame {
   levelName: string;
   variant: string;
   result: ArchivedResult;
-  history: ArchivedPly[];
+  history: HistoryEntry[];
   /** 복기를 돌렸으면 그 결과. 다시 열 때 또 돌리지 않는다. */
   reviewed: ReviewedMove[] | null;
 }

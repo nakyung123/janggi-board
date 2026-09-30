@@ -103,6 +103,27 @@ export function toFen(pos: Position): string {
   return `${rows.join("/")} ${turn} - - ${pos.halfmove} ${pos.fullmove}`;
 }
 
+/**
+ * from 의 기물을 to 로 옮긴 다음 국면. from === to 는 한수쉼(차례만 넘긴다).
+ *
+ * 장기에는 승진도 앙파상도 없어서 수 하나는 기물 하나를 옮기는 것이 전부다.
+ * 규칙에 맞는 수인지는 보지 않는다 - 둘 수 있는 수는 엔진이 알려 준다.
+ */
+export function applyMove(pos: Position, from: Square, to: Square): Position {
+  const board: Board = { ...pos.board };
+  const captured = Boolean(board[to]);
+  if (from !== to) {
+    board[to] = board[from];
+    delete board[from];
+  }
+  return {
+    board,
+    turn: pos.turn === "cho" ? "han" : "cho",
+    halfmove: captured || from === to ? 0 : pos.halfmove + 1,
+    fullmove: pos.turn === "han" ? pos.fullmove + 1 : pos.fullmove,
+  };
+}
+
 /** 편집 중인 판이 엔진에 넘길 만한 상태인지 미리 걸러낸다. */
 export function validate(pos: Position): string[] {
   const problems: string[] = [];

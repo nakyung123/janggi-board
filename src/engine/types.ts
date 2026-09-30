@@ -43,8 +43,36 @@ export interface EngineOptions {
    * 급수를 만드는 두 손잡이 중 하나다(나머지 하나는 SearchLimits.nodes).
    */
   skill: number;
-  /** janggi(표준) · janggimodern(카카오 호환) · janggitraditional(빅장 무승부) */
-  variant: "janggi" | "janggimodern" | "janggitraditional" | "janggicasual";
+  variant: Variant;
+}
+
+/**
+ * 이 앱이 쓰는 장기 규칙(Fairy-Stockfish 의 변형 이름).
+ *   janggi            표준 - 빅장은 점수로, 200수 뒤 점수로
+ *   janggimodern      현대(카카오 호환) - 빅장 없음, 같은 수 되풀이 금지
+ *   janggitraditional 전통 - 빅장은 무승부, 점수제 없음
+ */
+export type Variant = "janggi" | "janggimodern" | "janggitraditional";
+
+export const VARIANTS: readonly Variant[] = ["janggi", "janggimodern", "janggitraditional"];
+
+export function isVariant(v: unknown): v is Variant {
+  return typeof v === "string" && (VARIANTS as readonly string[]).includes(v);
+}
+
+/**
+ * 저장해 둔 엔진 설정(급수가 정하는 skill 은 빼고)이 지금도 쓸 수 있는 모양인지.
+ * localStorage 는 사람이 고칠 수 있고 옛 값도 남아 있어서, 어긋나면 기본값으로 돌아간다.
+ */
+export function isEnginePrefs(v: unknown): v is Omit<EngineOptions, "skill"> {
+  if (typeof v !== "object" || v === null) return false;
+  const p = v as Record<string, unknown>;
+  return (
+    typeof p.threads === "number" && p.threads >= 1 && p.threads <= 16 &&
+    typeof p.hashMb === "number" && p.hashMb >= 16 &&
+    typeof p.multiPV === "number" && p.multiPV >= 1 && p.multiPV <= 8 &&
+    isVariant(p.variant)
+  );
 }
 
 export interface LoadProgress {

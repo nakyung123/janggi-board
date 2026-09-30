@@ -12,21 +12,12 @@
 
 import { useMemo } from "react";
 import { ListOrdered } from "lucide-react";
+import type { HistoryEntry } from "../../janggi/history";
 import { moveRows } from "../../janggi/notation";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import type { Side } from "../../janggi/pieces";
 import { GRADE_LABEL, GRADE_MARK } from "../../janggi/review";
 import type { ReviewedMove } from "../../janggi/review";
-
-export interface HistoryEntry {
-  fen: string;
-  /** 이 국면을 만든 수. 첫 국면은 null. */
-  move: string | null;
-  notation: string;
-  mover: Side | null;
-  /** 이 국면의 초(楚) 기준 평가치. 아직 분석 전이면 null. 형세 그래프가 쓴다. */
-  score: number | null;
-}
 
 interface Props {
   history: HistoryEntry[];
