@@ -1,4 +1,5 @@
-/* 오른쪽 패널들: 국면 도구, 분석, 엔진 설정, 기보. */
+/* 오른쪽 칸의 공통 부품 — 패널 카드, 폼 줄(라벨·분절 버튼·체크 줄), 빈 상태, 드롭다운,
+   판 조작 줄. 대국 탭과 기보 탭이 함께 쓴다. */
 
 /* --- 패널 공통 --------------------------------------------------------- */
 
@@ -46,17 +47,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-/* 엔진이 생각 중일 때 대국자 카드에서 도는 점(board.css 의 .player-thinking). */
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
-  }
 }
 
 .row {
@@ -183,49 +173,6 @@
   color: var(--han);
 }
 
-/* --- 상차림 ------------------------------------------------------------ */
-
-/*
- * 상차림. 폭이 넓은 컨트롤이라 라벨을 옆이 아니라 위에 둔다.
- * 위아래 선을 긋던 것을 24 여백으로 바꿨다. 줄 사이 12 의 두 배라 선 없이도
- * 따로 떨어진 묶음으로 읽힌다.
- */
-.setup-block {
-  margin: 24px 0;
-}
-
-.setup-block > .label {
-  display: block;
-  color: var(--muted);
-  font-size: var(--fs-base);
-  margin-bottom: 8px;
-}
-
-.setup-row {
-  flex-wrap: nowrap;
-  margin-bottom: 8px;
-}
-
-/*
- * 네 가지 상차림을 같은 폭으로 한 줄에.
- *
- * 예전에는 랜덤까지 다섯 개가 저마다 글자 폭대로 늘어나다 3+2 로 접혔다.
- * 두 줄째가 가운데 몰려 있어 어느 칸이 어느 칸 밑인지 줄이 맞지 않았다.
- * 버튼 안쪽 여백을 4 로 줄여야 16px 글자 넷이 폰 폭에서도 한 줄에 들어간다.
- * 셀렉트로 바꾸는 것도 따져 봤지만, 셀렉트는 이미 고른 값을 다시 골라도
- * 아무 일이 없어서 '같은 상차림으로 되돌리기' 가 사라진다.
- */
-.setup-row .seg {
-  flex: 1;
-  flex-wrap: nowrap;
-  min-width: 0;
-}
-
-.setup-row .seg button {
-  flex: 1 1 0;
-  padding: 0 4px;
-}
-
 /* --- 빈 상태 ----------------------------------------------------------- */
 /*
  * 아직 보여줄 것이 없을 때(기보·형세·분석 꺼짐). 아이콘 + 무엇이 없는지 +
@@ -250,150 +197,6 @@
 .empty-title {
   color: var(--text-sub);
   font-weight: 600;
-}
-
-/* --- 기보 -------------------------------------------------------------- */
-
-.move-scroll {
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.move-start {
-  width: 100%;
-  margin-bottom: 8px;
-  font-size: var(--fs-base);
-}
-
-/* 지금 시작 국면을 보고 있다는 표시. 기보 칸의 '보고 있는 수' 와 같은 말투
-   (한 톤 짙은 바탕)로 맞춘다. 예전 먹색 테두리는 전체 폭 버튼이라 채운 버튼
-   '새 대국' 만큼 눈을 끌었다. */
-.move-start.active {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
-}
-
-.move-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.move-table {
-  table-layout: fixed;
-}
-
-.move-table td {
-  padding: 2px 0;
-}
-
-/* 초·한 칸을 같은 너비로. 안 그러면 한쪽만 넓게 늘어난다. */
-.move-table td:not(.move-no) {
-  width: 50%;
-}
-
-.move-no {
-  width: 32px;
-  color: var(--muted);
-  font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  text-align: right;
-  padding-right: 8px !important;
-}
-
-/* 버튼이지만 목록의 한 칸이라 40 높이를 따르지 않는다. */
-.move-cell {
-  width: 100%;
-  min-height: 0;
-  justify-content: flex-start;
-  background: transparent;
-  border-color: transparent;
-  border-radius: var(--radius-xs);
-  font-size: var(--fs-base);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-align: left;
-  padding: 4px 8px;
-}
-
-/* 기보 칸도 눌러서 그 수로 가는 버튼이다. 마우스에서는 목록 줄 높이(32)를
-   따르지만 손가락으로는 44 가 필요하다. 목록은 제 칸 안에서 스크롤하니
-   길어져도 판은 줄지 않는다. (위 min-height: 0 보다 뒤에 있어야 이긴다.) */
-@media (pointer: coarse) {
-  .move-cell {
-    min-height: 44px;
-  }
-}
-
-.move-cell.cho {
-  color: var(--cho);
-}
-
-.move-cell.han {
-  color: var(--han);
-}
-
-/* 지금 보고 있는 수. 색을 얹으면 초·한 글자색과 싸우므로 바탕과 굵기로만
-   짚는다. */
-.move-cell.active {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
-  font-weight: 600;
-}
-
-/* --- 형세 그래프 -------------------------------------------------------- */
-
-/* 그래프를 감싸던 상자를 뺐다. 카드 안에 또 상자가 있으면 테두리가 두 겹이
-   된다. 0선 하나로 충분히 읽힌다. */
-.eval-graph {
-  width: 100%;
-  height: 66px;
-  display: block;
-  cursor: pointer;
-}
-
-/* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다.
-   초 기준이라 초록이다. 아래로 처진 구간은 그만큼 채움이 얇아진다. */
-.eval-area {
-  fill: rgba(21, 101, 60, 0.1);
-}
-
-.eval-zero {
-  stroke: var(--control-line);
-  stroke-width: 0.5;
-}
-
-.eval-line {
-  fill: none;
-  stroke: var(--cho);
-  stroke-width: 1.4;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-
-/* 지금 보고 있는 수를 짚는 선. 초·한 어느 쪽도 아닌 '내가 보는 자리'라
-   진영 색을 피해 호박색을 쓴다. */
-.eval-cursor {
-  stroke: var(--amber);
-  stroke-width: 0.6;
-}
-
-.eval-dot {
-  fill: var(--amber);
-}
-
-.graph .muted.small {
-  margin-top: 8px;
-}
-
-/* --- 대국 패널 추가분 --------------------------------------------------- */
-
-/* 컨트롤에 딸린 설명 한 줄(규칙 아래의 잠금 안내). 컨트롤과 같은 세로선에
-   붙여 딸린 설명으로 읽히게 한다. 라벨 칸 왼쪽 끝에서 시작하면 라벨의
-   설명처럼 보인다. 앞의 .row 가 아래 여백을 가지므로 위는 당긴다. */
-.field-note {
-  margin: -4px 0 12px;
-  padding-left: calc(var(--label-w) + 12px);
 }
 
 /* --- 드롭다운 ----------------------------------------------------------- */
@@ -525,6 +328,12 @@
  * 버튼마다 글자 폭대로 서서 두 줄의 오른쪽 끝이 들쭉날쭉했고, 판 뒤집기만
  * 테두리 없는 버튼이라 한 카드 안에 버튼 모양이 두 가지였다.
  */
+
+.board-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 
 .board-controls .board-actions {
   flex-wrap: nowrap;

@@ -282,6 +282,47 @@ button.ghost:hover:not(:disabled) {
   border-color: transparent;
 }
 
+button.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+  padding: 0 20px;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
+}
+
+/*
+ * 되돌릴 수 없는 확인 버튼.
+ *
+ * '새 대국' 을 누르면 두던 기보가 그대로 사라진다. 한 번 더 묻는 단계에서는
+ * 버튼이 붉어져서, 평소 누르던 자리를 습관으로 누르지 않게 한다.
+ */
+button.primary.danger {
+  background: var(--han);
+  border-color: var(--han);
+}
+
+button.primary.danger:hover:not(:disabled) {
+  background: var(--han-strong);
+  border-color: var(--han-strong);
+}
+
+/* 글 속의 링크 같은 버튼. 문장 줄 높이를 따른다. */
+button.linkish {
+  display: inline;
+  min-height: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink);
+  text-decoration: underline;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 /*
  * 키보드로 다닐 때 지금 어디에 있는지.
  *
@@ -330,6 +371,16 @@ b.cho,
 b.han,
 .han {
   color: var(--han);
+}
+
+/* 눈에는 안 보이고 화면 읽기 프로그램만 읽는 글자. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /*

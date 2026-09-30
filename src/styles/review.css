@@ -1,5 +1,5 @@
-/* 모드 탭 · 대국 · 복기.
-   panels.css 가 이미 길어서 이번에 붙은 세 화면은 여기 모아둔다. */
+/* 기보 탭에서 연 판의 오른쪽 칸 — 목록으로 돌아가는 머리, 복기(진행률·성적표·고른 수
+   설명·수 목록), 기보, 형세 그래프. 복기 등급 색도 여기 둔다. */
 
 /* --- 등급 색 ----------------------------------------------------------- */
 
@@ -34,109 +34,25 @@
   --grade: var(--g-blunder);
 }
 
-/* --- 모드 탭 ----------------------------------------------------------- */
-
-/*
- * 모드 탭은 제목 줄 안에 들어가는 분절 버튼이다.
- *
- * 예전에는 설명까지 붙은 카드 세 장이 한 줄을 통째로 차지해서 세로 57px 을
- * 먹었다. 그만큼 장기판이 작아진다. 설명은 title 툴팁으로 옮기고 이름만 남겼다.
- */
-.mode-tabs {
+/* 기보 탭에서 연 판의 머리. 목록으로 돌아가는 버튼과 어떤 판인지 한 줄. */
+.game-back {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  background: var(--panel-2);
-  border-radius: var(--radius-sm);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
-/* 분절 버튼(panels.css 의 .seg)과 같은 치수: 홈 4 안에 32 짜리 칸. */
-.mode-tab {
-  min-height: 32px;
-  padding: 0 16px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  color: var(--muted);
+.game-back button {
+  flex: none;
+  padding: 0 12px 0 4px;
 }
 
-.mode-tab:disabled {
-  color: var(--disabled);
-}
-
-.mode-tab b {
-  font-size: var(--fs-base);
-  font-weight: 500;
-}
-
-/* 설명은 툴팁으로 옮겼다. 읽어주는 기기를 위해 글자는 남겨 둔다. */
-.mode-tab span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+.game-back-meta {
+  min-width: 0;
   overflow: hidden;
-  clip-path: inset(50%);
-}
-
-.mode-tab.active {
-  background: var(--panel);
-  border-color: transparent;
-  box-shadow: var(--shadow-raise);
-}
-
-.mode-tab.active b {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-/* 손가락으로 누를 때: 분절 버튼(panels.css)과 같이 칸 36 + 홈까지 덧댄 판. */
-@media (pointer: coarse) {
-  .mode-tab {
-    position: relative;
-    min-height: 36px;
-  }
-
-  .mode-tab::after {
-    content: "";
-    position: absolute;
-    inset: -5px -3px;
-  }
-}
-
-@media (max-width: 560px) {
-  .mode-tab {
-    padding: 0 12px;
-  }
-}
-
-/* --- 대국 패널 --------------------------------------------------------- */
-
-button.primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-  padding: 0 20px;
-}
-
-button.primary:hover:not(:disabled) {
-  background: var(--ink-hover);
-  border-color: var(--ink-hover);
-}
-
-/*
- * 되돌릴 수 없는 확인 버튼.
- *
- * '새 대국' 을 누르면 두던 기보가 그대로 사라진다. 한 번 더 묻는 단계에서는
- * 버튼이 붉어져서, 평소 누르던 자리를 습관으로 누르지 않게 한다.
- */
-button.primary.danger {
-  background: var(--han);
-  border-color: var(--han);
-}
-
-button.primary.danger:hover:not(:disabled) {
-  background: var(--han-strong);
-  border-color: var(--han-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
 }
 
 /* 복기 등급을 어느 급수 눈높이로 매겼는지. 성적표 바로 위에 조용히 둔다. */
@@ -235,19 +151,6 @@ button.primary.danger:hover:not(:disabled) {
 /* "가장 큰 실수 5수 71卒61" 이 '큰 / 실수' 사이에서 잘리면 읽기 나쁘다. */
 .review-side > .small {
   text-wrap: balance;
-}
-
-/* 글 속의 링크 같은 버튼. 문장 줄 높이를 따른다. */
-button.linkish {
-  display: inline;
-  min-height: 0;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--ink);
-  text-decoration: underline;
-  font-size: inherit;
-  font-weight: inherit;
 }
 
 /* --- 고른 수의 설명 — 이 패널의 알맹이 --------------------------------- */
@@ -388,6 +291,140 @@ button.linkish {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   text-align: right;
+}
+
+/* --- 기보 -------------------------------------------------------------- */
+
+.move-scroll {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.move-start {
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: var(--fs-base);
+}
+
+/* 지금 시작 국면을 보고 있다는 표시. 기보 칸의 '보고 있는 수' 와 같은 말투
+   (한 톤 짙은 바탕)로 맞춘다. 예전 먹색 테두리는 전체 폭 버튼이라 채운 버튼
+   '새 대국' 만큼 눈을 끌었다. */
+.move-start.active {
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+}
+
+.move-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.move-table {
+  table-layout: fixed;
+}
+
+.move-table td {
+  padding: 2px 0;
+}
+
+/* 초·한 칸을 같은 너비로. 안 그러면 한쪽만 넓게 늘어난다. */
+.move-table td:not(.move-no) {
+  width: 50%;
+}
+
+.move-no {
+  width: 32px;
+  color: var(--muted);
+  font-size: var(--fs-base);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: right;
+  padding-right: 8px !important;
+}
+
+/* 버튼이지만 목록의 한 칸이라 40 높이를 따르지 않는다. */
+.move-cell {
+  width: 100%;
+  min-height: 0;
+  justify-content: flex-start;
+  background: transparent;
+  border-color: transparent;
+  border-radius: var(--radius-xs);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-align: left;
+  padding: 4px 8px;
+}
+
+/* 기보 칸도 눌러서 그 수로 가는 버튼이다. 마우스에서는 목록 줄 높이(32)를
+   따르지만 손가락으로는 44 가 필요하다. 목록은 제 칸 안에서 스크롤하니
+   길어져도 판은 줄지 않는다. (위 min-height: 0 보다 뒤에 있어야 이긴다.) */
+@media (pointer: coarse) {
+  .move-cell {
+    min-height: 44px;
+  }
+}
+
+.move-cell.cho {
+  color: var(--cho);
+}
+
+.move-cell.han {
+  color: var(--han);
+}
+
+/* 지금 보고 있는 수. 색을 얹으면 초·한 글자색과 싸우므로 바탕과 굵기로만
+   짚는다. */
+.move-cell.active {
+  background: var(--panel-2);
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+
+/* --- 형세 그래프 -------------------------------------------------------- */
+
+/* 그래프를 감싸던 상자를 뺐다. 카드 안에 또 상자가 있으면 테두리가 두 겹이
+   된다. 0선 하나로 충분히 읽힌다. */
+.eval-graph {
+  width: 100%;
+  height: 66px;
+  display: block;
+  cursor: pointer;
+}
+
+/* 0선 위아래를 옅게 채워 어느 쪽이 좋은지 색으로도 읽히게 한다.
+   초 기준이라 초록이다. 아래로 처진 구간은 그만큼 채움이 얇아진다. */
+.eval-area {
+  fill: rgba(21, 101, 60, 0.1);
+}
+
+.eval-zero {
+  stroke: var(--control-line);
+  stroke-width: 0.5;
+}
+
+.eval-line {
+  fill: none;
+  stroke: var(--cho);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* 지금 보고 있는 수를 짚는 선. 초·한 어느 쪽도 아닌 '내가 보는 자리'라
+   진영 색을 피해 호박색을 쓴다. */
+.eval-cursor {
+  stroke: var(--amber);
+  stroke-width: 0.6;
+}
+
+.eval-dot {
+  fill: var(--amber);
+}
+
+.graph .muted.small {
+  margin-top: 8px;
 }
 
 /* --- 기보 칸에 붙는 등급 기호 ------------------------------------------ */
