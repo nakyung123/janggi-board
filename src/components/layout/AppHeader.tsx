@@ -20,9 +20,11 @@ interface Props {
   problems: string[] | null;
   /** 화면 읽기 프로그램에 한 줄로 알릴 판 상태(장군·결과·잘못된 판) */
   spoken: string;
+  /** 업데이트 내역 창을 연다 */
+  onUpdates: () => void;
 }
 
-export function AppHeader({ mode, onMode, problems, spoken }: Props) {
+export function AppHeader({ mode, onMode, problems, spoken, onUpdates }: Props) {
   return (
     <header className="top">
       <h1>장기 AI</h1>
@@ -33,18 +35,12 @@ export function AppHeader({ mode, onMode, problems, spoken }: Props) {
           <span className="turn-tag">잘못된 판</span>
         )}
         {/*
-          새 탭으로 연다. 같은 탭에서 옮기면 돌아올 때 엔진을 다시 붙여야 한다
-          (13MB 를 다시 받지는 않지만 wasm 초기화는 다시 걸린다). 새 탭이면 두던
-          판이 그대로 살아 있다. 지금 버전은 그 쪽 맨 위에 적혀 있다.
+          그 자리에서 창을 연다. 한동안 따로 선 쪽(/updates/)을 새 탭으로 열었는데,
+          몇 줄 읽고 닫을 글 때문에 두던 화면을 떠나야 했다. 지금 버전은 창 안에 적혀 있다.
         */}
-        <a
-          className="ver"
-          href="/updates/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <button type="button" className="ver" onClick={onUpdates}>
           업데이트 내역
-        </a>
+        </button>
       </div>
 
       <p className="sr-only" role="status">

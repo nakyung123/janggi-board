@@ -46,9 +46,9 @@ export function EvalGraph({ history, cursor }: Props) {
         <i style={{ width: `${cho}%` }} />
       </div>
 
-      <p className="muted small">
-        왼쪽이 초 몫입니다. 엔진 점수를 옮긴 어림값입니다.
-      </p>
+      {/* 한 줄이다. 왼쪽이 초라는 것은 바로 위에 초록 글자로 "초 69%" 라고
+          이미 적혀 있어서 한 번 더 말할 필요가 없다. */}
+      <p className="muted small">AI가 어림잡은, 지금 이길 가능성입니다.</p>
     </div>
   );
 }

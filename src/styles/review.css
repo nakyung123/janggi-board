@@ -242,3 +242,8 @@
 .review-plain {
   margin-bottom: 8px;
 }
+
+/* 깊이 한 줄 설명. 깊이 고르는 줄 바로 아래에 붙인다. */
+.review-depth-help {
+  margin-top: 8px;
+}

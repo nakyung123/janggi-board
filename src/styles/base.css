@@ -182,6 +182,24 @@ body {
    */
   word-break: keep-all;
   overflow-wrap: break-word;
+  /*
+   * 캐럿만 숨긴다. 글자는 그대로 끌어서 고를 수 있다.
+   *
+   * 이 앱에는 글을 적는 칸이 없어서 보통은 캐럿이 그려지지 않는다. 크롬·엣지의
+   * 캐럿 브라우징(F7)이 켜져 있을 때만 누른 자리마다 깜박인다. 진짜 해결은 F7 을
+   * 한 번 더 누르는 것이지만, 모르고 켜 둔 채로 쓰는 사람이 있으니 여기서도 막는다.
+   *
+   * 한때 이걸 하려다 `body` 에 user-select: none 을 걸었었다. 캐럿은 사라졌지만
+   * 화면의 모든 글자를 베낄 수 없게 됐다. 캐럿과 선택은 따로 끌 수 있다.
+   */
+  caret-color: transparent;
+}
+
+/* 값을 적는 칸에서는 캐럿이 보여야 한다. 어디를 고치고 있는지가 캐럿 자리다. */
+input,
+textarea,
+[contenteditable] {
+  caret-color: auto;
 }
 
 button,

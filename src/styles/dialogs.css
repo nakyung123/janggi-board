@@ -94,3 +94,71 @@
     animation: none;
   }
 }
+
+/* --- 업데이트 내역 창 ---------------------------------------------------- */
+
+/*
+ * 글 목록이라 결과·확인 창보다 넓고, 글은 왼쪽으로 맞춘다. 창 하나가 화면을 다
+ * 덮지는 않게 높이를 묶고, 넘치면 목록만 구른다(제목과 닫기는 자리를 지킨다).
+ */
+.dialog.updates {
+  max-width: 520px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  max-height: min(640px, calc(100vh - 32px));
+}
+
+.updates-lead {
+  margin-bottom: 16px;
+}
+
+.updates-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 날짜가 이 묶음의 제목이다. 버전은 옆에 옅게 - 제보할 때 짚을 것이 이 글자다. */
+.updates-when {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+.updates-ver {
+  font-size: var(--fs-base);
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* 점은 글자 왼쪽 바깥에 둔다. 두 줄로 넘어가도 글의 왼쪽 끝이 한 줄로 선다. */
+.updates-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.updates-items li {
+  position: relative;
+  padding-left: 16px;
+}
+
+.updates-items li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--disabled);
+}

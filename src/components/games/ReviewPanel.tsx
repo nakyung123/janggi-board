@@ -82,6 +82,17 @@ export function ReviewPanel(props: Props) {
           ))}
         </div>
       </div>
+      {/*
+        '깊이' 가 무슨 말인지 한 줄로 적는다. 엔진 쪽 말이라 장기 두는 사람에게는 뜻이
+        서지 않는다 - 무엇을 고르는 건지 모르면 기본값을 그냥 두게 된다. 아직 한 번도
+        돌리지 않았을 때만 적는다. 한 번 돌려 본 뒤에는 위에 설명이 가득 차 있다.
+      */}
+      {!reviewed && (
+        <p className="muted review-depth-help">
+          복기는 한 수마다 엔진을 한 번씩 돌립니다. 정밀할수록 등급이 믿을 만해지고
+          그만큼 오래 걸립니다.
+        </p>
+      )}
       <div className="row">
         <button type="button" className={reviewed ? "" : "primary"} onClick={onStart}>
           {reviewed ? "다시 복기" : "복기 시작"}

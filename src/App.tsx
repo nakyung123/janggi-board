@@ -26,6 +26,7 @@ import { GameList } from "./components/games/GameList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
 import { BootScreen } from "./components/layout/BootScreen";
+import { UpdatesDialog } from "./components/layout/UpdatesDialog";
 import type { Mode } from "./components/layout/ModeTabs";
 import { GameOverDialog } from "./components/play/GameOverDialog";
 import { PlayPanel } from "./components/play/PlayPanel";
@@ -666,13 +667,14 @@ export default function App() {
 
   /**
    * 새 대국. 시작 국면(상차림 포함)은 그대로 두고 수만 지운다.
-   * 끝나지 않은 판은 여기서 기보 목록에 '중단' 으로 남긴다(끝난 판은 끝날 때 이미 들어갔고,
-   * 한 수도 두지 않은 판은 남길 것이 없다).
+   *
+   * 두던 판은 남기지 않는다. 한동안 '중단' 으로 목록에 넣었는데(끝난 판은 끝날 때 이미
+   * 들어간다), 목록이 '기보' 인 이상 거기 선 것은 다 둔 판으로 읽힌다. 몇 수 두다 만
+   * 판이 섞여 서면 끝난 판을 골라내기가 오히려 어렵다. 없어지는 것은 새 대국을 묻는
+   * 창이 미리 말한다. 파일에서 불러온 끝나지 않은 기보는 그대로 '중단' 으로 든다 -
+   * 그건 사람이 일부러 가져온 것이다.
    */
   const newGame = () => {
-    if (started && !ended) {
-      setGames((list) => upsertGame(list, archiveOf({ kind: "abandoned", winner: null })));
-    }
     const base = parseFen(playHistory[0].fen);
     setPlayHistory(startHistory(toFen({ ...base, turn: "cho", halfmove: 0, fullmove: 1 })));
     setPlayCursor(0);
@@ -688,6 +690,9 @@ export default function App() {
 
   /** 판을 끝내는 두 동작(새 대국·기권)은 확인 창으로 한 번 더 묻는다. */
   const [asking, setAsking] = useState<"new" | "resign" | null>(null);
+
+  /** 헤더의 '업데이트 내역' 으로 여는 창. 두던 판은 그대로 있다. */
+  const [updatesOpen, setUpdatesOpen] = useState(false);
 
   // --- 탭 오가기 ----------------------------------------------------------
 
@@ -938,6 +943,7 @@ export default function App() {
         onMode={goMode}
         problems={problems}
         spoken={spoken}
+        onUpdates={() => setUpdatesOpen(true)}
       />
       {/* 처음부터 있어야 새 말을 읽어 준다. 내용이 없어도 요소는 남겨 둔다. */}
       <p className="sr-only" role="status">
@@ -1094,6 +1100,8 @@ export default function App() {
         />
       )}
 
+      {updatesOpen && <UpdatesDialog onClose={() => setUpdatesOpen(false)} />}
+
       {/* 새 대국은 언제 눌러도 묻는다. 무엇이 달라지는지 한 줄만 상황마다 다르게 적는다. */}
       {asking === "new" && (
         <ConfirmDialog
@@ -1103,7 +1111,7 @@ export default function App() {
               ? "판을 처음 모양으로 다시 놓습니다."
               : ended
                 ? "끝난 판은 기보 목록에서 다시 볼 수 있습니다."
-                : "두던 판은 기보 목록에 '중단'으로 남습니다."
+                : "두던 판은 사라집니다. 기보 목록에는 끝난 판만 남습니다."
           }
           confirmLabel="새 대국"
           onConfirm={() => {
