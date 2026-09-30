@@ -4,11 +4,10 @@
 // 화살표로 미리 보여준다. 복기를 돌린 뒤에는 수마다 등급 기호가 붙는다.
 //
 // 기보 탭에서 연 판에만 붙는다. 두는 중에는 수 목록을 볼 일이 드물고(무르기·다시는
-// 판 조작 줄에 있다) 끝난 판은 기보 탭에서 본다. 파일로 저장·링크 공유 버튼도 여기 있다 -
-// 기보를 보다가 남기거나 건네고 싶어지는 것이 자연스러운 순서다. 불러오기는 목록에 판을
-// 넣는 일이라 기보 목록(GameList)에 있다.
+// 판 조작 줄에 있다) 끝난 판은 기보 탭에서 본다. 파일로 저장·링크 공유는 연 판의 머리
+// 줄(App 의 gameBar)에 있다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ListOrdered } from "lucide-react";
 import type { HistoryEntry } from "../../janggi/history";
 import { moveRows } from "../../janggi/notation";
@@ -22,7 +21,6 @@ interface Props {
   cursor: number;
   /** 복기를 돌렸으면 수마다 등급이 붙는다 */
   reviewed?: ReviewedMove[] | null;
-  canSave: boolean;
   onJump: (index: number) => void;
   /**
    * 수에 마우스를 올렸을 때. 판에 화살표로 띄우라고 알린다.
@@ -32,30 +30,10 @@ interface Props {
    * 어디인지만 보려면 이게 필요하다.
    */
   onHoverMove: (move: string | null) => void;
-  onSave: () => void;
-  /** 이 판을 링크로 건넨다(App.shareGame). 어떻게 됐는지 돌려받아 버튼 글자로 알린다. */
-  onShare: () => Promise<ShareResult>;
 }
 
-/**
- * 링크 공유를 누른 결과. 폰의 공유 창은 그 창이 곧 알림이라 따로 알리지 않고,
- * 복사는 눈에 보이는 것이 없어서 버튼 글자가 2초 동안 결과를 말한다.
- */
-export type ShareResult = "copied" | "shared" | "cancelled" | "failed";
-const SHARE_SAID: Partial<Record<ShareResult, string>> = {
-  copied: "복사했습니다",
-  failed: "복사하지 못했습니다",
-};
-
 export function MoveList(props: Props) {
-  const { history, cursor, reviewed, canSave, onJump, onHoverMove, onSave, onShare } = props;
-
-  const [shared, setShared] = useState<ShareResult | null>(null);
-  useEffect(() => {
-    if (!shared) return;
-    const t = window.setTimeout(() => setShared(null), 2000);
-    return () => window.clearTimeout(t);
-  }, [shared]);
+  const { history, cursor, reviewed, onJump, onHoverMove } = props;
 
   const gradeOf = (index: number) =>
     reviewed?.find((r) => r.index === index) ?? null;
@@ -138,25 +116,6 @@ export function MoveList(props: Props) {
             </tbody>
           </table>
         )}
-      </div>
-
-      <div className="row move-actions">
-        <button
-          type="button"
-          className="ghost"
-          onClick={onSave}
-          disabled={!canSave}
-        >
-          파일로 저장
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          onClick={async () => setShared(await onShare())}
-          disabled={!canSave}
-        >
-          {(shared && SHARE_SAID[shared]) ?? "링크 공유"}
-        </button>
       </div>
     </div>
   );

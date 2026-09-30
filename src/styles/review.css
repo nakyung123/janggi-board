@@ -33,7 +33,11 @@
   --grade: var(--g-blunder);
 }
 
-/* 기보 탭에서 연 판의 머리. 목록으로 돌아가는 버튼과 어떤 판인지 한 줄. */
+/*
+ * 기보 탭에서 연 판의 머리 한 줄: [‹ 목록으로] 어떤 판인지 ···· [저장] [공유].
+ * 세 버튼 모두 이전·다음과 같은 테두리 버튼이다. 자리가 모자라면 가운데 판 정보가
+ * 말줄임으로 줄고 버튼은 줄지 않는다.
+ */
 .game-back {
   display: flex;
   align-items: center;
@@ -43,15 +47,33 @@
 
 .game-back button {
   flex: none;
-  padding: 0 12px 0 4px;
+  padding: 0 12px;
+}
+
+/* 꺾쇠가 글자 앞에 붙어 있어 왼쪽 여백을 줄여야 글자가 가운데로 보인다. */
+.game-back button.back {
+  padding: 0 16px 0 8px;
 }
 
 .game-back-meta {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
+}
+
+.game-back-actions {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+
+/* 폰에서 판 위에 설 때. 판·대국자 카드와 같은 폭으로 선다. */
+.table > .game-back {
+  width: 100%;
+  flex: none;
 }
 
 /* 복기 등급을 어느 급수 눈높이로 매겼는지. 성적표 바로 위에 조용히 둔다. */
@@ -490,7 +512,3 @@
   color: var(--grade, var(--muted));
 }
 
-/* 저장·불러오기. 기보 목록과 선 대신 16 여백으로 가른다. */
-.move-actions {
-  margin-top: 16px;
-}

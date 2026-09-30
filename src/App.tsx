@@ -23,7 +23,6 @@ import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameList } from "./components/games/GameList";
 import { MoveList } from "./components/games/MoveList";
-import type { ShareResult } from "./components/games/MoveList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
 import { BootScreen } from "./components/layout/BootScreen";
@@ -166,6 +165,8 @@ export default function App() {
   const [listError, setListError] = useState<string | null>(null);
   /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
   const [freshId, setFreshId] = useState<string | null>(null);
+  /** 링크 공유를 누른 결과. 공유 버튼의 글자가 2초 동안 말한다. */
+  const [shared, setShared] = useState<ShareResult | null>(null);
   const [viewCursor, setViewCursor] = useState(0);
   /** 연 판은 그 판에서 내가 잡은 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 뒤집기는 그대로다. */
   const [viewFlipped, setViewFlipped] = useState(false);
@@ -780,7 +781,7 @@ export default function App() {
   /**
    * 연 판을 링크로 건넨다. 폰은 휴대폰 공유 창(카카오톡·메시지 등)을 띄우고, 컴퓨터는
    * 클립보드에 복사한다. 컴퓨터에도 공유 창을 띄우는 브라우저가 있지만(윈도우의 크롬),
-   * 컴퓨터에서 링크를 건네는 흔한 길은 붙여넣기다. 결과는 버튼이 글자로 알린다(MoveList).
+   * 컴퓨터에서 링크를 건네는 흔한 길은 붙여넣기다. 결과는 공유 버튼이 글자로 알린다(SHARE_SAID).
    */
   const shareGame = async (): Promise<ShareResult> => {
     if (!openGame) return "failed";
@@ -848,6 +849,12 @@ export default function App() {
     window.addEventListener("hashchange", take);
     return () => window.removeEventListener("hashchange", take);
   }, [status]);
+
+  useEffect(() => {
+    if (!shared) return;
+    const t = window.setTimeout(() => setShared(null), 2000);
+    return () => window.clearTimeout(t);
+  }, [shared]);
 
   // 방금 넣은 판의 카드는 3초 동안 도드라진다(GameList).
   useEffect(() => {
@@ -969,6 +976,39 @@ export default function App() {
   const thinking = engineTurn && Boolean(snapshot?.running);
   const openTag = openGame ? resultTag(openGame) : null;
 
+  /*
+   * 연 판의 머리 한 줄: 목록으로 · 어떤 판인지 · 저장 · 공유.
+   *
+   * 목록으로는 이전·다음과 같은 테두리 버튼이다. 테두리 없는 글자 버튼일 때는 버튼으로
+   * 보이지 않았다. 저장·공유도 이 판에 하는 일이라 같은 줄에 둔다. 폰은 오른쪽 칸이 판
+   * 아래로 내려가 판을 지나야 보이므로, 이 줄만 판 위로 올린다.
+   */
+  const gameBar = openGame && openTag && (
+    <div className="game-back">
+      <button type="button" className="back" onClick={closeArchived} disabled={review.running}>
+        <ChevronLeft size={20} strokeWidth={2} aria-hidden />
+        목록으로
+      </button>
+      {/* 승부를 앞에 둔다. 폰에서 자리가 모자라면 뒤(언제 뒀는지)부터 말줄임으로 준다. */}
+      <span className="game-back-meta">
+        <b className={"game-result " + openTag.tone}>{openTag.text}</b> · vs {openGame.levelName} ·{" "}
+        {whenLabel(openGame.endedAt)}
+      </span>
+      <span className="game-back-actions">
+        <button type="button" onClick={saveRecord} aria-label="파일로 저장">
+          저장
+        </button>
+        <button
+          type="button"
+          onClick={async () => setShared(await shareGame())}
+          aria-label={shared && SHARE_SAID[shared] ? SHARE_SAID[shared] : "링크 공유"}
+        >
+          {(shared && SHARE_SAID[shared]) ?? "공유"}
+        </button>
+      </span>
+    </div>
+  );
+
   return (
     <div className="app">
       <AppHeader
@@ -1007,8 +1047,10 @@ export default function App() {
               {/*
                 판 칸에는 판만 둔다. 판 크기가 남은 높이로 정해져서, 위아래에 무언가
                 뜨고 지면 판이 줄었다 늘었다 한다. 폰은 오른쪽 칸이 판 아래로 내려가서
-                대국자 카드만 판 위아래에 붙인다.
+                대국자 카드를 판 위아래에 붙이고, 연 판의 머리 줄을 맨 위에 둔다(판은
+                폰에서 폭으로 크기가 정해져 줄지 않는다).
               */}
+              {narrow && gameBar}
               {narrow && <PlayerCard {...playerOf(topSide)} />}
 
               <div className="board-stage">
@@ -1036,23 +1078,7 @@ export default function App() {
           </section>
 
           <section className={"side-col" + (mode === "play" ? " play" : "")}>
-            {openGame && openTag && (
-              <div className="game-back">
-                <button
-                  type="button"
-                  className="ghost"
-                  onClick={closeArchived}
-                  disabled={review.running}
-                >
-                  <ChevronLeft size={20} strokeWidth={2} aria-hidden />
-                  목록
-                </button>
-                <span className="game-back-meta">
-                  vs {openGame.levelName} · {whenLabel(openGame.endedAt)} ·{" "}
-                  <b className={"game-result " + openTag.tone}>{openTag.text}</b>
-                </span>
-              </div>
-            )}
+            {!narrow && gameBar}
 
             {/* 상대가 위, 내가 아래 - 판과 같은 순서로 포갠다. */}
             {!narrow && (
@@ -1123,11 +1149,8 @@ export default function App() {
                   history={history}
                   cursor={cursor}
                   reviewed={reviewed}
-                  canSave
                   onJump={goTo}
                   onHoverMove={setHover}
-                  onSave={saveRecord}
-                  onShare={shareGame}
                 />
               </>
             )}
@@ -1185,6 +1208,16 @@ export default function App() {
 }
 
 /** 던져진 값에서 사람에게 보일 말을 꺼낸다. */
+/**
+ * 링크 공유를 누른 결과. 폰의 공유 창은 그 창이 곧 알림이라 따로 알리지 않고,
+ * 복사는 눈에 보이는 것이 없어서 버튼 글자가 2초 동안 결과를 말한다.
+ */
+type ShareResult = "copied" | "shared" | "cancelled" | "failed";
+const SHARE_SAID: Partial<Record<ShareResult, string>> = {
+  copied: "복사됨",
+  failed: "복사 못 함",
+};
+
 function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
