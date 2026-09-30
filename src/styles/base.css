@@ -204,7 +204,7 @@ textarea {
 /*
  * 버튼은 높이 40 으로 맞춘다. 옆에 서는 셀렉트도 40 이라 한 줄에 놓이면
  * 윗선·아랫선이 맞는다. 목록 칸처럼 버튼이지만 줄 높이를 따라야 하는 것은
- * 각자 min-height 를 풀어 둔다(기보 칸, 복기 수, 기보 목록 카드, 글 속 링크).
+ * 각자 min-height 를 풀어 둔다(수 목록 칸, 기보 목록 카드).
  */
 button {
   display: inline-flex;
@@ -241,12 +241,6 @@ input[type="text"] {
   border: 1px solid var(--control-line);
   border-radius: var(--radius-sm);
   padding: 0 12px;
-}
-
-input[type="checkbox"] {
-  width: 20px;
-  height: 20px;
-  accent-color: var(--ink);
 }
 
 /* 반투명으로 흐리지 않고 글자색만 뺀다. 테두리·바탕은 그대로라 자리는 남는다. */
@@ -302,19 +296,6 @@ button.primary.danger {
     background: var(--han-strong);
     border-color: var(--han-strong);
   }
-}
-
-/* 글 속의 링크 같은 버튼. 문장 줄 높이를 따른다. */
-button.linkish {
-  display: inline;
-  min-height: 0;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: var(--ink);
-  text-decoration: underline;
-  font-size: inherit;
-  font-weight: inherit;
 }
 
 /*
