@@ -117,10 +117,10 @@ export function MoveList(props: Props) {
                           onMouseLeave={() => onHoverMove(null)}
                           onFocus={() => onHoverMove(cell.move)}
                           onBlur={() => onHoverMove(null)}
-                          title={
+                          aria-label={
                             graded
-                              ? `${SIDE_LABEL[side]} · ${cell.notation} - ${GRADE_LABEL[graded.grade]}`
-                              : `${SIDE_LABEL[side]} · ${cell.notation}`
+                              ? `${SIDE_LABEL[side]} ${cell.notation} ${GRADE_LABEL[graded.grade]}`
+                              : `${SIDE_LABEL[side]} ${cell.notation}`
                           }
                         >
                           <span>{cell.notation}</span>
@@ -146,7 +146,6 @@ export function MoveList(props: Props) {
           className="ghost"
           onClick={onSave}
           disabled={!canSave}
-          title={canSave ? "기보를 파일로 저장합니다" : "저장할 수가 없습니다"}
         >
           파일로 저장
         </button>
@@ -155,7 +154,6 @@ export function MoveList(props: Props) {
           className="ghost"
           onClick={async () => setShared(await onShare())}
           disabled={!canSave}
-          title="이 판을 링크로 건넵니다. 받은 사람이 링크를 열면 이 판이 열립니다."
         >
           {(shared && SHARE_SAID[shared]) ?? "링크 공유"}
         </button>

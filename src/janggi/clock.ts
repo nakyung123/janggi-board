@@ -33,7 +33,7 @@ export interface ClockPreset extends ClockSettings {
 /*
  * 시계는 두 가지뿐이다 - '시계를 쓴다(5분) / 안 쓴다'. 고를 것이 많으면 처음 온
  * 사람은 무엇이 보통인지 모르고, 실제로 쓰는 길이는 5분대 하나다. 이름은 짧게
- * "5분" 이고, 초읽기까지 적은 전체 설명은 describeClock 이 버튼 툴팁으로 준다.
+ * "5분" 이고, 초읽기까지 적은 전체 설명(describeClock)은 화면 읽기 프로그램에만 붙여 읽힌다.
  *
  * 옛 판에서 남긴 id(normal·long·custom 같은 것)는 clockPresetById 가 기본값으로 떨군다.
  */

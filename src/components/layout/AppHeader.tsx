@@ -14,7 +14,7 @@ import type { Mode } from "./ModeTabs";
 interface Props {
   mode: Mode;
   onMode: (mode: Mode) => void;
-  /** 판이 규칙에 맞지 않는 까닭들. 있으면 "잘못된 판" 을 걸고 툴팁에 까닭을 적는다. */
+  /** 판이 규칙에 맞지 않는 까닭들. 있으면 "잘못된 판" 을 건다. 까닭은 화면 읽기 줄(spoken)이 말한다. */
   problems: string[] | null;
   /** 화면 읽기 프로그램에 한 줄로 알릴 판 상태(장군·결과·잘못된 판) */
   spoken: string;
@@ -33,9 +33,7 @@ export function AppHeader({ mode, onMode, problems, spoken, soundOn, onToggleSou
 
       <div className="top-end">
         {problems && (
-          <span className="turn-tag" title={problems.join(" ")}>
-            잘못된 판
-          </span>
+          <span className="turn-tag">잘못된 판</span>
         )}
         {/* 착수음·집는 소리·초읽기 소리를 한 번에 켜고 끈다. 고른 값은 브라우저에 남는다. */}
         <button
@@ -43,7 +41,6 @@ export function AppHeader({ mode, onMode, problems, spoken, soundOn, onToggleSou
           className="ghost icon"
           onClick={onToggleSound}
           aria-label={soundLabel}
-          title={soundLabel}
         >
           {soundOn ? <Volume2 {...ICON} /> : <VolumeX {...ICON} />}
         </button>

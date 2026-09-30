@@ -34,7 +34,6 @@ interface Props<T extends string> {
   /** 이 칸의 이름을 적은 요소의 id. 화면 읽기 프로그램이 "상대 급수, 12급" 으로 읽는다. */
   labelledBy: string;
   disabled?: boolean;
-  title?: string;
 }
 
 /** 목록과 칸 사이, 목록과 화면 아래 끝 사이 */
@@ -42,7 +41,7 @@ const GAP = 4;
 const EDGE = 12;
 
 export function Dropdown<T extends string>(props: Props<T>) {
-  const { value, options, onChange, labelledBy, disabled, title } = props;
+  const { value, options, onChange, labelledBy, disabled } = props;
   const id = useId();
   const listId = `${id}-list`;
   const valueId = `${id}-value`;
@@ -198,7 +197,6 @@ export function Dropdown<T extends string>(props: Props<T>) {
         aria-labelledby={`${labelledBy} ${valueId}`}
         aria-activedescendant={open ? optionId(active) : undefined}
         disabled={disabled}
-        title={title}
         onClick={() => (open ? setOpen(false) : show(selectedIndex))}
         onKeyDown={onKeyDown}
         onKeyUp={onKeyUp}

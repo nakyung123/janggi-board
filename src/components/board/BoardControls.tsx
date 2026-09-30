@@ -37,13 +37,10 @@ interface Props {
   onUndo: () => void;
   onFlip: () => void;
   onPass: () => void;
-  /** 한수쉼 버튼의 툴팁을 바꿔 달 때. 빅장이 걸리면 한수쉼이 빅장을 받는 수가 된다. */
-  passTitle?: string;
 }
 
 export function BoardControls(props: Props) {
-  const { mode, cursor, last, canPass, finished, onJump, onUndo, onFlip, onPass, passTitle } =
-    props;
+  const { mode, cursor, last, canPass, finished, onJump, onUndo, onFlip, onPass } = props;
 
   const atStart = cursor === 0;
   const atEnd = cursor >= last;
@@ -66,7 +63,6 @@ export function BoardControls(props: Props) {
           className="icon"
           disabled={atStart}
           onClick={() => onJump(0)}
-          title="처음으로"
           aria-label="처음으로"
         >
           <ChevronsLeft {...ICON} />
@@ -75,7 +71,6 @@ export function BoardControls(props: Props) {
           type="button"
           disabled={atStart}
           onClick={() => (undoing ? onUndo() : onJump(cursor - 1))}
-          title="← 키"
         >
           <ChevronLeft {...ICON} />
           {undoing ? "무르기" : "이전"}
@@ -84,7 +79,6 @@ export function BoardControls(props: Props) {
           type="button"
           disabled={atEnd}
           onClick={() => onJump(cursor + 1)}
-          title="→ 키"
         >
           {undoing ? "다시" : "다음"}
           <ChevronRight {...ICON} />
@@ -94,7 +88,6 @@ export function BoardControls(props: Props) {
           className="icon"
           disabled={atEnd}
           onClick={() => onJump(last)}
-          title="끝으로"
           aria-label="끝으로"
         >
           <ChevronsRight {...ICON} />
@@ -102,17 +95,12 @@ export function BoardControls(props: Props) {
       </div>
 
       <div className="board-actions">
-        <button type="button" onClick={onFlip} title="F 키">
+        <button type="button" onClick={onFlip}>
           판 뒤집기
         </button>
         {/* 기보 탭은 지난 판을 읽기만 한다. 둘 수가 없으니 한수쉼도 없다. */}
         {mode === "play" && (
-          <button
-            type="button"
-            disabled={!canPass}
-            title={passTitle ?? "궁을 제자리에 두는 것이 장기의 한수쉼입니다"}
-            onClick={onPass}
-          >
+          <button type="button" disabled={!canPass} onClick={onPass}>
             한수쉼
           </button>
         )}

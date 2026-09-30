@@ -1072,14 +1072,6 @@ export default function App() {
               onUndo={undoMove}
               onFlip={flip}
               onPass={passMove}
-              passTitle={
-                // 빅장이 걸린 쪽의 한수쉼은 빅장을 받는 수라 판이 끝난다. 모르고 누르지 않게.
-                gstatus.kind === "facing"
-                  ? pointsRule
-                    ? "한수쉼을 두면 빅장을 받아 점수로 승부를 가립니다"
-                    : "한수쉼을 두면 빅장을 받아 비깁니다"
-                  : undefined
-              }
             />
 
             {mode === "play" && (

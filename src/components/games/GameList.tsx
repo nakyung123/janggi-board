@@ -176,7 +176,6 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
               disabled={current === 0}
               onClick={() => onPage(current - 1)}
               aria-label="이전 쪽"
-              title="이전 쪽"
             >
               <ChevronLeft size={20} strokeWidth={2} aria-hidden />
             </button>
@@ -203,7 +202,6 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
               disabled={current === pages - 1}
               onClick={() => onPage(current + 1)}
               aria-label="다음 쪽"
-              title="다음 쪽"
             >
               <ChevronRight size={20} strokeWidth={2} aria-hidden />
             </button>

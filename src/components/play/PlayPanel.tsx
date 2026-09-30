@@ -12,7 +12,6 @@ import type { Side } from "../../janggi/pieces";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import { SETUPS } from "../../janggi/setups";
 import type { Setup } from "../../janggi/setups";
-import { 을를 } from "../../janggi/korean";
 import { Dropdown } from "../common/Dropdown";
 
 
@@ -73,9 +72,6 @@ export function PlayPanel(props: Props) {
    * 시계를 바꾸면 양쪽 시계가 새로 차 시간패가 지워지고, 쪽을 바꾸면 기권한 쪽이
    * 뒤바뀐다. 끝난 판은 새 대국으로만 넘어간다.
    */
-  const endedTitle = "끝난 판입니다. 새 대국을 누르면 바꿀 수 있습니다";
-  const startedTitle = ended ? endedTitle : "대국을 시작하면 바꿀 수 없습니다";
-
   return (
     <div className="panel play">
       <div className="panel-title">
@@ -99,7 +95,6 @@ export function PlayPanel(props: Props) {
               aria-pressed={mySide === id}
               disabled={ended}
               onClick={() => onMySide(id)}
-              title={ended ? endedTitle : `${을를(SIDE_LABEL[id])} 잡고 둡니다`}
             >
               {label}
             </button>
@@ -115,7 +110,6 @@ export function PlayPanel(props: Props) {
           value={level.id}
           labelledBy={levelLabel}
           disabled={ended}
-          title={ended ? endedTitle : undefined}
           onChange={onLevel}
           options={LEVELS.map((l) => {
             const wait = levelWaitLabel(l);
@@ -126,7 +120,8 @@ export function PlayPanel(props: Props) {
 
       {/*
         시계는 두 가지라 셀렉트 대신 분절 버튼이다. 펼쳐 봐야 둘뿐인 것을
-        접어 둘 까닭이 없다. 5분의 초읽기(30초 3회)는 툴팁이 말한다.
+        접어 둘 까닭이 없다. 5분의 초읽기(30초 3회)는 두는 동안 대국자 카드가 보여준다.
+        화면 읽기 프로그램에는 버튼 이름에 붙여 읽힌다.
       */}
       <div className="row">
         <span className="label">시계</span>
@@ -138,10 +133,10 @@ export function PlayPanel(props: Props) {
               className={clockId === c.id ? "active" : ""}
               aria-pressed={clockId === c.id}
               disabled={ended}
-              title={ended ? endedTitle : describeClock(c)}
               onClick={() => onClock(c.id)}
             >
               {c.name}
+              {c.enabled && <span className="sr-only"> ({describeClock(c)})</span>}
             </button>
           ))}
         </div>
@@ -155,14 +150,13 @@ export function PlayPanel(props: Props) {
           value={variant}
           labelledBy={variantLabel}
           disabled={started}
-          title={started ? startedTitle : "승부가 어떻게 갈리는지를 정합니다"}
           onChange={onVariant}
-          // 설명은 목록에서 이름 아래에 보인다. 툴팁에만 두면 고르면서 무슨 규칙인지 모른다.
+          // 설명은 목록에서 이름 아래에 보인다. 고르면서 무슨 규칙인지 안다.
           options={VARIANT_OPTIONS.map((v) => ({ value: v.id, label: v.label, desc: v.desc }))}
         />
       </div>
       {/*
-        무엇이 언제 잠기는지 적어 둔다. 툴팁에만 두면 폰에서는 볼 길이 없다.
+        무엇이 언제 잠기는지 적어 둔다. 잠긴 칸은 눌러도 아무 말이 없다.
         두 말 다 한 줄에 들어가게 짧게 둔다(오른쪽 칸 폭 400 에서 컨트롤 칸은 한글
         열여섯 자 남짓).
       */}
@@ -190,7 +184,6 @@ export function PlayPanel(props: Props) {
                   className={setups[side]?.id === s.id ? "active" : ""}
                   aria-pressed={setups[side]?.id === s.id}
                   disabled={started}
-                  title={started ? startedTitle : `${s.alias} - ${s.desc}`}
                   onClick={() => onSetup(side, s)}
                 >
                   {s.name}

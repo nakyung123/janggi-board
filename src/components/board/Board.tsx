@@ -11,7 +11,6 @@ import type { Board as BoardMap, Square } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
 import { pieceInfo } from "../../janggi/pieces";
 import type { PieceChar } from "../../janggi/pieces";
-import { toJanggiCoord } from "../../janggi/notation";
 import { CheckCallout } from "./CheckCallout";
 import { PieceBody, PieceDefs } from "./PieceGlyph";
 
@@ -239,7 +238,7 @@ export function Board(props: BoardProps) {
   });
 
   // 좌표 숫자는 판에 그리지 않는다. 판이 그만큼 커지고, 실물 장기판에도 없다.
-  // 칸 이름이 필요하면 교차점에 마우스를 올렸을 때 뜨는 이름표(<title>)가 있다.
+  // 기보의 수가 어디인지는 기보 칸에 마우스를 올리면 판에 화살표로 뜬다.
 
   const renderPiece = (square: Square, dragging: boolean) => {
     const piece = board[square];
@@ -468,9 +467,7 @@ export function Board(props: BoardProps) {
             onPointerUp={() => {
               if (!drag) onSquareClick(s);
             }}
-          >
-            <title>{toJanggiCoord(s)}</title>
-          </circle>
+          />
         );
       })}
 

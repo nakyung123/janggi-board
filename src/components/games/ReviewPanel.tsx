@@ -88,7 +88,6 @@ export function ReviewPanel(props: Props) {
                 key={d.id}
                 type="button"
                 className={d.id === depthId ? "active" : ""}
-                title={d.desc}
                 onClick={() => onDepth(d.id)}
               >
                 {d.name}
@@ -174,7 +173,7 @@ export function ReviewPanel(props: Props) {
                 ))}
               </ul>
               <p className="muted small">
-                <b title="엔진이 고른 수와 같은 수를 둔 비율">
+                <b>
                   일치율 {Math.round(s.accuracy * 100)}%
                 </b>
                 {" · 한 수당 평균 "}

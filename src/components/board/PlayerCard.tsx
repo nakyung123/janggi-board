@@ -83,7 +83,7 @@ export function PlayerCard(props: Props) {
         </span>
       ) : (
         // 잡아낸 기물. 상대 기물이라 색도 상대 색으로 새긴다.
-        <span className="player-captured" title="잡아낸 기물">
+        <span className="player-captured">
           {captured.map((type, i) => (
             <svg key={type + i} viewBox="-11 -11 22 22" className="captured-piece">
               <PieceBody piece={charOf(type, opponent) as PieceChar} radius={10} flat />
@@ -92,14 +92,7 @@ export function PlayerCard(props: Props) {
         </span>
       )}
 
-      <span
-        className="player-score"
-        title={
-          side === "han"
-            ? "기물 점수 - 한은 후수라 1.5점 덤을 미리 받습니다"
-            : "기물 점수"
-        }
-      >
+      <span className="player-score">
         {score.toFixed(1)}
         <em>점</em>
         {side === "han" && <em className="player-komi">덤 1.5</em>}
@@ -121,8 +114,9 @@ export function PlayerCard(props: Props) {
             {view.text}
           </b>
           {view.inByoyomi && !view.flagged && (
-            <span className="byoyomi-dots" title={`초읽기 ${view.periods}회 남음`}>
-              {"●".repeat(Math.max(0, view.periods))}
+            <span className="byoyomi-dots">
+              <span aria-hidden="true">{"●".repeat(Math.max(0, view.periods))}</span>
+              <span className="sr-only">초읽기 {view.periods}회 남음</span>
             </span>
           )}
         </span>
