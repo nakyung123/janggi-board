@@ -35,8 +35,6 @@ export interface BoardProps {
   lastMove: { from: Square; to: Square } | null;
   /** 복기한 판에서 고른 수 대신 뒀어야 할 수. 파란 화살표. */
   bestMove: { from: Square; to: Square } | null;
-  /** 기보의 수에 마우스를 올려 미리 보는 수. 호박색 화살표라 뒀어야 할 수와 헷갈리지 않는다. */
-  hoverMove?: { from: Square; to: Square } | null;
   /** 장군을 맞은 궁의 자리 */
   checkedKing?: Square | null;
   onSquareClick: (square: Square) => void;
@@ -72,7 +70,6 @@ export function Board(props: BoardProps) {
     targets,
     lastMove,
     bestMove,
-    hoverMove,
     checkedKing,
     onSquareClick,
     onMove,
@@ -238,7 +235,6 @@ export function Board(props: BoardProps) {
   });
 
   // 좌표 숫자는 판에 그리지 않는다. 판이 그만큼 커지고, 실물 장기판에도 없다.
-  // 기보의 수가 어디인지는 기보 칸에 마우스를 올리면 판에 화살표로 뜬다.
 
   const renderPiece = (square: Square, dragging: boolean) => {
     const piece = board[square];
@@ -297,10 +293,8 @@ export function Board(props: BoardProps) {
     for (let f = 0; f < FILES; f++) squares.push(sq(f, r));
   }
 
-  // 뒀어야 할 수(파랑)와 미리 보는 수(호박색)를 색으로 나눈다.
   const arrows = [
     bestMove && { key: "best", cls: "best-arrow", m: bestMove, head: "arrowBest" },
-    hoverMove && { key: "hover", cls: "hover-arrow", m: hoverMove, head: "arrowHover" },
   ].filter(Boolean) as {
     key: string;
     cls: string;
@@ -354,13 +348,10 @@ export function Board(props: BoardProps) {
           <rect width={WIDTH} height={HEIGHT} rx="9" />
         </clipPath>
         <PieceDefs />
-        {/* 화살표 머리는 몸통(board.css 의 .best-arrow/.hover-arrow)과 같은
-            토큰을 쓴다. 색을 여기 박아 두면 몸통만 바뀌고 머리는 옛 색으로 남는다. */}
+        {/* 화살표 머리는 몸통(board.css 의 .best-arrow)과 같은 토큰을 쓴다. 색을 여기
+            박아 두면 몸통만 바뀌고 머리는 옛 색으로 남는다. */}
         <marker id="arrowBest" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
           <path d="M0,0 L4,2 L0,4 z" style={{ fill: "var(--accent-strong)" }} />
-        </marker>
-        <marker id="arrowHover" markerWidth="4" markerHeight="4" refX="2.4" refY="2" orient="auto">
-          <path d="M0,0 L4,2 L0,4 z" style={{ fill: "var(--amber)" }} />
         </marker>
       </defs>
 

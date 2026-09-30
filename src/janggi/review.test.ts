@@ -9,7 +9,7 @@ import { START_FEN, parseFen } from "./board";
 import type { Board } from "./board";
 import type { ReviewInput, ReviewedMove } from "./review";
 import {
-  clampScore, gradeOf, isSlip, reviewMove, summarize, bestArrowOf, winChance, winPercent,
+  clampScore, gradeOf, reviewMove, bestArrowOf, winChance, winPercent,
 } from "./review";
 
 const before: Board = parseFen(START_FEN).board;
@@ -188,81 +188,6 @@ describe("손해 계산", () => {
     const r = reviewMove(수());
     expect(r.playedNotation).not.toBe("");
     expect(r.bestNotation).not.toBe("");
-  });
-});
-
-describe("성적표", () => {
-  const 만든수 = (over: Partial<ReviewedMove>): ReviewedMove =>
-    ({
-      index: 1, mover: "cho", played: "a4a5", playedNotation: "71졸61",
-      best: null, bestNotation: null, bestLine: [],
-      scoreBefore: 0, scoreAfter: 0, loss: 0, grade: "good",
-      note: { verdict: null, best: null, bestDoes: null, after: null },
-      ...over,
-    }) as ReviewedMove;
-
-  it("자기 진영의 수만 센다", () => {
-    const s = summarize(
-      [만든수({ mover: "cho" }), 만든수({ mover: "han" }), 만든수({ mover: "cho" })],
-      "cho"
-    );
-    expect(s.moves).toBe(2);
-  });
-
-  it("등급별로 센다", () => {
-    const s = summarize(
-      [
-        만든수({ grade: "best" }),
-        만든수({ grade: "blunder", loss: 5 }),
-        만든수({ grade: "blunder", loss: 4 }),
-      ],
-      "cho"
-    );
-    expect(s.counts.best).toBe(1);
-    expect(s.counts.blunder).toBe(2);
-  });
-
-  it("부정확 이상이면 아쉬운 수로 짚는다", () => {
-    expect(isSlip(만든수({ loss: 0.4, grade: "inaccuracy" }))).toBe(true);
-    expect(isSlip(만든수({ loss: 2, grade: "mistake" }))).toBe(true);
-    expect(isSlip(만든수({ loss: 5, grade: "blunder" }))).toBe(true);
-  });
-
-  it("등급이 '좋은 수' 면 손해가 커도 짚지 않는다", () => {
-    // 급수 눈높이를 낮추면 경계가 늘어난다. 그때 손해 숫자를 절대 기준으로 다시 재면
-    // 등급은 "좋은 수" 라면서 같은 수를 아쉬운 수로 짚게 된다.
-    // 12급과 둔 4수짜리 판에서 실제로 그랬다.
-    expect(isSlip(만든수({ loss: 0.59, grade: "good" }))).toBe(false);
-    expect(isSlip(만든수({ loss: 0, grade: "best" }))).toBe(false);
-  });
-
-  // 일치율 — 한국장기가 돈 받고 파는 값이다. 0으로 나누는 자리가 있어서
-  // 빈 기보에서 NaN 이 새어 나가지 않는지가 핵심이다.
-  it("최선수를 둔 비율이 일치율이다", () => {
-    const s = summarize(
-      [만든수({ grade: "best" }), 만든수({ grade: "best" }), 만든수({ grade: "mistake" }), 만든수({ grade: "good" })],
-      "cho"
-    );
-    expect(s.accuracy).toBeCloseTo(0.5, 5);
-  });
-
-  it("전부 최선수면 100%", () => {
-    const s = summarize([만든수({ grade: "best" }), 만든수({ grade: "best" })], "cho");
-    expect(s.accuracy).toBe(1);
-  });
-
-  it("수가 없으면 일치율은 0 이다 (NaN 이 아니다)", () => {
-    const s = summarize([], "cho");
-    expect(s.accuracy).toBe(0);
-    expect(Number.isNaN(s.accuracy)).toBe(false);
-  });
-
-  it("상대가 둔 수는 내 일치율에 안 들어간다", () => {
-    const s = summarize(
-      [만든수({ mover: "cho", grade: "best" }), 만든수({ mover: "han", grade: "blunder" })],
-      "cho"
-    );
-    expect(s.accuracy).toBe(1);
   });
 });
 

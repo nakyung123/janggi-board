@@ -22,7 +22,6 @@ import { PlayerCard } from "./components/board/PlayerCard";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameList } from "./components/games/GameList";
-import { MoveList } from "./components/games/MoveList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
 import { BootScreen } from "./components/layout/BootScreen";
@@ -110,8 +109,6 @@ export default function App() {
   const [flipped, setFlipped] = usePersisted("flipped", false, (v) => typeof v === "boolean");
   /** 집어 든 기물의 자리 */
   const [selected, setSelected] = useState<Square | null>(null);
-  /** 기보 칸에 마우스를 올린 수. 판에 화살표로 미리 보여준다. */
-  const [hover, setHover] = useState<string | null>(null);
   /**
    * 화면 읽기 프로그램에 한 번 말하고 마는 알림. 4초 뒤 비운다. 화면에는 띄우지 않는다 -
    * 보이는 알림은 누른 자리에 있다(넣은 판의 카드, 목록 제목 아래 한 줄).
@@ -681,7 +678,6 @@ export default function App() {
       setListPage(0);
       setListError(null);
       setSelected(null);
-      setHover(null);
     },
     [review.running]
   );
@@ -696,14 +692,12 @@ export default function App() {
     setViewFlipped(game.mySide === "han");
     setListError(null);
     setSelected(null);
-    setHover(null);
     review.clearError();
   };
 
   const closeArchived = () => {
     if (review.running) return;
     setOpenId(null);
-    setHover(null);
   };
 
   useKeyboard(
@@ -806,8 +800,6 @@ export default function App() {
     () => reviewed?.find((r) => r.index === cursor) ?? null,
     [reviewed, cursor]
   );
-  /** 기보 칸에 마우스를 올린 수 */
-  const hoverArrow = arrowOf(hover);
   /** 복기한 판에서, 고른 수 대신 뒀어야 할 수 */
   const bestArrow = openGame ? bestArrowOf(currentReview) : null;
   const lastMove = useMemo(() => arrowOf(entry.move), [entry.move]);
@@ -962,7 +954,6 @@ export default function App() {
                   targets={targets}
                   lastMove={lastMove}
                   bestMove={bestArrow}
-                  hoverMove={hoverArrow}
                   checkedKing={checkedKing}
                   onSquareClick={handleSquareClick}
                   onMove={handleMove}
@@ -1031,17 +1022,13 @@ export default function App() {
 
             {/*
               형세가 위, 복기가 아래 - 판 전체의 흐름을 먼저 보고 한 수씩 들어간다. 형세는
-              복기 전에는 그릴 것이 없어 뜨지 않는다. 수 목록은 복기 칸 안에 선다.
+              복기 전에는 그릴 것이 없어 뜨지 않는다. 수는 판 조작 줄과 형세 그래프로 옮긴다.
             */}
             {openGame && (
               <>
                 <EvalGraph history={history} cursor={cursor} onJump={goTo} />
                 <ReviewPanel
                   moveCount={openGame.history.length - 1}
-                  names={{
-                    cho: openGame.mySide === "cho" ? "나" : openGame.levelName,
-                    han: openGame.mySide === "han" ? "나" : openGame.levelName,
-                  }}
                   depthId={reviewDepthId}
                   onDepth={setReviewDepthId}
                   running={review.running}
@@ -1051,16 +1038,6 @@ export default function App() {
                   error={review.error}
                   onStart={() => void startReview()}
                   onStop={review.stop}
-                  onJump={goTo}
-                  moves={
-                    <MoveList
-                      history={history}
-                      cursor={cursor}
-                      reviewed={reviewed}
-                      onJump={goTo}
-                      onHoverMove={setHover}
-                    />
-                  }
                 />
               </>
             )}

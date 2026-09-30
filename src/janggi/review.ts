@@ -300,46 +300,7 @@ function buildNote(c: NoteInput): MoveNote {
   return note;
 }
 
-/**
- * 짚어 볼 만한 수 - 부정확·실수·악수. 복기 카드의 '이전·다음 아쉬운 수' 가 이 수들을 오간다.
- *
- * 손해 숫자로 다시 재지 않고 매겨진 등급을 본다. 등급 경계는 급수 눈높이에 따라 늘어나는데
- * 여기만 절대 기준으로 재면, 등급은 "좋은 수" 라면서 같은 수를 아쉬운 수로 짚게 된다.
- */
-export const isSlip = (r: ReviewedMove): boolean =>
-  r.grade === "inaccuracy" || r.grade === "mistake" || r.grade === "blunder";
-
-// --- 요약 ----------------------------------------------------------------
-
-export interface SideSummary {
-  side: Side;
-  counts: Record<MoveGrade, number>;
-  moves: number;
-  /**
-   * 엔진의 최선수와 같은 수를 둔 비율 (0~1).
-   *
-   * 둔 수가 없으면 0이다. 급수를 재는 값이 아니라 "이 한 판에서 엔진과 얼마나
-   * 같이 봤는가" 일 뿐이다. 판이 짧으면 크게 흔들린다.
-   */
-  accuracy: number;
-}
-
-export function summarize(reviewed: ReviewedMove[], side: Side): SideSummary {
-  const mine = reviewed.filter((r) => r.mover === side);
-  const counts: Record<MoveGrade, number> = {
-    best: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0,
-  };
-  for (const r of mine) counts[r.grade] += 1;
-
-  return {
-    side,
-    counts,
-    moves: mine.length,
-    accuracy: mine.length ? counts.best / mine.length : 0,
-  };
-}
-
-/** 복기 목록에서 그 수의 화살표를 그릴 때 쓴다. */
+/** 지금 수 대신 뒀어야 할 수. 판에 파란 화살표로 그린다. */
 export function bestArrowOf(r: ReviewedMove | null) {
   if (!r?.best) return null;
   const { from, to } = splitMove(r.best);

@@ -1,5 +1,5 @@
 /* 기보 탭에서 연 판의 오른쪽 칸 — 머리 줄(목록으로·저장), 형세(승률·그래프),
-   복기(진행률·지금 수의 설명·아쉬운 수 오가기·수 목록·성적표). 복기 등급 색도 여기 둔다. */
+   복기(진행률·지금 수의 설명·다시 복기). 복기 등급 색도 여기 둔다. */
 
 /* --- 등급 색 ----------------------------------------------------------- */
 
@@ -86,31 +86,22 @@
   transition: width 0.2s;
 }
 
-/* --- 지금 수의 설명 — 이 패널의 알맹이 --------------------------------- */
+/* --- 지금 수의 설명 ------------------------------------------------------ */
 
-/* 등급 색 띠(왼쪽 4)를 두른 한 톤 짙은 칸. 띠 색만 보고도 어떤 수였는지 먼저 읽힌다. */
-.review-move {
-  border: 1px solid var(--grade, var(--line));
-  border-left-width: 4px;
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  background: var(--panel-2);
-}
-
+/*
+ * 상자·색 띠로 감싸지 않는다. 패널이 이미 한 겹이고, 왼쪽에 색 띠를 두른 카드는 어디서나
+ * 보이는 틀이라 무엇을 말하는지보다 틀이 먼저 읽혔다. 등급은 오른쪽 끝의 등급 색 글자가 말한다.
+ */
 .review-move-head {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-/* "한의 6번째 수 14사24" - 둔 수는 진영 색 굵은 글자로. */
-.review-move-title {
-  min-width: 0;
-  color: var(--muted);
-}
-
-.review-move-title b {
+/* 둔 수가 이 칸의 제목이다 - 패널 제목과 같은 20, 진영 색. */
+.review-move-notation {
+  font-size: var(--fs-title);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -128,8 +119,8 @@
 }
 
 /*
- * 이름 붙은 줄: 승률 / 엔진의 수 / 그 뒤. 이름 칸을 72 로 박아 내용이 모두 같은 자리에서
- * 시작한다('엔진의 수' 가 16 글자로 64 쯤). 긴 내용은 이름 칸 오른쪽에서 줄을 바꾼다.
+ * 이름 붙은 줄: 승률 / AI의 수 / 그 뒤. 이름 칸을 72 로 박아 내용이 모두 같은 자리에서
+ * 시작한다. 긴 내용은 이름 칸 오른쪽에서 줄을 바꾼다.
  */
 .review-facts {
   display: grid;
@@ -147,163 +138,9 @@
   letter-spacing: 0;
 }
 
-/* 카드가 없을 때(시작 국면)와 짚을 수가 없을 때의 한 줄. */
-.review-hint {
-  padding: 8px 0;
-}
-
-.review-move + .review-hint {
-  margin-top: 4px;
-}
-
-/* 이전·다음 아쉬운 수. 두 칸을 반씩 나눠 판 조작 줄의 이전·다음처럼 선다. */
-.review-nav {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.review-nav button {
-  padding: 0 8px;
-  white-space: nowrap;
-}
-
-/* 수 목록. 위 묶음(카드·버튼, 복기 시작)과 여백 16 으로 가른다. */
-.review-moves {
-  margin-top: 16px;
-}
-
-/* --- 복기 성적표 ------------------------------------------------------- */
-
-/*
- * 초·한 한 줄씩, 칸은 일치율 · 부정확 · 실수 · 악수. 같은 등급이 위아래로 맞아 두 쪽을
- * 견주기 쉽다. 전에는 등급 다섯을 큰 숫자로 쪽마다 따로 늘어놓아(숫자 열 개에 평균 손해까지)
- * 무엇부터 봐야 할지 몰랐다.
- */
-.review-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-}
-
-.review-table th,
-.review-table td {
-  padding: 6px 0;
-  font-size: var(--fs-base);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.review-table thead th {
-  font-weight: 500;
-  color: var(--grade, var(--muted));
-}
-
-.review-table tbody tr {
-  border-top: 1px solid var(--line);
-}
-
-.review-table tbody th {
-  text-align: left;
-  font-weight: 400;
-}
-
-.review-table tbody th span {
-  font-weight: 600;
-}
-
-.review-table tbody td {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  color: var(--grade, var(--text));
-}
-
-/* 0 은 흐리게 둬서 실제로 나온 실수만 눈에 걸리게 한다. */
-.review-table tbody td.zero {
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.review-table-note {
-  margin: 8px 0 12px;
-}
-
-/* --- 수 목록 ----------------------------------------------------------- */
-
-/* 여덟 줄(열여섯 수)쯤 보이고 나머지는 제 안에서 굴린다. 지금 수는 MoveList 가 보이게 굴린다. */
-.move-scroll {
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.move-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.move-table {
-  table-layout: fixed;
-}
-
-.move-table td {
-  padding: 2px 0;
-}
-
-/* 초·한 칸을 같은 너비로. 안 그러면 한쪽만 넓게 늘어난다. */
-.move-table td:not(.move-no) {
-  width: 50%;
-}
-
-.move-no {
-  width: 32px;
-  color: var(--muted);
-  font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  text-align: right;
-  padding-right: 8px !important;
-}
-
-/* 버튼이지만 목록의 한 칸이라 40 높이를 따르지 않는다. */
-.move-cell {
-  width: 100%;
-  min-height: 0;
-  justify-content: flex-start;
-  background: transparent;
-  border-color: transparent;
-  border-radius: var(--radius-xs);
-  font-size: var(--fs-base);
-  font-weight: 400;
-  letter-spacing: 0;
-  text-align: left;
-  padding: 4px 8px;
-}
-
-/* 기보 칸도 눌러서 그 수로 가는 버튼이다. 마우스에서는 목록 줄 높이(32)를
-   따르지만 손가락으로는 44 가 필요하다. 목록은 제 칸 안에서 스크롤하니
-   길어져도 판은 줄지 않는다. (위 min-height: 0 보다 뒤에 있어야 이긴다.) */
-@media (pointer: coarse) {
-  .move-cell {
-    min-height: 44px;
-  }
-}
-
-.move-cell.cho {
-  color: var(--cho);
-}
-
-.move-cell.han {
-  color: var(--han);
-}
-
-/* 지금 보고 있는 수. 색을 얹으면 초·한 글자색과 싸우므로 바탕과 굵기로만
-   짚는다. */
-.move-cell.active {
-  background: var(--panel-2);
-  border-color: var(--line-strong);
-  font-weight: 600;
+/* 다시 복기(깊이·버튼). 설명과는 묶음 사이 24 로 가른다. */
+.review-again {
+  margin-top: 24px;
 }
 
 /* --- 형세 그래프 -------------------------------------------------------- */
@@ -385,28 +222,3 @@
 .graph .muted.small {
   margin-top: 8px;
 }
-
-/* --- 수 목록 칸에 붙는 등급 기호 --------------------------------------- */
-
-.move-cell {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-/* 손가락용 44 칸(위 .move-cell)에서는 글자를 칸 가운데로. baseline 이면 위에 붙는다. */
-@media (pointer: coarse) {
-  .move-cell {
-    align-items: center;
-  }
-}
-
-.move-grade {
-  margin-left: auto;
-  font-style: normal;
-  font-family: var(--sans);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  color: var(--grade, var(--muted));
-}
-
