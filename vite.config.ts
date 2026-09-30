@@ -17,10 +17,11 @@ export default defineConfig({
   // 11MB 신경망과 1.6MB wasm 은 public/ 에 그대로 두고 fetch 로 읽는다.
   // 번들러가 건드리지 않도록 assetsInlineLimit 는 기본값을 유지한다.
 
-  // 테스트는 src/janggi 와 src/engine 의 순수 로직만 본다. 화면과 엔진(wasm)은
-  // 브라우저가 있어야 해서 여기서 다루지 않는다.
+  // 순수 로직 테스트(*.test.ts)는 node 에서 돈다. 화면 테스트(*.test.tsx)는 파일 맨 위의
+  // `@vitest-environment jsdom` 으로 브라우저 흉내 속에서 돌고, 엔진(wasm)은 가짜로 바꿔
+  // 끼운다(src/test/fakeEngine.ts). 진짜 엔진은 브라우저가 있어야 해서 여기서 다루지 않는다.
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
     environment: "node",
   },
 });
