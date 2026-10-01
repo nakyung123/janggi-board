@@ -8,7 +8,7 @@ import { troubleLine } from "./errors";
 
 /*
  * 아직 열지 않았으면(값이 비어 있으면) 버튼을 아예 그리지 않는다 -
- * 눌러도 갈 데가 없는 버튼을 두지 않는다. README 의 '환경 변수' 참고.
+ * 눌러도 갈 데가 없는 버튼을 두지 않는다. 값의 이름은 .env.example 에 있다.
  */
 const FEEDBACK_URL = import.meta.env.VITE_FEEDBACK_URL ?? "";
 /** 폼의 받는 칸 이름표(entry.NNN). 있으면 그 칸을 미리 채워서 연다. */

@@ -38,7 +38,6 @@
       <ul>
         <li><a href="#준비물">준비물</a></li>
         <li><a href="#설치">설치</a></li>
-        <li><a href="#환경-변수">환경 변수</a></li>
         <li><a href="#응답-헤더">응답 헤더</a></li>
       </ul>
     </li>
@@ -60,11 +59,11 @@
 NNUE 신경망을 얹은 것이고, WebAssembly 로 브라우저 안에서 돈다. 서버가 없어서 둔 판과
 설정은 그 브라우저에만 남는다.
 
-- **대국** — 18급부터 9단까지 27단계 가운데 상대를 고른다. 상차림 넷, 규칙 셋(표준 ·
+- **대국** - 18급부터 9단까지 27단계 가운데 상대를 고른다. 상차림 넷, 규칙 셋(표준 ·
   현대 · 전통), 시계(5분 + 초읽기 30초 3회, 또는 없음).
-- **기보** — 끝난 판이 목록에 저절로 남는다(최근 100판). 다시 열어 한 수씩 되짚고,
+- **기보** - 끝난 판이 목록에 저절로 남는다(최근 100판). 다시 열어 한 수씩 되짚고,
   파일로 저장하거나 불러온다.
-- **복기** — AI가 기보를 처음부터 끝까지 다시 보고, 수마다 등급과 승률 변화, 자기라면
+- **복기** - AI가 기보를 처음부터 끝까지 다시 보고, 수마다 등급과 승률 변화, 자기라면
   둔 수를 알려 준다.
 
 급수는 장기 급수의 이름을 빌린 **이 앱 안의 눈금**이다. 공인 급수가 아니다.
@@ -107,7 +106,7 @@ NNUE 신경망을 얹은 것이고, WebAssembly 로 브라우저 안에서 돈�
    처음 한 번은 엔진과 신경망(약 13MB)을 `public/engine/` 에 받는다. 이 파일들은 용량
    때문에 저장소에 넣지 않는다.
 
-> **신경망 받기가 실패하면** — <https://fairy-stockfish.github.io/nnue/> 에서
+> **신경망 받기가 실패하면** - <https://fairy-stockfish.github.io/nnue/> 에서
 > `janggi-9991472750de.nnue` 를 직접 받아 `public/engine/` 에 넣는다. 파일 이름은 그대로
 > 두어야 한다.
 
@@ -119,18 +118,6 @@ npm run build           # 프로덕션 빌드
 npm run preview         # 빌드 결과를 응답 헤더까지 갖춰서 확인
 npm run verify-engine   # 브라우저 없이 엔진만 점검
 ```
-
-### 환경 변수
-
-없어도 돈다. 제보 버튼을 띄우려면 `.env.example` 을 `.env.local` 로 복사해 채운다
-(`.env*` 는 `.gitignore` 에 들어 있다).
-
-| 이름 | 무엇 |
-| --- | --- |
-| `VITE_FEEDBACK_URL` | 제보를 받을 곳(구글 폼 같은 것)의 주소. 비워 두면 제보 버튼이 뜨지 않는다 |
-| `VITE_FEEDBACK_ENTRY` | 그 폼에서 '환경' 을 받는 칸의 이름표(`entry.NNN`). 있으면 버전 · 브라우저 · 지금 판이 미리 채워진 채로 열린다 |
-
-값은 빌드에 그대로 박히므로 비밀이 아닌 주소만 넣는다.
 
 ### 응답 헤더
 
@@ -150,15 +137,15 @@ Cross-Origin-Embedder-Policy: require-corp
 <!-- 사용법 -->
 ## 사용법
 
-**대국** — 오른쪽 칸에서 잡을 쪽, 상대 급수, 시계, 규칙, 상차림을 고르고 기물을 누르거나
+**대국** - 오른쪽 칸에서 잡을 쪽, 상대 급수, 시계, 규칙, 상차림을 고르고 기물을 누르거나
 끌어서 둔다. 누르면 갈 수 있는 자리가 점으로 뜬다. 규칙과 상차림은 첫 수를 두면 잠긴다.
 무르기 · 한수쉼 · 기권은 판 오른쪽에 있다.
 
-**기보** — 끝난 판은 기보 탭 목록에 들어간다. 한 판을 눌러 열고 이전 · 다음 버튼이나 수
+**기보** - 끝난 판은 기보 탭 목록에 들어간다. 한 판을 눌러 열고 이전 · 다음 버튼이나 수
 슬라이더로 되짚는다. `저장` 은 그 판을 JSON 파일로 내려 주고, `파일 불러오기` 는 그 파일을
 목록에 한 판으로 넣는다.
 
-**복기** — 연 판에서 깊이(빠름 · 보통 · 정밀)를 고르고 복기를 시작한다. 끝나면 판에 떠 있는
+**복기** - 연 판에서 깊이(빠름 · 보통 · 정밀)를 고르고 복기를 시작한다. 끝나면 판에 떠 있는
 수마다 설명이 붙는다.
 
 ```
@@ -194,12 +181,12 @@ AI의 수     32포35
 <!-- 로드맵 -->
 ## 로드맵
 
-- [x] v0.1.0 — 대국 · 기보 · 복기
-- [ ] `.gib` 기보 읽기 — 다른 장기 앱에서 둔 판을 가져와 복기한다. 그쪽에서 기보를
+- [x] v0.1.0 - 대국 · 기보 · 복기
+- [ ] `.gib` 기보 읽기 - 다른 장기 앱에서 둔 판을 가져와 복기한다. 그쪽에서 기보를
       내보낼 수 있는지 확인될 때까지 보류
-- [ ] 로그인 — 지금은 붙이지 않는다. 기기를 옮겨도 전적이 남기를 바라는 사람이 생기면
+- [ ] 로그인 - 지금은 붙이지 않는다. 기기를 옮겨도 전적이 남기를 바라는 사람이 생기면
       소셜 로그인 하나만
-- [ ] 신경망 교체 — 지금 신경망은 라이선스가 명시되어 있지 않다. CC0 로 공개되는 망이
+- [ ] 신경망 교체 - 지금 신경망은 라이선스가 명시되어 있지 않다. CC0 로 공개되는 망이
       나오면 갈아탄다
 
 하지 않기로 한 것: 박보 · 묘수풀이, 포진법 통계, 대국 중 훈수.
@@ -237,7 +224,7 @@ AI의 수     32포35
 <!-- 연락처 -->
 ## 연락처
 
-nakyung123 — [github.com/nakyung123](https://github.com/nakyung123)
+nakyung123 - [github.com/nakyung123](https://github.com/nakyung123)
 
 프로젝트: [https://github.com/nakyung123/janggi-board](https://github.com/nakyung123/janggi-board)
 
@@ -246,13 +233,13 @@ nakyung123 — [github.com/nakyung123](https://github.com/nakyung123)
 <!-- 감사의 말 -->
 ## 감사의 말
 
-* [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish) — 엔진 (GPL v3)
-* [fairy-stockfish-nnue.wasm](https://github.com/gbtami/fairy-stockfish.wasm) — 엔진의 WebAssembly 빌드
-* [장기 NNUE 신경망](https://fairy-stockfish.github.io/nnue/) — belzedar_
-* [File:Janggi.svg](https://commons.wikimedia.org/wiki/File:Janggi.svg) — 기물 글자, Yeo123 (CC BY-SA 3.0)
-* [Pretendard](https://github.com/orioncactus/pretendard) — 글꼴
-* [Lucide](https://lucide.dev) — 아이콘
-* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) — 이 README 의 틀
+* [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish) - 엔진 (GPL v3)
+* [fairy-stockfish-nnue.wasm](https://github.com/gbtami/fairy-stockfish.wasm) - 엔진의 WebAssembly 빌드
+* [장기 NNUE 신경망](https://fairy-stockfish.github.io/nnue/) - belzedar_
+* [File:Janggi.svg](https://commons.wikimedia.org/wiki/File:Janggi.svg) - 기물 글자, Yeo123 (CC BY-SA 3.0)
+* [Pretendard](https://github.com/orioncactus/pretendard) - 글꼴
+* [Lucide](https://lucide.dev) - 아이콘
+* [Best-README-Template](https://github.com/othneildrew/Best-README-Template) - 이 README 의 틀
 
 <p align="right">(<a href="#readme-top">맨 위로</a>)</p>
 
