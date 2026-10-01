@@ -2,6 +2,7 @@
 //
 // 1) node_modules 의 fairy-stockfish-nnue.wasm 런타임 파일을 public/engine 으로 복사
 // 2) 장기 전용 NNUE 신경망(약 11MB)을 내려받아 public/engine 에 저장
+// 3) 라이선스 고지를 public/licenses 로 복사 (GPL v3 전문·제3자 고지·엔진 저작자)
 //
 // 두 자산 모두 용량이 커서 저장소에 커밋하지 않는다(.gitignore 등록).
 // 이미 받아둔 파일이 있으면 건너뛰므로 predev/prebuild 에서 매번 돌려도 부담이 없다.
@@ -14,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENGINE_DIR = join(ROOT, "public", "engine");
+const LICENSE_DIR = join(ROOT, "public", "licenses");
 const PKG_DIR = join(ROOT, "node_modules", "fairy-stockfish-nnue.wasm");
 
 // WASM 런타임 3종. stockfish.js 가 같은 폴더의 .wasm 과 .worker.js 를 찾으므로 함께 둬야 한다.
@@ -121,12 +123,89 @@ async function fetchNnue() {
   console.log(`  + ${NNUE.name} (${mb(bytes.byteLength)}, 검사값 확인)`);
 }
 
+/*
+ * 고지를 배포본에 싣는다.
+ *
+ * GPL v3(엔진과 이 앱)·CC BY-SA 3.0(기물 글자)·OFL 1.1(글꼴)이 모두 **배포물에 고지가
+ * 따라붙을 것**을 요구한다. 그런데 번들러는 주석을 지우고, NOTICE.md 는 저장소에만 있다.
+ * public/ 아래 것만 dist/ 로 그대로 복사되므로 여기로 옮겨 둔다.
+ *
+ * 손으로 복사해 두면 반드시 어긋난다. 원본은 NOTICE.md 와 엔진 패키지 하나씩이고,
+ * 여기서 만든 사본은 .gitignore 로 제외한다 - 고칠 곳이 늘 한 군데가 되게.
+ */
+async function copyNotices() {
+  await mkdir(LICENSE_DIR, { recursive: true });
+  const 할일 = [
+    // GPL v3 전문. 엔진과 이 앱이 같은 라이선스라 한 벌이면 된다. 전부 ASCII 다.
+    [join(PKG_DIR, "Copying.txt"), join(LICENSE_DIR, "GPL-3.0.txt")],
+    // 엔진 저작자 목록. GPL 이 바라는 모양대로 엔진 파일 옆에 둔다.
+    [join(PKG_DIR, "AUTHORS"), join(ENGINE_DIR, "AUTHORS")],
+  ];
+  for (const [from, to] of 할일) {
+    if (!existsSync(from)) throw new Error(`고지 원본이 없습니다: ${from}`);
+    await copyFile(from, to);
+    const { size } = await stat(to);
+    console.log(`  + ${to.slice(ROOT.length + 1).replaceAll("\\", "/")} (${mb(size)})`);
+  }
+  await writeNoticePage();
+}
+
+/*
+ * 제3자 고지는 **쪽으로** 만든다. 글자가 깨지지 않게 하려고다.
+ *
+ * 처음에는 NOTICE.md 를 .txt 로 복사해 뒀다. 띄워 보니 한글이 전부 깨졌다 -
+ * 서버가 `Content-Type: text/plain` 만 보내고 charset 을 안 붙이면 브라우저가 UTF-8 로
+ * 읽지 않는다. 고지는 **읽히라고** 올리는 글이라, 읽히지 않으면 올린 뜻이 없다.
+ *
+ * 헤더로 고칠 수도 있지만 그러면 이 파일이 **어디에 올라가느냐에 따라** 읽히기도 하고
+ * 안 읽히기도 한다. 쪽 안에 <meta charset> 을 박아 두면 호스트가 무엇이든 읽힌다.
+ */
+async function writeNoticePage() {
+  const 본문 = await readFile(join(ROOT, "NOTICE.md"), "utf8");
+  const 안전하게 = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const html = `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 빈 아이콘. 안 적어 두면 브라우저가 /favicon.ico 를 찾다가 404 를 콘솔에 남긴다. -->
+<link rel="icon" href="data:,">
+<title>오픈소스 고지 — 장기 AI</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0 auto; padding: 24px 16px 64px; max-width: 760px;
+    font: 16px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  nav { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid currentColor; }
+  nav a { margin-right: 16px; }
+  pre { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">장기 AI 로 돌아가기</a>
+  <a href="/licenses/GPL-3.0.txt">GPL v3 전문</a>
+  <a href="/engine/AUTHORS">엔진 저작자</a>
+</nav>
+<pre>${안전하게(본문)}</pre>
+</body>
+</html>
+`;
+  const dest = join(LICENSE_DIR, "index.html");
+  await writeFile(dest, html, "utf8");
+  const { size } = await stat(dest);
+  console.log(`  + public/licenses/index.html (${mb(size)})`);
+}
+
 async function main() {
   await mkdir(ENGINE_DIR, { recursive: true });
   console.log("엔진 자산 준비:");
   await copyRuntime();
   await writeCjsMarker();
   await fetchNnue();
+  console.log("라이선스 고지:");
+  await copyNotices();
   console.log("완료.");
 }
 

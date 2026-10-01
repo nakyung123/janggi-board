@@ -9,6 +9,11 @@
 //
 // 제보 자리는 두지 않는다. 제보 버튼이 어느 화면에서나 오른쪽 아래에 떠 있어서,
 // 여기에 또 두면 같은 곳으로 가는 문이 둘이 된다.
+//
+// 대신 '오픈소스 고지' 가 여기 있다. 엔진(GPL v3)·기물 글자(CC BY-SA 3.0)·글꼴(OFL 1.1)이
+// 모두 고지가 배포물에 따라붙을 것을 요구하는데, 앱에 화면이라고는 판과 기보뿐이라 둘 곳이
+// 마땅치 않았다. 이 창이 맞다 - 어차피 '이 앱이 무엇으로 만들어졌나' 를 보러 오는 창이고,
+// 찾는 사람은 드물지만 찾을 때는 반드시 있어야 하는 글이다. 새 탭으로 연다(판은 그대로).
 
 import { useEffect, useRef } from "react";
 
@@ -66,6 +71,13 @@ export function UpdatesDialog({ onClose }: Props) {
             </article>
           ))}
         </div>
+
+        <p className="updates-legal muted small">
+          이 앱은 오픈소스로 만들었습니다.{" "}
+          <a href="/licenses/" target="_blank" rel="noopener noreferrer">
+            오픈소스 고지
+          </a>
+        </p>
 
         <div className="dialog-buttons">
           <button ref={closeRef} type="button" className="primary" onClick={onClose}>

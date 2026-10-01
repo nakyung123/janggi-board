@@ -14,6 +14,9 @@ public/engine/*
 .env.*
 !.env.example
 
+# 고지 사본 (npm run fetch-engine 이 NOTICE.md 와 엔진 패키지에서 만들어 둔다)
+public/licenses/
+
 # 테스트 도구 산출물
 .playwright-mcp/
 

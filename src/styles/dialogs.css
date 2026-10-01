@@ -162,3 +162,12 @@
   border-radius: 9999px;
   background: var(--disabled);
 }
+
+/*
+ * 업데이트 창 맨 아래 오픈소스 고지 한 줄. 버튼 줄과 본문 사이에 둔다 -
+ * 읽을 사람은 드물지만, 찾을 때 창을 닫고 다시 뒤지게 하면 안 된다.
+ */
+.updates-legal {
+  margin-top: 16px;
+  text-align: center;
+}
