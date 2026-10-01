@@ -47,19 +47,22 @@ describe("등급 경계 — 둔 쪽 승률이 떨어진 폭", () => {
     expect(gradeOf(0.049, false)).toBe("good");
   });
 
-  it("5%p 부터 부정확", () => {
+  it("5%p 부터 아쉬운 수", () => {
     expect(gradeOf(0.05, false)).toBe("inaccuracy");
-    expect(gradeOf(0.099, false)).toBe("inaccuracy");
+    // 가운데에 10%p(실수) 선이 하나 더 있었다. 뺐으므로 여기까지 한 칸이다.
+    expect(gradeOf(0.1, false)).toBe("inaccuracy");
+    expect(gradeOf(0.199, false)).toBe("inaccuracy");
   });
 
-  it("10%p 부터 실수", () => {
-    expect(gradeOf(0.1, false)).toBe("mistake");
-    expect(gradeOf(0.199, false)).toBe("mistake");
-  });
-
-  it("20%p 부터 악수", () => {
+  it("20%p 부터 큰 실수", () => {
     expect(gradeOf(0.2, false)).toBe("blunder");
     expect(gradeOf(1, false)).toBe("blunder");
+  });
+
+  it("등급은 넷뿐이다", () => {
+    const 나온것 = new Set([0, 0.03, 0.07, 0.15, 0.4].map((d) => gradeOf(d, false)));
+    나온것.add(gradeOf(0, true));
+    expect([...나온것].sort()).toEqual(["best", "blunder", "good", "inaccuracy"]);
   });
 });
 
@@ -120,7 +123,7 @@ describe("손해 계산", () => {
     expect(r.loss).toBeCloseTo(3, 5);
     // 초 승률 54.5% → 41.1%
     expect(r.winDrop).toBeCloseTo(0.134, 3);
-    expect(r.grade).toBe("mistake");
+    expect(r.grade).toBe("inaccuracy");
   });
 
   it("한이 둔 수는 평가치가 올라간 만큼이 손해다", () => {
@@ -128,14 +131,14 @@ describe("손해 계산", () => {
     const r = reviewMove(수({ mover: "han", scoreBefore: -1.0, scoreAfter: 2.0 }));
     expect(r.loss).toBeCloseTo(3, 5);
     expect(r.winDrop).toBeCloseTo(0.134, 3);
-    expect(r.grade).toBe("mistake");
+    expect(r.grade).toBe("inaccuracy");
   });
 
-  it("같은 3점 손해라도 이미 크게 이기는 판에서는 가볍다", () => {
-    // 팽팽한 판의 3점은 승률 13%p(실수), 차 하나쯤 앞선 판의 3점은 6%p(부정확)
-    const 팽팽 = reviewMove(수({ scoreBefore: 1.5, scoreAfter: -1.5 }));
-    const 앞섬 = reviewMove(수({ scoreBefore: 12, scoreAfter: 9 }));
-    expect(팽팽.grade).toBe("mistake");
+  it("같은 5점 손해라도 이미 크게 이기는 판에서는 가볍다", () => {
+    // 팽팽한 판의 5점은 승률 22%p(큰 실수), 차 하나쯤 앞선 판의 5점은 12%p(아쉬운 수)
+    const 팽팽 = reviewMove(수({ scoreBefore: 2.5, scoreAfter: -2.5 }));
+    const 앞섬 = reviewMove(수({ scoreBefore: 12, scoreAfter: 7 }));
+    expect(팽팽.grade).toBe("blunder");
     expect(앞섬.grade).toBe("inaccuracy");
   });
 

@@ -12,6 +12,7 @@ import type { HistoryEntry } from "./history";
 import { hangulHistory } from "./history";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
+import { gradeOf } from "./review";
 import type { Outcome } from "./status";
 
 /**
@@ -191,20 +192,36 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
 /**
  * 읽어 온 목록에서 멀쩡한 판만 새 순서로. 목록 모양조차 아니면 빈 목록.
  *
- * 예전 판을 지금 모양으로 고쳐 읽는 것이 둘 있다.
+ * 예전 판을 지금 모양으로 고쳐 읽는 것이 셋 있다.
  * - 지금 잣대로 매기지 않은 복기는 '복기 전' 으로 되돌린다(isCurrentReview).
  * - 한자로 적힌 기보 표기(73卒63)는 한글(73졸63)로 바꾼다(history.ts 의 hangulHistory).
+ * - 등급은 저장된 글자를 믿지 않고 승률 하락에서 다시 매긴다(아래).
  */
 export function readArchive(v: unknown): ArchivedGame[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter(isArchivedGame)
     .map((g) => {
-      const reviewed = isCurrentReview(g.reviewed, g.history.length - 1) ? g.reviewed : null;
+      const reviewed = isCurrentReview(g.reviewed, g.history.length - 1)
+        ? g.reviewed.map(regrade)
+        : null;
       return { ...g, history: hangulHistory(g.history), reviewed };
     })
     .sort((a, b) => b.endedAt - a.endedAt)
     .slice(0, ARCHIVE_LIMIT);
+}
+
+/**
+ * 등급을 저장된 글자가 아니라 승률 하락에서 다시 매긴다.
+ *
+ * 등급 칸이 늘고 줄기 때문이다. 다섯이던 때의 복기에는 `mistake`(실수)가 들어 있는데,
+ * 지금 표에는 그 칸이 없어서 그대로 읽으면 이름도 색도 비어 나온다. 승률 하락(winDrop)은
+ * 그때나 지금이나 같은 값이라, 그 값으로 다시 매기면 예전 복기도 지금 잣대로 읽힌다.
+ *
+ * 최선수 여부는 따로 저장하지 않는다 - 저장된 등급이 `best` 면 그때 엔진과 같은 수였다.
+ */
+function regrade(r: ReviewedMove): ReviewedMove {
+  return { ...r, grade: gradeOf(r.winDrop, r.grade === "best") };
 }
 
 /**

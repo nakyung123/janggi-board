@@ -36,24 +36,31 @@ import type { Side } from "./pieces";
 import { SIDE_LABEL } from "./pieces";
 import { 으로, 을를, 이가 } from "./korean";
 
+/*
+ * 등급은 넷이다. 한동안 다섯이었는데(부정확·실수·악수) 줄였다.
+ *
+ * 나쁜 쪽을 셋으로 쪼개도 두는 사람에게는 '아쉽다' 와 '크게 잃었다' 둘로만 읽힌다.
+ * 5%p 와 10%p 를 가르는 선은 재는 쪽의 사정이지 배우는 쪽의 사정이 아니다. 칸이
+ * 적을수록 한 칸의 뜻이 또렷해진다.
+ *
+ * 말도 바꿨다. '부정확' 은 영어(inaccuracy)를 그대로 옮긴 말이라 장기판에서 쓰지 않고,
+ * '악수(惡手)' 는 소리가 握手와 같아서 처음 보면 엉뚱하게 읽힌다.
+ */
 export type MoveGrade =
   /** 엔진과 같은 수 */
   | "best"
   /** 최선은 아니지만 승률이 5%p 도 안 떨어진 수 */
   | "good"
-  /** 승률 5%p 이상 */
+  /** 승률 5%p 이상 - 졸 한 짝쯤 흘린 수 */
   | "inaccuracy"
-  /** 승률 10%p 이상 */
-  | "mistake"
-  /** 승률 20%p 이상 - 판이 뒤집힐 손해 */
+  /** 승률 20%p 이상 - 마 한 짝쯤, 판이 뒤집힐 손해 */
   | "blunder";
 
 export const GRADE_LABEL: Record<MoveGrade, string> = {
   best: "최선수",
   good: "좋은 수",
-  inaccuracy: "부정확",
-  mistake: "실수",
-  blunder: "악수",
+  inaccuracy: "아쉬운 수",
+  blunder: "큰 실수",
 };
 
 /*
@@ -66,19 +73,22 @@ export const GRADE_LABEL: Record<MoveGrade, string> = {
 
 /**
  * 둔 쪽 승률이 떨어진 폭(0~1)을 등급으로 나누는 경계. chess.com·lichess 처럼 승률로
- * 나눈다. 팽팽한 판이면 점수 손해 약 1.1 / 2.3 / 4.8 점이다 - 졸 반 짝, 졸 한 짝, 마 한 짝쯤.
+ * 나눈다. 팽팽한 판이면 점수 손해 약 2.3 / 4.8 점이다 - 졸 한 짝, 마 한 짝쯤. 두는 사람이
+ * 아는 말로 옮기면 "졸 하나 흘렸다" 와 "마 하나 날렸다" 다.
+ *
+ * 가운데에 10%p(실수) 선이 하나 더 있었다. 뺐다 - 5%p 와 10%p 를 가르는 것은 재는 쪽의
+ * 사정이지 배우는 쪽의 사정이 아니다.
  *
  * 한때는 점수 0.3 / 1.0 / 3.0 을 상대 급수에 따라 최대 세 배까지 늘려 썼다(18급 ×3 ~ 9단 ×1).
- * 9단 눈높이(×1)면 팽팽한 판에서 승률 1.3%p 만 떨어져도 부정확이라, '빠름' 깊이의 잔값만으로도
- * 대부분의 수에 ?! 가 붙는다.
+ * 9단 눈높이(×1)면 팽팽한 판에서 승률 1.3%p 만 떨어져도 아쉬운 수라, '빠름' 깊이의 잔값만으로도
+ * 대부분의 수에 등급이 붙는다.
  */
 const WIN_INACCURACY = 0.05;
-const WIN_MISTAKE = 0.1;
 const WIN_BLUNDER = 0.2;
 
 /**
  * 외통 점수를 그대로 빼면 손해가 수백이 된다.
- * 이기는 외통에서 더 빠른 외통으로 바뀐 것뿐인데 악수로 찍히면 곤란하니,
+ * 이기는 외통에서 더 빠른 외통으로 바뀐 것뿐인데 큰 실수로 찍히면 곤란하니,
  * 양쪽 끝을 잘라 같은 값으로 만든다.
  */
 const CAP = 20;
@@ -119,8 +129,7 @@ export const winPercent = (score: number): number => Math.round(winChance(score)
 export function gradeOf(winDrop: number, playedBest: boolean): MoveGrade {
   if (playedBest) return "best";
   if (winDrop < WIN_INACCURACY) return "good";
-  if (winDrop < WIN_MISTAKE) return "inaccuracy";
-  if (winDrop < WIN_BLUNDER) return "mistake";
+  if (winDrop < WIN_BLUNDER) return "inaccuracy";
   return "blunder";
 }
 
@@ -291,7 +300,7 @@ function buildNote(c: NoteInput): MoveNote {
     note.after =
       `${이가(SIDE_LABEL[opponent])} ${으로(replyMove.short)} ` +
       `${을를(replyMove.captured!)} 가져갑니다.`;
-  } else if (c.grade === "mistake" || c.grade === "blunder") {
+  } else if (c.grade !== "good") {
     // 잡히는 기물이 없는데도 손해라면 자리가 나빠진 것이다. 이것도 엔진이 알려준
     // 사실이므로 그대로 적고, 손해가 기물로 치면 얼마쯤인지 붙인다.
     //
