@@ -1160,22 +1160,40 @@ function messageOf(err: unknown): string {
  * 눌러도 갈 데가 없는 버튼을 두지 않는다. README 의 '환경 변수' 참고.
  */
 const FEEDBACK_URL = import.meta.env.VITE_FEEDBACK_URL ?? "";
+/** 폼의 '환경' 칸 이름표(entry.NNN). 있으면 그 칸을 미리 채워서 연다. */
+const FEEDBACK_ENTRY = import.meta.env.VITE_FEEDBACK_ENTRY ?? "";
 
 /**
  * 제보에 같이 붙일 것.
  *
  * "말이 안 움직여요" 만 오면 아무것도 못 한다. 어느 버전인지, 어떤 브라우저인지,
  * 어떤 판이었는지를 매번 되물어야 하는데 - 제보는 몇 건 안 오고 되물으면 절반은
- * 답이 오지 않는다. 그래서 누를 때 이걸 클립보드에 담아 준다. 보내는 사람은
- * 붙여넣기만 하면 된다.
+ * 답이 오지 않는다.
+ *
+ * @param sep 줄을 잇는 글자. 폼의 '환경' 칸이 단답형이면 줄바꿈이 **지워져서**
+ *   "v0.1.0대국" 처럼 붙어 버린다. 그래서 미리 채울 때는 가운뎃점으로 잇는다.
  */
-function reportInfo(detail: string): string {
+function reportInfo(detail: string, sep = "\n"): string {
   return [
     `장기 AI v${APP_VERSION}`,
     detail,
     `창 ${window.innerWidth}×${window.innerHeight}`,
     navigator.userAgent,
-  ].join("\n");
+  ].join(sep);
+}
+
+/**
+ * 누르면 열릴 주소. 이름표가 있으면 '환경' 칸을 미리 채운 폼이다.
+ *
+ * 구글 폼은 주소 뒤에 `?usp=pp_url&entry.NNN=값` 을 붙이면 그 칸이 채워진 채로 열린다.
+ * 붙여넣기를 시키면 절반은 그냥 비워 둔 채 보낸다 - 보내는 사람에게 할 일을 하나라도
+ * 덜 주는 쪽이 받는 쪽에 이롭다.
+ */
+function feedbackLink(detail: string): string {
+  if (!FEEDBACK_ENTRY) return FEEDBACK_URL;
+  const sep = FEEDBACK_URL.includes("?") ? "&" : "?";
+  const info = encodeURIComponent(reportInfo(detail, " · "));
+  return `${FEEDBACK_URL}${sep}usp=pp_url&${FEEDBACK_ENTRY}=${info}`;
 }
 
 /**
@@ -1185,8 +1203,10 @@ function reportInfo(detail: string): string {
  * 칸의 무언가를 가렸다) 이것만 예외다 - 까닭은 docs/DECISIONS.md 에 적었다.
  * 가리지 않도록 오른쪽 칸과 목록 칸 아래에 이 버튼 높이만큼 여백을 둔다.
  *
- * 누르면 정보를 복사하고 제보 창구를 새 탭으로 연다. 복사했다는 말은 뜨는 알림이
- * 아니라 누른 버튼 자리에서 한다(DESIGN.md 의 알림 규칙).
+ * 누르면 제보 창구를 새 탭으로 연다. 폼의 칸 이름표(VITE_FEEDBACK_ENTRY)가 있으면
+ * 버전·창 크기·브라우저·보던 판이 이미 적힌 채로 열린다. 이름표가 없을 때만 그 정보를
+ * 클립보드에 담아 주고, 담았다는 말은 뜨는 알림이 아니라 누른 버튼 자리에서 한다
+ * (DESIGN.md 의 알림 규칙).
  */
 function FeedbackButton({ detail }: { detail: string }) {
   const [copied, setCopied] = useState(false);
@@ -1194,15 +1214,17 @@ function FeedbackButton({ detail }: { detail: string }) {
   if (!FEEDBACK_URL) return null;
 
   const onClick = () => {
-    // 복사가 막혀도(권한·구형 브라우저) 제보 자체는 열려야 한다.
-    void navigator.clipboard
-      ?.writeText(reportInfo(detail))
-      .then(() => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2400);
-      })
-      .catch(() => undefined);
-    window.open(FEEDBACK_URL, "_blank", "noopener,noreferrer");
+    // 미리 채워 열 수 없을 때만 복사한다. 복사가 막혀도(권한·구형 브라우저) 제보는 열린다.
+    if (!FEEDBACK_ENTRY) {
+      void navigator.clipboard
+        ?.writeText(reportInfo(detail))
+        .then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 2400);
+        })
+        .catch(() => undefined);
+    }
+    window.open(feedbackLink(detail), "_blank", "noopener,noreferrer");
   };
 
   return (
