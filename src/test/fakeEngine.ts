@@ -45,6 +45,16 @@ export class FakeEngine {
   holdProbe: ((ref: PositionRef) => boolean) | null = null;
   /** 기보 검사(firstIllegalMove)의 답. 규칙에 맞지 않는 첫 수의 번호, 다 맞으면 null. */
   illegalAt: number | null = null;
+  /**
+   * 합법수·장군 답을 바꿔치기한다. 돌려준 칸만 덮어쓰고, null 이면 가짜 규칙이
+   * 낸 답을 그대로 쓴다.
+   *
+   * 끝나는 국면을 만들려고 둔다. 가짜 규칙은 한 칸짜리 수만 알고 장군은 영영
+   * 모르는데, 외통·수몰은 "장군인데 한수쉼 말고 둘 게 없음" 이라야 선다. 진짜
+   * 외통 국면을 FEN 으로 차려 놓는 길도 있지만, 그러면 가짜 규칙이 그 자리에서
+   * 내놓는 수까지 맞춰야 해서 판정과 상관없는 것을 더 많이 꾸미게 된다.
+   */
+  probeAnswer: ((ref: PositionRef) => Partial<PositionProbe> | null) | null = null;
 
   // --- 기록 ------------------------------------------------------------------
 
@@ -62,6 +72,7 @@ export class FakeEngine {
     this.searchMs = 0;
     this.holdProbe = null;
     this.illegalAt = null;
+    this.probeAnswer = null;
     this.searches = [];
     this.answers = [];
     this.held = [];
@@ -104,7 +115,12 @@ export class FakeEngine {
 
   async probe(ref: PositionRef): Promise<PositionProbe> {
     const pos = positionOf(ref);
-    const answer = { fen: toFen(pos), checkers: [], legal: legalMoves(pos) };
+    const answer: PositionProbe = {
+      fen: toFen(pos),
+      checkers: [],
+      legal: legalMoves(pos),
+      ...this.probeAnswer?.(ref),
+    };
     if (!this.holdProbe?.(ref)) return answer;
     return new Promise((resolve) => this.held.push(() => resolve(answer)));
   }

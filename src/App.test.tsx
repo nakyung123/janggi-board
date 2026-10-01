@@ -120,6 +120,93 @@ describe("엔진과 한 판", () => {
   });
 });
 
+/*
+ * 판이 끝나는 길은 다섯이고(status.ts 의 outcomeOf), 어느 길로 끝나든 그 뒤는 똑같다 -
+ * 결과 창이 뜨고, 더 못 두게 잠기고, 기보에 올라간다. 판정 자체는 순수 로직이라
+ * status.test.ts·clock.test.ts 가 길마다 따로 본다(외통 4개, 수 제한 7개, 시간패 6개).
+ *
+ * 여기서는 그 **뒤**를 본다. 판정이 섰을 때 화면과 저장이 실제로 따라오는가.
+ * 길마다 되풀이하지 않는 까닭은 그 뒤가 한 몸이기 때문이다 - outcome 하나를 보고
+ * 창을 띄우고 저장한다. 길을 하나 더 보태도 같은 줄을 다시 밟을 뿐이다.
+ *
+ * 대신 **들어오는 길이 다른** 둘을 고른다. 외통은 엔진이 알려 준 국면에서 서고,
+ * 시간패는 국면과 무관하게 시계에서 선다. 둘은 코드가 갈린다.
+ */
+describe("판이 끝나면", () => {
+  const 기권버튼 = () => screen.getByRole("button", { name: "기권" }) as HTMLButtonElement;
+  const 결과창 = () => document.querySelector(".dialog.result");
+
+  it("외통이 나면 결과 창이 뜨고, 더 못 두고, 기보에 올라간다", async () => {
+    await start();
+
+    // 내가 두고 엔진이 받은 그 국면(2수째)을 외통으로 꾸민다.
+    // 장군을 맞았고(checkers) 한수쉼 말고는 둘 게 없는(legal) 상태다.
+    engine().probeAnswer = (ref) =>
+      ref.moves.length === 2 ? { checkers: ["e3"], legal: ["e2e2"] } : null;
+
+    drag("c4", "c5");
+    await engineReply(1);
+
+    const dialog = await waitFor(() => {
+      const d = 결과창();
+      expect(d).not.toBeNull();
+      return d!;
+    });
+    expect(dialog.textContent).toContain("외통");
+    // 차례인 쪽(초, 나)이 진다.
+    expect(dialog.textContent).toContain("한이 이겼습니다");
+
+    // 끝난 판에서 기권 버튼이 살아 있으면 끝난 판을 또 기권할 수 있다.
+    expect(기권버튼().disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    fireEvent.click(screen.getByRole("button", { name: /^기보/ }));
+    await waitFor(() => expect(document.querySelectorAll(".game-card")).toHaveLength(1));
+  });
+
+  it("시간패로 끝난 판을 되살려도 끝난 판으로 돌아온다", async () => {
+    /*
+     * 시계는 저장하지 않는다(savedGame.ts). 그래서 되살릴 때 시계가 새로 가득 차는데,
+     * 시간패까지 같이 잊으면 **시간을 다 써서 진 판이 멀쩡한 판으로 되살아난다.**
+     * 새로고침 한 번으로 진 판을 이어 둘 수 있게 되는 셈이다.
+     */
+    localStorage.setItem(
+      "janggi:game",
+      JSON.stringify({
+        id: "flagged-1",
+        history: [
+          { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
+          {
+            fen: "rnba1abnr/4k4/1c5c1/p1p1p1p1p/9/2P6/P1P1P1P1P/1C5C1/4K4/RNBA1ABNR b - - 0 1",
+            move: "c4c5",
+            notation: "73졸63",
+            mover: "cho",
+            score: null,
+          },
+        ],
+        cursor: 1,
+        resigned: null,
+        flagged: "cho",
+      })
+    );
+
+    render(<App />);
+
+    const dialog = await waitFor(() => {
+      const d = 결과창();
+      expect(d).not.toBeNull();
+      return d!;
+    });
+    expect(dialog.textContent).toContain("시간패");
+    expect(dialog.textContent).toContain("한이 이겼습니다");
+
+    fireEvent.click(screen.getByRole("button", { name: "닫기" }));
+    expect(기권버튼().disabled).toBe(true);
+    // 끝난 판이라 기물을 집을 수 없다.
+    expect(pickable()).toHaveLength(0);
+  });
+});
+
 describe("기보 파일 불러오기", () => {
   const recordFile = (name: string) =>
     new File(

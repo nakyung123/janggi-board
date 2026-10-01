@@ -1,0 +1,187 @@
+<!doctype html>
+<!--
+  공유 미리보기 그림(public/og.png)의 원본.
+
+  카톡·에브리타임·디스코드에 주소를 붙이면 이 그림이 뜬다. 1200×630 은 OG 의 관례
+  치수다. 그림은 빌드할 때 만들어지지 않는다 - 브라우저로 한 번 찍어서 public/og.png
+  로 커밋해 둔 것이고, 고칠 일이 생기면 이 쪽을 고쳐 다시 찍는다.
+
+  다시 찍는 법:
+    1) 이 파일을 브라우저로 연다
+    2) 창을 1200×630 으로 맞추고 쪽 전체를 PNG 로 찍는다
+    3) public/og.png 에 덮어쓴다
+
+  색은 앱과 같은 값이다(src/styles/base.css). 글꼴은 일부러 쓰지 않는다 - 찍는
+  기계에 Pretendard 가 깔려 있다는 보장이 없어서, 어디서 찍어도 같게 나오도록
+  시스템 글꼴에 맡긴다.
+
+  작게 보일 것을 전제로 짰다. 카톡은 이 그림을 손바닥만 하게 줄여서 보여주므로,
+  제목이 크고 글자 수가 적어야 읽힌다.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>장기 AI — 공유 카드</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        width: 1200px;
+        height: 630px;
+        display: flex;
+        align-items: center;
+        gap: 72px;
+        padding: 0 88px;
+        background: #f4efe6;
+        color: #2a2119;
+        font-family: "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+        /* 판 테두리를 흉내 낸 아래쪽 띠. 바탕만 있으면 너무 비어 보인다. */
+        border-bottom: 14px solid #15653c;
+        overflow: hidden;
+      }
+
+      .말 {
+        flex: 1;
+      }
+
+      h1 {
+        font-size: 108px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+      }
+
+      .설명 {
+        margin-top: 28px;
+        font-size: 34px;
+        line-height: 1.5;
+        color: #5a4a38;
+        font-weight: 500;
+        /* 한국어는 낱말 가운데서 끊으면 읽기가 나빠진다("한 수 / 씩"). */
+        word-break: keep-all;
+      }
+
+      .주소 {
+        margin-top: 44px;
+        font-size: 26px;
+        color: #8c7a5e;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+
+      /* 기물 넷. 초 둘 한 둘로 양쪽을 보여준다. */
+      .기물판 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        flex-shrink: 0;
+      }
+
+      .기물 {
+        width: 172px;
+        height: 172px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="말">
+      <h1>장기 AI</h1>
+      <p class="설명">
+        브라우저에서 바로 두는 장기.<br />
+        급수를 골라 AI와 두고,<br />
+        끝나면 한 수씩 되짚습니다.
+      </p>
+      <p class="주소">janggi-ai.vercel.app</p>
+    </div>
+
+    <div class="기물판">
+      <!--
+        앱의 탭 아이콘과 같은 팔각 꼴이다(index.html). 글자는 획이 많아
+        세리프라야 장기알처럼 보인다.
+      -->
+      <svg class="기물" viewBox="0 0 32 32">
+        <polygon
+          points="22.6,3 29,9.4 29,22.6 22.6,29 9.4,29 3,22.6 3,9.4 9.4,3"
+          fill="#f7f2e4"
+          stroke="#a9742f"
+          stroke-width="1.6"
+        />
+        <text
+          x="16"
+          y="23"
+          font-size="19"
+          font-family="serif"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#15653c"
+        >
+          楚
+        </text>
+      </svg>
+
+      <svg class="기물" viewBox="0 0 32 32">
+        <polygon
+          points="22.6,3 29,9.4 29,22.6 22.6,29 9.4,29 3,22.6 3,9.4 9.4,3"
+          fill="#f7f2e4"
+          stroke="#a9742f"
+          stroke-width="1.6"
+        />
+        <text
+          x="16"
+          y="23"
+          font-size="19"
+          font-family="serif"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#b3261e"
+        >
+          漢
+        </text>
+      </svg>
+
+      <svg class="기물" viewBox="0 0 32 32">
+        <polygon
+          points="22.6,3 29,9.4 29,22.6 22.6,29 9.4,29 3,22.6 3,9.4 9.4,3"
+          fill="#f7f2e4"
+          stroke="#a9742f"
+          stroke-width="1.6"
+        />
+        <text
+          x="16"
+          y="23"
+          font-size="19"
+          font-family="serif"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#15653c"
+        >
+          車
+        </text>
+      </svg>
+
+      <svg class="기물" viewBox="0 0 32 32">
+        <polygon
+          points="22.6,3 29,9.4 29,22.6 22.6,29 9.4,29 3,22.6 3,9.4 9.4,3"
+          fill="#f7f2e4"
+          stroke="#a9742f"
+          stroke-width="1.6"
+        />
+        <text
+          x="16"
+          y="23"
+          font-size="19"
+          font-family="serif"
+          font-weight="700"
+          text-anchor="middle"
+          fill="#b3261e"
+        >
+          包
+        </text>
+      </svg>
+    </div>
+  </body>
+</html>

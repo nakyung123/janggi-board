@@ -13,6 +13,38 @@
       href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpolygon%20points='22.6,3%2029,9.4%2029,22.6%2022.6,29%209.4,29%203,22.6%203,9.4%209.4,3'%20fill='%23f7f2e4'%20stroke='%23a9742f'%20stroke-width='2'/%3E%3Ctext%20x='16'%20y='23'%20font-size='19'%20font-family='serif'%20font-weight='700'%20text-anchor='middle'%20fill='%2315653c'%3E%E6%A5%9A%3C/text%3E%3C/svg%3E"
     />
     <title>장기 AI</title>
+    <meta
+      name="description"
+      content="브라우저에서 바로 두는 장기. 급수를 골라 AI와 두고, 끝나면 한 수씩 되짚습니다."
+    />
+
+    <!--
+      공유 미리보기(Open Graph).
+
+      주소를 카톡·에브리타임·디스코드에 붙이면 저쪽 서버가 이 쪽을 긁어다 미리보기를
+      만든다. 이 태그가 없으면 제목도 그림도 없이 주소 한 줄만 뜬다 - 사람을 모으려고
+      뿌리는 링크인데 그러면 아무도 안 누른다.
+
+      그림 주소를 절대경로로 적는 까닭 - 긁어가는 쪽은 우리 쪽이 아니라 남의 서버라서
+      "/og.png" 같은 상대경로를 제 주소 기준으로 읽는다. 카톡이 특히 그렇다.
+      그래서 주소가 바뀌면 여기도 같이 고쳐야 한다(지금은 janggi-ai.vercel.app).
+
+      그림 자체는 scripts/og-card.html 을 찍어 둔 것이다. 고칠 일이 생기면 그 쪽을
+      고쳐 다시 찍는다.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="장기 AI" />
+    <meta property="og:title" content="장기 AI" />
+    <meta
+      property="og:description"
+      content="브라우저에서 바로 두는 장기. 급수를 골라 AI와 두고, 끝나면 한 수씩 되짚습니다."
+    />
+    <meta property="og:url" content="https://janggi-ai.vercel.app/" />
+    <meta property="og:image" content="https://janggi-ai.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <div id="root"></div>
