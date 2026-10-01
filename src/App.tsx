@@ -20,7 +20,6 @@ import { Board } from "./components/board/Board";
 import { BoardControls } from "./components/board/BoardControls";
 import { PlayerCard } from "./components/board/PlayerCard";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
-import { noteTrouble } from "./report/errors";
 import { FeedbackButton } from "./report/feedback";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameList } from "./components/games/GameList";
@@ -48,12 +47,12 @@ import {
 import type { EngineOptions, PositionRef, SearchLimits, Variant } from "./engine/types";
 import { forgetIfMoved, isEnginePrefs, isVariant, positionKey } from "./engine/types";
 import { useAnalysis, useEngine } from "./engine/useEngine";
-import { useArchive } from "./hooks/useArchive";
 import { useBoardFit } from "./hooks/useBoardFit";
 import { useClockTicking, useGameClock } from "./hooks/useGameClock";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useNarrow } from "./hooks/useNarrow";
 import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
+import { useGames } from "./hooks/useGames";
 import { useReview } from "./hooks/useReview";
 
 import { newGameId, resultTag, upsertGame, whenLabel } from "./janggi/archive";
@@ -66,7 +65,6 @@ import { hangulHistory, movesOf, nextEntry, startHistory } from "./janggi/histor
 import { arrowOf, splitMove } from "./janggi/notation";
 import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
-import { downloadRecord, gameOfRecord, readRecordFile, recordOfGame } from "./janggi/record";
 import { bestArrowOf } from "./janggi/review";
 import type { SavedGame } from "./janggi/savedGame";
 import { isSavedGame } from "./janggi/savedGame";
@@ -152,28 +150,26 @@ export default function App() {
 
   // --- 기보 탭 ----------------------------------------------------------
 
-  const [games, setGames] = useArchive();
-  /** 기보 탭에서 연 판의 id. null 이면 목록을 보여준다. */
-  const [openId, setOpenId] = useState<string | null>(null);
-  /** 목록에서 보던 쪽. 한 판을 열었다가 '목록' 으로 돌아오면 이 쪽으로 온다. */
-  const [listPage, setListPage] = useState(0);
-  /** 파일을 못 읽은 까닭. 목록 제목 아래에 남고, 다음에 무언가를 누르면 지운다. */
-  const [listError, setListError] = useState<string | null>(null);
-  /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
-  const [freshId, setFreshId] = useState<string | null>(null);
-  const [viewCursor, setViewCursor] = useState(0);
-  /** 연 판은 그 판에서 내가 잡은 쪽이 아래로 오게 따로 뒤집는다. 대국 탭의 뒤집기는 그대로다. */
-  const [viewFlipped, setViewFlipped] = useState(false);
-  const openGame =
-    mode === "games" && openId ? (games.find((g) => g.id === openId) ?? null) : null;
-  const listView = mode === "games" && !openGame;
-
   const [reviewDepthId, setReviewDepthId] = usePersisted(
     "reviewDepthId",
     DEFAULT_REVIEW_DEPTH_ID,
     (v) => typeof v === "string" && REVIEW_DEPTHS.some((d) => d.id === v)
   );
   const review = useReview(engine);
+
+  /*
+   * 기보 탭이 들고 있던 것 일곱(목록·연 판·쪽·오류·방금 넣은 판·보는 수·뒤집기)과
+   * 거기서 하는 일(열기·닫기·파일 넣고 빼기)을 한 훅에 모았다. 일곱이 늘 같이
+   * 움직여서, 흩어 두면 그중 하나를 빠뜨리는 것이 버그가 된다.
+   */
+  const archive = useGames({
+    active: mode === "games",
+    busy: review.running,
+    engine,
+    variant: prefs.variant,
+    onLoaded: setNotice,
+  });
+  const { games, setGames, openGame, listView } = archive;
 
   // --- 지금 화면에 떠 있는 판 ---------------------------------------------
 
@@ -188,10 +184,10 @@ export default function App() {
       : null;
 
   const history = openGame ? (partial?.history ?? openGame.history) : playHistory;
-  const cursor = openGame ? Math.min(viewCursor, openGame.history.length - 1) : playCursor;
-  const setCursor = openGame ? setViewCursor : setPlayCursor;
+  const cursor = openGame ? archive.cursor : playCursor;
+  const setCursor = openGame ? archive.setCursor : setPlayCursor;
   const reviewed = openGame?.reviewed ?? partial?.reviewed ?? null;
-  const boardFlipped = openGame ? viewFlipped : flipped;
+  const boardFlipped = openGame ? archive.flipped : flipped;
 
   const entry = history[cursor];
   const position = useMemo(() => parseFen(entry.fen), [entry.fen]);
@@ -580,8 +576,8 @@ export default function App() {
   }, [mySide, playHistory]);
 
   const flip = useCallback(
-    () => (openGame ? setViewFlipped((f) => !f) : setFlipped((f) => !f)),
-    [openGame, setFlipped]
+    () => (openGame ? archive.flip() : setFlipped((f) => !f)),
+    [openGame, archive, setFlipped]
   );
 
   // --- 판 만지기 ----------------------------------------------------------
@@ -716,34 +712,22 @@ export default function App() {
     (next: Mode) => {
       if (review.running) return;
       setMode(next);
-      setOpenId(null);
-      setListPage(0);
-      setListError(null);
+      archive.reset();
       setSelected(null);
       // 탭을 옮기면 판이 통째로 바뀐다. 남아 있던 '날아가는 수' 가 새 판에서 같은 국면
       // 번호를 만나 엉뚱하게 날지 않도록 지운다.
       setFly(null);
     },
-    [review.running]
+    [review.running, archive]
   );
 
-  /** 기보 탭에서 한 판을 연다. 끝난 모양부터 보이도록 마지막 수에 선다. */
+  /** 기보 탭에서 한 판을 연다. 목록 쪽 일은 훅이 하고, 판 바깥의 뒷정리만 여기 남는다. */
   const openArchived = (id: string) => {
-    const game = games.find((g) => g.id === id);
-    if (!game || review.running) return;
+    if (!archive.open(id)) return;
     setMode("games");
-    setOpenId(game.id);
-    setViewCursor(game.history.length - 1);
-    setViewFlipped(game.mySide === "han");
-    setListError(null);
     setSelected(null);
     setFly(null);
     review.clearError();
-  };
-
-  const closeArchived = () => {
-    if (review.running) return;
-    setOpenId(null);
   };
 
   useKeyboard(
@@ -760,61 +744,6 @@ export default function App() {
     // 창이 떠 있거나 목록 화면·복기 중에는 키를 가로채지 않는다.
     !review.running && !listView && asking === null && !resultOpen
   );
-
-  // --- 기보 파일 --------------------------------------------------------
-
-  /** 연 판을 파일로 내려받는다. */
-  const saveRecord = () => {
-    if (openGame) downloadRecord(recordOfGame(openGame));
-  };
-
-  /**
-   * 파일로 들어온 판의 수가 모두 규칙에 맞는지 엔진에 묻는다. 틀린 수가
-   * 있으면 그 수를 들어 Error 를 던진다.
-   *
-   * 규칙에 맞지 않는 수가 하나라도 있으면 목록에 넣지 않는다. 화면은 그 수를 둔 판을
-   * 그리는데 엔진은 그 수를 받지 않고 앞 국면에 머물러서, 장군·복기가 화면과 다른 판을
-   * 두고 말한다. 판을 열 때와 같은 규칙으로 가린다(위의 variant 와 같은 식).
-   */
-  const checkMoves = async (game: ArchivedGame) => {
-    if (!engine) throw new Error("엔진이 아직 준비되지 않았습니다.");
-    const bad = await engine.firstIllegalMove(
-      isVariant(game.variant) ? game.variant : prefs.variant,
-      game.history[0].fen,
-      movesOf(game.history)
-    );
-    if (bad !== null) {
-      throw new Error(`${bad + 1}번째 수(${game.history[bad + 1].notation})가 규칙에 맞지 않습니다.`);
-    }
-  };
-
-  /**
-   * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
-   * 넣은 판의 카드가 잠깐 도드라지고(freshId), 못 넣으면 목록 제목 아래에 까닭이 남는다.
-   */
-  const loadRecord = async (file: File) => {
-    setListError(null);
-    try {
-      const game = gameOfRecord(await readRecordFile(file));
-      await checkMoves(game);
-      setGames((list) => upsertGame(list, game));
-      setListPage(0);
-      setFreshId(game.id);
-      setNotice(`기보를 불러왔습니다. ${game.history.length - 1}수.`);
-    } catch (err) {
-      // 장부에 적고(콘솔에 날것이 남는다) 사람에게 보일 말만 화면에 쓴다.
-      // 우리가 쓴 한국어 글이면 그대로, 내부 사정이 섞였으면 오류 코드로 바뀐다.
-      const trouble = noteTrouble("기보 불러오기", err);
-      setListError(`기보를 불러오지 못했습니다. ${trouble.message}`);
-    }
-  };
-
-  // 방금 넣은 판의 카드는 3초 동안 도드라진다(GameList).
-  useEffect(() => {
-    if (!freshId) return;
-    const t = window.setTimeout(() => setFreshId(null), 3000);
-    return () => window.clearTimeout(t);
-  }, [freshId]);
 
   // --- 복기 -------------------------------------------------------------
 
@@ -936,7 +865,7 @@ export default function App() {
    */
   const gameBar = openGame && openTag && (
     <div className="game-back">
-      <button type="button" className="back" onClick={closeArchived} disabled={review.running}>
+      <button type="button" className="back" onClick={archive.close} disabled={review.running}>
         <ChevronLeft size={20} strokeWidth={2} aria-hidden />
         목록으로
       </button>
@@ -945,7 +874,7 @@ export default function App() {
         <b className={"game-result " + openTag.tone}>{openTag.text}</b> · vs {openGame.levelName} ·{" "}
         {whenLabel(openGame.endedAt)}
       </span>
-      <button type="button" className="save" onClick={saveRecord} aria-label="파일로 저장">
+      <button type="button" className="save" onClick={archive.save} aria-label="파일로 저장">
         저장
       </button>
     </div>
@@ -971,14 +900,11 @@ export default function App() {
             games={games}
             now={Date.now()}
             onOpen={openArchived}
-            onLoad={loadRecord}
-            page={listPage}
-            onPage={(page) => {
-              setListPage(page);
-              setListError(null);
-            }}
-            error={listError}
-            freshId={freshId}
+            onLoad={archive.load}
+            page={archive.page}
+            onPage={archive.setPage}
+            error={archive.error}
+            freshId={archive.freshId}
           />
         </main>
       ) : (
