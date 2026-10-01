@@ -211,3 +211,54 @@ describe("쪽 번호", () => {
     for (let c = 0; c < 25; c++) expect(pageItems(c, 25)).toHaveLength(7);
   });
 });
+
+describe("브라우저에 남은 목록도 밖에서 온 값이다", () => {
+  // localStorage 는 사람이 직접 고칠 수 있다. 여기 담긴 국면과 수는 엔진에게 UCI 명령
+  // 한 줄로 그대로 넘어가므로, 두던 판(isHistory)과 **같은 잣대**로 봐야 한다.
+  // 한동안 여기만 느슨해서, 주입을 막을 때 두던 판 쪽만 고치고 여기가 뚫려 있었다.
+  const 줄바꿈 = String.fromCharCode(10);
+
+  const 수를바꾼판 = (move: string) =>
+    판({
+      history: [
+        { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
+        { fen: START_FEN, move, notation: "71졸61", mover: "cho", score: null },
+      ],
+    });
+
+  it("수에 줄바꿈이 섞인 판은 받지 않는다", () => {
+    expect(isArchivedGame(수를바꾼판("a4a5" + 줄바꿈 + "quit"))).toBe(false);
+  });
+
+  it("수처럼 생기지 않은 글자도 받지 않는다", () => {
+    expect(isArchivedGame(수를바꾼판("z9z9"))).toBe(false);
+    expect(isArchivedGame(수를바꾼판("아무거나"))).toBe(false);
+  });
+
+  it("멀쩡한 수는 그대로 받는다", () => {
+    expect(isArchivedGame(수를바꾼판("a4a5"))).toBe(true);
+  });
+
+  it("국면에 줄바꿈이 섞인 판은 받지 않는다", () => {
+    const 판하나 = 판();
+    판하나.history[0].fen = START_FEN + 줄바꿈 + "go infinite";
+    expect(isArchivedGame(판하나)).toBe(false);
+  });
+
+  it("그려지지 않는 국면이 첫 칸이나 마지막 칸이면 받지 않는다", () => {
+    // 글자는 멀쩡해 보여도(FEN 글자만 썼다) 판으로는 못 그린다. 목록은 마지막 칸을
+    // 그리고, 판을 열면 마지막 칸부터 보여 준다. 그릴 수 없으면 거기서 터진다.
+    const 못그림 = 판();
+    못그림.history[1].fen = "zzz w - - 0 1";
+    expect(isArchivedGame(못그림)).toBe(false);
+  });
+
+  it("이름이 지나치게 길면 받지 않는다", () => {
+    expect(isArchivedGame(판({ levelName: "급".repeat(5000) }))).toBe(false);
+  });
+
+  it("깨진 판 하나가 목록 전체를 버리지는 않는다", () => {
+    const 목록 = [판({ id: "a" }), 수를바꾼판("a4a5" + 줄바꿈 + "quit"), 판({ id: "c" })];
+    expect(readArchive(목록).map((g) => g.id)).toEqual(["a", "c"]);
+  });
+});

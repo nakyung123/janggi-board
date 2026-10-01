@@ -52,29 +52,46 @@ export function movesOf(history: HistoryEntry[]): string[] {
     .filter((m): m is string => Boolean(m));
 }
 
+/** FEN 에 들어갈 수 있는 글자. 줄바꿈이 섞이면 엔진 명령이 한 줄 더 생긴다. */
+const FEN_TEXT = /^[A-Za-z0-9/\- ]{1,200}$/;
+
+/**
+ * 기보 한 칸이 지금도 읽을 수 있는 모양인지. **글자만 본다.**
+ *
+ * 브라우저에 남은 값도 밖에서 온 값이다 - 사람이 직접 고칠 수 있고, 옛 형식의 값도
+ * 남아 있다. 국면과 수는 엔진에게 UCI 명령 한 줄로 그대로 넘어가므로 글자까지 본다.
+ * 줄바꿈이 섞이면 명령이 한 줄 더 생긴다(engine/types.ts 의 positionCommand).
+ *
+ * **두던 판과 지난 판이 같은 잣대를 써야 한다.** 한동안 둘이 따로 있었고, 두던 판 쪽만
+ * 고쳐서 지난 판 쪽(archive.ts 의 isPly)에 구멍이 남았다. 그래서 여기 하나로 모았다.
+ */
+export function isHistoryEntry(v: unknown): v is HistoryEntry {
+  if (typeof v !== "object" || v === null) return false;
+  const h = v as Record<string, unknown>;
+  if (typeof h.fen !== "string" || !FEN_TEXT.test(h.fen)) return false;
+  if (typeof h.notation !== "string" || h.notation.length > 60) return false;
+  if (h.move !== null && (typeof h.move !== "string" || !isMoveString(h.move))) return false;
+  if (h.mover !== null && h.mover !== "cho" && h.mover !== "han") return false;
+  if (h.score !== null && typeof h.score !== "number") return false;
+  return true;
+}
+
+/** 이 국면이 실제로 판으로 그려지는지. 글자 검사보다 비싸다(10만 번에 1초). */
+export function canDraw(fen: string): boolean {
+  try {
+    return Object.keys(parseFen(fen).board).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 저장해 둔 기보가 지금도 읽을 수 있는 모양인지.
  *
- * localStorage 는 사람이 직접 고칠 수 있고 옛 형식의 값도 남아 있다. 모양만 맞고
- * FEN 이 깨진 칸도 거른다 - 판을 그리다가 터지는 것보다 처음부터 버리는 편이 낫다.
+ * 글자를 보고(isHistoryEntry), 국면이 실제로 그려지는지까지 본다 - 판을 그리다가
+ * 터지는 것보다 처음부터 버리는 편이 낫다. 두던 판은 하나뿐이라 전부 그려 봐도 싸다.
  */
 export function isHistory(v: unknown): v is HistoryEntry[] {
   if (!Array.isArray(v) || v.length === 0 || v.length > 1000) return false;
-  return v.every((e) => {
-    if (typeof e !== "object" || e === null) return false;
-    const h = e as Record<string, unknown>;
-    // 브라우저에 남아 있던 값도 밖에서 온 값이다(사람이 고칠 수 있다). 국면과 수는
-    // 엔진에게 UCI 명령 한 줄로 그대로 넘어가므로 글자까지 본다 - 줄바꿈이 섞이면
-    // 명령이 한 줄 더 생긴다(engine/types.ts 의 positionCommand).
-    if (typeof h.fen !== "string" || !/^[A-Za-z0-9/\- ]{1,200}$/.test(h.fen)) return false;
-    if (typeof h.notation !== "string") return false;
-    if (h.move !== null && (typeof h.move !== "string" || !isMoveString(h.move))) return false;
-    if (h.mover !== null && h.mover !== "cho" && h.mover !== "han") return false;
-    if (h.score !== null && typeof h.score !== "number") return false;
-    try {
-      return Object.keys(parseFen(h.fen).board).length > 0;
-    } catch {
-      return false;
-    }
-  });
+  return v.every((e) => isHistoryEntry(e) && canDraw(e.fen));
 }

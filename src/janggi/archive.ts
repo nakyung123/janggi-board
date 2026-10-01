@@ -9,7 +9,7 @@
 // ARCHIVE_LIMIT 판만 두고, 그래도 넘치면 hooks/useArchive.ts 가 오래된 판부터 버린다.
 
 import type { HistoryEntry } from "./history";
-import { hangulHistory } from "./history";
+import { canDraw, hangulHistory, isHistoryEntry } from "./history";
 import type { Side } from "./pieces";
 import type { ReviewedMove } from "./review";
 import { gradeOf } from "./review";
@@ -153,17 +153,23 @@ const KIND_TABLE: Record<ArchivedKind, true> = {
 };
 const KINDS = Object.keys(KIND_TABLE) as ArchivedKind[];
 
-function isPly(v: unknown): boolean {
-  if (typeof v !== "object" || v === null) return false;
-  const p = v as Record<string, unknown>;
-  return (
-    typeof p.fen === "string" &&
-    p.fen.length < 200 &&
-    typeof p.notation === "string" &&
-    (p.move === null || typeof p.move === "string") &&
-    (p.mover === null || SIDES.includes(p.mover as string)) &&
-    (p.score === null || typeof p.score === "number")
-  );
+/**
+ * 지난 판의 기보가 멀쩡한지.
+ *
+ * 한 칸씩 보는 잣대는 두던 판과 **같은 것**을 쓴다(history.ts 의 isHistoryEntry). 한동안
+ * 여기에 따로 느슨한 검사가 있었고, 주입을 막을 때 두던 판 쪽만 고쳐서 여기만 뚫려
+ * 있었다. 같은 모양을 두 군데서 따로 보면 반드시 어긋난다.
+ *
+ * 국면이 실제로 그려지는지는 **첫 칸과 마지막 칸만** 본다. parseFen 은 10만 번에 1초라,
+ * 지난 판 100개의 모든 칸(최대 10만 칸)에 걸면 앱이 뜨는 데 1초가 더 든다. 목록은 마지막
+ * 칸을 그리고(MiniBoard), 판을 열면 마지막 칸부터 보여 준다. 가운데 칸이 깨져 있으면
+ * 그 수로 건너뛸 때 터지는데, 그때는 오류 경계가 받는다(ErrorBoundary).
+ */
+function isPlyList(v: unknown[]): boolean {
+  if (!v.every(isHistoryEntry)) return false;
+  const first = v[0] as HistoryEntry;
+  const last = v[v.length - 1] as HistoryEntry;
+  return canDraw(first.fen) && canDraw(last.fen);
 }
 
 /**
@@ -193,7 +199,7 @@ export function isArchivedGame(v: unknown): v is ArchivedGame {
     Array.isArray(g.history) &&
     g.history.length >= 2 &&
     g.history.length <= 1000 &&
-    g.history.every(isPly) &&
+    isPlyList(g.history) &&
     (g.reviewed === null || Array.isArray(g.reviewed))
   );
 }
