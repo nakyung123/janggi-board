@@ -14,6 +14,7 @@ import type { ArchivedGame } from "../janggi/archive";
 import type { HistoryEntry } from "../janggi/history";
 import { movesOf } from "../janggi/history";
 import type { ReviewProgress, ReviewedMove } from "../janggi/review";
+import { noteTrouble } from "../report/errors";
 import { runReview } from "../janggi/review";
 
 /** 복기 한 번의 결과. 기보 목록의 그 판에 옮겨 적는다. */
@@ -106,7 +107,8 @@ export function useReview(engine: JanggiEngine | null) {
       if (!run.complete) setPartial(null);
       return run;
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // 사람에게 보일 말만 화면에 쓴다. 날것과 오류 코드는 장부와 콘솔에 남는다.
+      setError(noteTrouble("복기", err).message);
       setPartial(null);
       return null;
     } finally {

@@ -4,6 +4,7 @@
 //   useAnalysis  국면이 바뀔 때마다 합법수·장군을 묻고, 엔진 차례면 둘 수를 찾는다
 
 import { useEffect, useRef, useState } from "react";
+import { noteTrouble } from "../report/errors";
 import { JanggiEngine } from "./engine";
 import type {
   AnalysisSnapshot,
@@ -79,11 +80,9 @@ export function useEngine(): EngineState {
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        setState((s) => ({
-          ...s,
-          status: "error",
-          error: err instanceof Error ? err.message : String(err),
-        }));
+        // 엔진이 안 뜨면 앱이 통째로 멈추므로 화면에 까닭을 보여야 한다. 그래도 날것을
+        // 그대로 쓰지는 않는다 - 우리가 쓴 한국어 글이면 그대로, 아니면 오류 코드다.
+        setState((s) => ({ ...s, status: "error", error: noteTrouble("엔진 준비", err).message }));
       });
 
     return () => {
