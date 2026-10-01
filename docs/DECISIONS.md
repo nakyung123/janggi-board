@@ -2838,3 +2838,36 @@ React 가 글자를 이스케이프해 주므로 스크립트는 못 끼어들�
 
 **확인** — 가운데 1바이트만 바꿔 넣으니 기대값·실제값을 들어 거절하고 종료 코드 1 로 멈췄다.
 되돌리니 다시 통과했다.
+
+## 가져올 수 있는 곳을 우리 서버 하나로 묶는다 (CSP)
+
+2026-10-01
+
+보안 헤더가 COOP/COEP 둘뿐이었다. 그 둘은 SharedArrayBuffer 를 열려고 둔 것이지 **막으려고**
+둔 것이 아니다. 네 가지를 더 넣었다.
+
+| 헤더 | 막는 것 |
+| --- | --- |
+| `Content-Security-Policy` | 바깥에서 무언가를 가져오거나 끼워 넣는 것 |
+| `frame-ancestors 'none'` (CSP 안) | 남의 사이트가 우리 화면을 액자로 덮는 것(클릭재킹) |
+| `X-Content-Type-Options: nosniff` | 브라우저가 파일 종류를 멋대로 다시 추측하는 것 |
+| `Referrer-Policy: no-referrer` | 제보 창구로 넘어갈 때 우리 주소가 딸려 가는 것 |
+
+**CSP 를 전부 'self' 로 닫아도 잃는 것이 없다.** 이 앱은 바깥에서 받아오는 것이 하나도
+없다 - 글꼴(Pretendard)·아이콘(Lucide)은 번들에 들어 있고, 탭 아이콘은 index.html 안의
+data: URI 이고, 엔진과 신경망은 같은 서버의 /engine/ 에서 온다.
+
+**열어 둔 둘**
+
+- `'wasm-unsafe-eval'` — 이름이 사납지만 **wasm 을 컴파일해도 된다**는 뜻일 뿐이고
+  자바스크립트 eval 은 열지 않는다. 엔진 스크립트를 뒤져 보니 `eval`·`new Function`·blob URL 을
+  하나도 쓰지 않아서(`importScripts` 하나뿐) 이 이상 열 것이 없었다.
+- `style-src 'unsafe-inline'` — 판 크기를 재서 넣는 자리가 인라인 스타일(React 의 `style={{...}}`)이다.
+
+**vite.config.ts 와 vercel.json 에 같은 값을 둔다.** 개발·미리보기에서만 느슨하면 배포하고
+나서야 깨진 것을 본다. CSP 는 어긋나는 순간 화면이 하얗게 되는 종류라 더욱 그렇다.
+
+**확인**(실제 빌드 + `vite preview`) — 헤더 네 개가 다 나가고, `crossOriginIsolated` 는 그대로
+`true`, SharedArrayBuffer 살아 있음. 새 대국에서 71졸61 을 두니 AI 가 49병48 로 응수했다
+(= 엔진 워커와 멀티스레드 탐색이 CSP 아래에서 돈다). **콘솔 메시지 0건** — CSP 위반이
+하나라도 있으면 콘솔에 찍힌다.
