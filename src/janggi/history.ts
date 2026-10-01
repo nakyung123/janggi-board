@@ -6,7 +6,7 @@
 
 import type { Square } from "./board";
 import { applyMove, parseFen, toFen } from "./board";
-import { describeMove, hangulNotation } from "./notation";
+import { describeMove, hangulNotation, isMoveString } from "./notation";
 import type { Side } from "./pieces";
 
 export interface HistoryEntry {
@@ -63,9 +63,12 @@ export function isHistory(v: unknown): v is HistoryEntry[] {
   return v.every((e) => {
     if (typeof e !== "object" || e === null) return false;
     const h = e as Record<string, unknown>;
-    if (typeof h.fen !== "string" || h.fen.length > 200) return false;
+    // 브라우저에 남아 있던 값도 밖에서 온 값이다(사람이 고칠 수 있다). 국면과 수는
+    // 엔진에게 UCI 명령 한 줄로 그대로 넘어가므로 글자까지 본다 - 줄바꿈이 섞이면
+    // 명령이 한 줄 더 생긴다(engine/types.ts 의 positionCommand).
+    if (typeof h.fen !== "string" || !/^[A-Za-z0-9/\- ]{1,200}$/.test(h.fen)) return false;
     if (typeof h.notation !== "string") return false;
-    if (h.move !== null && typeof h.move !== "string") return false;
+    if (h.move !== null && (typeof h.move !== "string" || !isMoveString(h.move))) return false;
     if (h.mover !== null && h.mover !== "cho" && h.mover !== "han") return false;
     if (h.score !== null && typeof h.score !== "number") return false;
     try {

@@ -110,8 +110,26 @@ export interface PositionRef {
   moves: string[];
 }
 
+/**
+ * UCI 는 **줄 단위** 프로토콜이다. 명령 한 줄 안에 줄바꿈이 끼면 그 뒤가 다른 명령이 된다.
+ *
+ * 국면과 수는 밖에서 들어올 수 있다(기보 파일, 브라우저에 남아 있던 값). 그 값이 그대로
+ * 명령 줄에 들어가므로, 줄바꿈이 섞이면 엔진에게 시키지 않은 일을 시킬 수 있다.
+ *
+ *   position fen <판>\ngo infinite   →  position 한 줄 + go 한 줄
+ *
+ * 엔진은 wasm 안에 갇혀 있어 파일도 그물도 건드리지 못하지만, 탐색을 멈추지 않게 하거나
+ * 설정을 바꿔 분석을 어그러뜨릴 수는 있다. 들어오는 쪽에서도 거르고(janggi/record.ts,
+ * janggi/history.ts) 나가는 쪽인 여기서도 막는다 - 한쪽만 막으면 나중에 생기는 새 경로가
+ * 그대로 뚫린다.
+ */
+const UCI_SAFE = /^[A-Za-z0-9/\- ]+$/;
+
 /** UCI 의 position 명령 한 줄로 만든다. */
 export function positionCommand(ref: PositionRef): string {
+  if (!UCI_SAFE.test(ref.startFen) || ref.moves.some((m) => !UCI_SAFE.test(m))) {
+    throw new Error("국면에 쓸 수 없는 글자가 들어 있습니다.");
+  }
   return ref.moves.length
     ? `position fen ${ref.startFen} moves ${ref.moves.join(" ")}`
     : `position fen ${ref.startFen}`;

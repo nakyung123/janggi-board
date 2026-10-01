@@ -38,6 +38,17 @@ export function splitMove(move: string): { from: string; to: string } {
 }
 
 /**
+ * 엔진 좌표로 적힌 수인지. 앞뒤에 아무것도 더 붙지 않아야 한다.
+ *
+ * splitMove 와 달리 **전체가** 맞아야 참이다. 밖에서 들어온 값(기보 파일, 브라우저에
+ * 남아 있던 값)을 엔진에 넘기기 전에 거른다 - 수 문자열이 그대로 UCI 명령 줄에 들어가서,
+ * 줄바꿈이 섞여 있으면 명령이 한 줄 더 생긴다(engine/types.ts 의 positionCommand).
+ */
+export function isMoveString(move: string): boolean {
+  return /^[a-i](?:10|[1-9])[a-i](?:10|[1-9])$/.test(move);
+}
+
+/**
  * 판에 화살표로 그릴 수 있는 수. 한수쉼(제자리)이나 읽을 수 없는 수는 null.
  * 직전 수 표시, 기보에 마우스를 올린 수, 복기의 뒀어야 할 수가 쓴다.
  */

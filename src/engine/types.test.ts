@@ -57,3 +57,32 @@ describe("엔진이 이미 둔 국면 기억하기", () => {
     expect(forgetIfMoved(null, k1)).toBeNull();
   });
 });
+
+describe("UCI 명령 주입 막기", () => {
+  // UCI 는 줄 단위 프로토콜이다. 국면·수는 밖에서 들어올 수 있고(기보 파일, 브라우저에
+  // 남아 있던 값) 그대로 명령 줄에 들어가므로, 줄바꿈이 섞이면 명령이 한 줄 더 생긴다.
+  const 줄바꿈 = String.fromCharCode(10);
+  const 캐리지리턴 = String.fromCharCode(13);
+
+  it("국면에 줄바꿈이 섞여 있으면 명령을 만들지 않는다", () => {
+    const 주입 = START + 줄바꿈 + "go infinite";
+    expect(() => positionCommand({ startFen: 주입, moves: [] })).toThrow();
+  });
+
+  it("수에 줄바꿈이 섞여 있어도 막는다", () => {
+    expect(() =>
+      positionCommand({ startFen: START, moves: ["a4a5" + 줄바꿈 + "quit"] })
+    ).toThrow();
+  });
+
+  it("엔진 설정을 바꾸려는 글자도 막는다", () => {
+    const 주입 = 캐리지리턴 + "setoption name Skill Level value 0";
+    expect(() => positionCommand({ startFen: START, moves: ["a4a5", 주입] })).toThrow();
+  });
+
+  it("멀쩡한 국면은 그대로 만든다", () => {
+    expect(positionCommand({ startFen: START, moves: ["a4a5"] })).toBe(
+      `position fen ${START} moves a4a5`
+    );
+  });
+});

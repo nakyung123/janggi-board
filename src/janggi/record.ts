@@ -9,12 +9,17 @@ import { newGameId } from "./archive";
 import { parseFen } from "./board";
 import type { HistoryEntry } from "./history";
 import { nextEntry, startHistory } from "./history";
-import { splitMove } from "./notation";
+import { isMoveString, splitMove } from "./notation";
 import type { Side } from "./pieces";
 
 export const RECORD_FORMAT = "janggi-board/2";
 /** 급수·대국 결과가 없던 첫 형식. 읽기만 지원한다. */
 const RECORD_FORMAT_V1 = "janggi-board/1";
+
+/** FEN 에 들어갈 수 있는 글자. 줄바꿈이 섞이면 엔진 명령이 한 줄 더 생긴다. */
+const FEN_TEXT = /^[A-Za-z0-9/\- ]{1,200}$/;
+/** 한 판에 받아 줄 수의 한도. 장기 규칙상 200수를 넘지 않지만 넉넉히 둔다. */
+const MAX_MOVES = 1000;
 
 export interface RecordMove {
   /** 엔진 좌표. 예: a4b4 */
@@ -99,14 +104,21 @@ function readRecord(raw: unknown): GameRecord {
       `모르는 기보 형식입니다. (${String(r.format ?? "표시 없음")})`
     );
   }
-  if (typeof r.startFen !== "string" || !r.startFen.includes("/")) {
+  /*
+   * 파일은 남이 보낸 것일 수 있다. 국면과 수는 엔진에게 UCI 명령 한 줄로 그대로 넘어가므로
+   * 줄바꿈이나 엉뚱한 글자가 섞이면 명령이 한 줄 더 생긴다. 글자까지 보고 받는다.
+   */
+  if (typeof r.startFen !== "string" || !FEN_TEXT.test(r.startFen)) {
     throw new Error("시작 국면(FEN)이 없거나 형식이 맞지 않습니다.");
   }
   if (!Array.isArray(r.moves)) {
     throw new Error("수순 목록이 없습니다.");
   }
+  if (r.moves.length > MAX_MOVES) {
+    throw new Error(`수가 너무 많습니다. (${r.moves.length}수)`);
+  }
   for (const [i, m] of r.moves.entries()) {
-    if (!m || typeof m.move !== "string") {
+    if (!m || typeof m.move !== "string" || !isMoveString(m.move)) {
       throw new Error(`${i + 1}번째 수의 형식이 맞지 않습니다.`);
     }
   }
