@@ -60,6 +60,22 @@ const EXPECTED_HASH = NNUE.name.slice("janggi-".length, -".nnue".length);
  */
 const NNUE_GZ = NNUE.name + ".gz.bin";
 
+/*
+ * 한 번 받아 검사까지 마친 신경망을 여기에 하나 더 둔다(압축본).
+ *
+ * 배포 서버는 빌드마다 빈 폴더에서 시작하므로 public/engine 에는 늘 아무것도 없고, 그래서
+ * 배포할 때마다 남의 구글 드라이브에서 11MB 를 새로 받았다. 그 링크가 한 번 빈 응답을
+ * 돌려주자 빌드가 통째로 실패했다. node_modules 아래는 Vercel 이 다음 빌드로 넘겨주므로
+ * (빌드 캐시), 여기 두면 한 번 받은 뒤로는 드라이브에 가지 않는다.
+ *
+ * 캐시도 믿지 않는다 - 꺼내 쓸 때마다 검사값을 다시 본다.
+ */
+const CACHE_DIR = join(ROOT, "node_modules", ".cache", "janggi-engine");
+
+/** 받기를 몇 번까지 해 볼지와, 다시 하기 전에 쉬는 시간(ms). */
+const DOWNLOAD_WAITS = [3_000, 10_000];
+const DOWNLOAD_TIMEOUT_MS = 60_000;
+
 const mb = (n) => (n / 1e6).toFixed(2) + "MB";
 
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -126,6 +142,72 @@ async function packNnue(bytes, dest) {
   );
 }
 
+/** 검사를 마친 압축본을 빌드 캐시에도 둔다. 못 써도 빌드는 계속한다 - 없으면 다음에 다시 받을 뿐이다. */
+async function saveToCache(gzPath) {
+  const cached = join(CACHE_DIR, NNUE_GZ);
+  if (existsSync(cached)) return;
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await copyFile(gzPath, cached);
+  } catch (err) {
+    console.warn(`  ! 빌드 캐시에 두지 못했습니다: ${err.message}`);
+  }
+}
+
+/** 빌드 캐시에 검사를 통과하는 압축본이 있으면 꺼내 쓴다. 꺼냈으면 true. */
+async function restoreFromCache(gzPath) {
+  const cached = join(CACHE_DIR, NNUE_GZ);
+  if (!existsSync(cached)) return false;
+  try {
+    const packed = await readFile(cached);
+    checkNnue(gunzipSync(packed), "빌드 캐시의 신경망");
+    await copyFile(cached, gzPath);
+    console.log(`  + ${NNUE_GZ} (빌드 캐시에서, ${mb(packed.byteLength)}, 검사값 확인)`);
+    return true;
+  } catch (err) {
+    // 깨진 캐시는 버리고 새로 받는다. 캐시 때문에 빌드가 멈추면 안 된다.
+    console.warn(`  ! 빌드 캐시를 쓰지 못해 새로 받습니다: ${err.message.split("\n")[0]}`);
+    await rm(cached, { force: true });
+    return false;
+  }
+}
+
+/** 한 번 받아 검사까지 한다. 응답이 이상하면 던진다. */
+async function downloadNnue() {
+  const res = await fetch(NNUE.url, {
+    redirect: "follow",
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    throw new Error(`NNUE 다운로드 실패: HTTP ${res.status} ${res.statusText}`);
+  }
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  checkNnue(bytes, "내려받은 신경망");
+  return bytes;
+}
+
+/*
+ * 받다가 어긋나면 쉬었다가 다시 받는다.
+ *
+ * 구글 드라이브는 가끔 파일 대신 빈 응답이나 안내 쪽을 돌려준다(배포 서버에서 실제로
+ * 겪었다 - 30초 뒤 0.00MB). 잠깐 뒤에는 멀쩡히 주므로 한 번 실패로 빌드를 버리지 않는다.
+ * 끝까지 안 되면 마지막 까닭을 그대로 올린다.
+ */
+async function downloadNnueWithRetry() {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await downloadNnue();
+    } catch (err) {
+      const wait = DOWNLOAD_WAITS[attempt];
+      if (wait === undefined) throw err;
+      console.warn(
+        `  ! 받기 실패(${attempt + 1}번째): ${err.message.split("\n")[0]} - ${wait / 1000}초 뒤 다시 받습니다.`
+      );
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
 async function fetchNnue() {
   const gzPath = join(ENGINE_DIR, NNUE_GZ);
   const rawPath = join(ENGINE_DIR, NNUE.name);
@@ -136,6 +218,7 @@ async function fetchNnue() {
     const packed = await readFile(gzPath);
     checkNnue(gunzipSync(packed), NNUE_GZ);
     console.log(`  = ${NNUE_GZ} (이미 있음, ${mb(packed.byteLength)}, 검사값 확인)`);
+    await saveToCache(gzPath);
     return;
   }
 
@@ -147,17 +230,16 @@ async function fetchNnue() {
     await packNnue(bytes, gzPath);
     await rm(rawPath);
     console.log(`  - ${NNUE.name} (압축본으로 갈음)`);
+    await saveToCache(gzPath);
     return;
   }
 
+  if (await restoreFromCache(gzPath)) return;
+
   console.log(`  ↓ ${NNUE.name} 내려받는 중... (약 11MB)`);
-  const res = await fetch(NNUE.url, { redirect: "follow" });
-  if (!res.ok) {
-    throw new Error(`NNUE 다운로드 실패: HTTP ${res.status} ${res.statusText}`);
-  }
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  checkNnue(bytes, "내려받은 신경망");
+  const bytes = await downloadNnueWithRetry();
   await packNnue(bytes, gzPath);
+  await saveToCache(gzPath);
 }
 
 /*
