@@ -35,11 +35,13 @@ npm run dev      # http://localhost:5173
 `npm run dev` 는 실행 전에 `scripts/fetch-engine.mjs` 를 돌려서 엔진 파일을
 `public/engine/` 에 채운다. 처음 한 번만 약 13MB(엔진 1.6MB + 신경망 11.3MB)를
 받고, 그 뒤로는 있는 파일을 쓴다. 이 파일들은 용량 때문에 저장소에 넣지 않는다.
+신경망은 받아서 바로 압축해 둔다(11.3MB → 5.7MB). 방문자가 받는 것은 압축본이고,
+푸는 것은 브라우저다.
 
 > **신경망 받기가 실패하면** — 신경망은 남의 구글 드라이브 링크에서 받는다.
 > 링크가 깨졌다면 <https://fairy-stockfish.github.io/nnue/> 에서
 > `janggi-9991472750de.nnue` 를 직접 받아 `public/engine/` 에 넣으면 된다.
-> 파일 이름은 그대로 두어야 한다.
+> 파일 이름은 그대로 두어야 한다. 스크립트가 알아서 압축한다.
 
 ```bash
 npm test          # 순수 로직 테스트 (브라우저·엔진 없이)

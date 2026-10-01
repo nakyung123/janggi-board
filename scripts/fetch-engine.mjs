@@ -1,7 +1,7 @@
 // 엔진 자산 준비 스크립트
 //
 // 1) node_modules 의 fairy-stockfish-nnue.wasm 런타임 파일을 public/engine 으로 복사
-// 2) 장기 전용 NNUE 신경망(약 11MB)을 내려받아 public/engine 에 저장
+// 2) 장기 전용 NNUE 신경망(11MB)을 내려받아 압축해서(5.7MB) public/engine 에 저장
 // 3) 라이선스 고지를 public/licenses 로 복사 (GPL v3 전문·제3자 고지·엔진 저작자)
 //
 // 두 자산 모두 용량이 커서 저장소에 커밋하지 않는다(.gitignore 등록).
@@ -9,7 +9,8 @@
 
 import { existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { mkdir, copyFile, writeFile, readFile, stat } from "node:fs/promises";
+import { gzipSync, gunzipSync } from "node:zlib";
+import { mkdir, copyFile, writeFile, readFile, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -42,6 +43,22 @@ const NNUE = {
 
 /** 파일명에 박힌 검사값. janggi-<앞 12자리>.nnue 에서 가운데만 꺼낸다. */
 const EXPECTED_HASH = NNUE.name.slice("janggi-".length, -".nnue".length);
+
+/*
+ * 신경망은 **압축해서** 둔다. 11.26MB → 5.74MB, 방문자마다 그만큼 덜 받는다.
+ *
+ * 푸는 쪽은 브라우저다(src/engine/engine.ts 의 fetchNnue). 서버가 Content-Encoding 을
+ * 붙여 주기를 기다리지 않는 까닭은 그쪽 글에 적어 뒀다 - 한 줄로 줄이면, 그러면 동작이
+ * 호스트 설정에 달린다.
+ *
+ * public/ 아래는 통째로 dist/ 로 복사되므로 **압축본 하나만** 남긴다. 원본을 같이 두면
+ * 아무도 받지 않는 11MB 가 배포본에 끼어든다.
+ *
+ * 이름 끝이 `.bin` 인 까닭 — `.gz` 로 뒀더니 vite preview 가 보자마자
+ * `Content-Encoding: gzip` 을 붙여서 브라우저가 먼저 풀어 버렸다. `.bin` 이면 아무도
+ * 손대지 않는다. 가운데 `.gz` 는 사람이 보라고 남긴다.
+ */
+const NNUE_GZ = NNUE.name + ".gz.bin";
 
 const mb = (n) => (n / 1e6).toFixed(2) + "MB";
 
@@ -100,14 +117,36 @@ async function copyRuntime() {
   }
 }
 
+/** 검사를 마친 신경망을 압축해서 저장한다. 11MB 기준 3초쯤 걸리고, 한 번만 한다. */
+async function packNnue(bytes, dest) {
+  const packed = gzipSync(bytes, { level: 9 });
+  await writeFile(dest, packed);
+  console.log(
+    `  + ${NNUE_GZ} (${mb(bytes.byteLength)} → ${mb(packed.byteLength)}, 검사값 확인)`
+  );
+}
+
 async function fetchNnue() {
-  const dest = join(ENGINE_DIR, NNUE.name);
-  if (existsSync(dest)) {
+  const gzPath = join(ENGINE_DIR, NNUE_GZ);
+  const rawPath = join(ENGINE_DIR, NNUE.name);
+
+  if (existsSync(gzPath)) {
     // 이미 있는 파일도 검사한다. 한 번 받아 두면 몇 달을 그대로 쓰는 파일이라,
-    // 처음 받을 때만 보면 그 뒤에 바뀐 것은 영영 모른다. 11MB 해시는 수십 ms 다.
-    const bytes = await readFile(dest);
+    // 처음 받을 때만 보면 그 뒤에 바뀐 것은 영영 모른다. 풀고 해시까지 수백 ms 다.
+    const packed = await readFile(gzPath);
+    checkNnue(gunzipSync(packed), NNUE_GZ);
+    console.log(`  = ${NNUE_GZ} (이미 있음, ${mb(packed.byteLength)}, 검사값 확인)`);
+    return;
+  }
+
+  // 압축하기 전에 받아 둔 원본이 있으면 다시 받지 않는다. 같은 11MB 를 또 받을 까닭이
+  // 없다. 압축본을 만들고 원본은 지운다 - 배포본에 둘 다 실리지 않게.
+  if (existsSync(rawPath)) {
+    const bytes = await readFile(rawPath);
     checkNnue(bytes, NNUE.name);
-    console.log(`  = ${NNUE.name} (이미 있음, ${mb(bytes.byteLength)}, 검사값 확인)`);
+    await packNnue(bytes, gzPath);
+    await rm(rawPath);
+    console.log(`  - ${NNUE.name} (압축본으로 갈음)`);
     return;
   }
 
@@ -118,9 +157,7 @@ async function fetchNnue() {
   }
   const bytes = new Uint8Array(await res.arrayBuffer());
   checkNnue(bytes, "내려받은 신경망");
-
-  await writeFile(dest, bytes);
-  console.log(`  + ${NNUE.name} (${mb(bytes.byteLength)}, 검사값 확인)`);
+  await packNnue(bytes, gzPath);
 }
 
 /*

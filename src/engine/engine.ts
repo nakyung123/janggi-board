@@ -22,6 +22,15 @@ import { parseInfo, parsePerftMoves } from "./uci";
 
 const ENGINE_BASE = "/engine/";
 const NNUE_FILE = "janggi-9991472750de.nnue";
+/**
+ * 서버에 올라가 있는 이름. 압축해서 둔다(scripts/fetch-engine.mjs).
+ *
+ * 이름이 세 토막인 까닭 — `.nnue` 신경망, `.gz` gzip 으로 압축됨, `.bin` **서버야 건드리지
+ * 마라.** 마지막이 핵심이다. 그냥 `.gz` 로 뒀더니 vite preview 가 보자마자
+ * `Content-Encoding: gzip` 을 붙였고, 브라우저가 먼저 풀어 버려서 우리가 또 풀려다
+ * 실패했다. 끝이 `.bin` 이면 아무도 손대지 않고 application/octet-stream 으로 나간다.
+ */
+const NNUE_PACKED = NNUE_FILE + ".gz.bin";
 /** 엠스크립튼 가상 파일시스템 안에서의 신경망 경로 */
 const NNUE_VFS_PATH = "/" + NNUE_FILE;
 /**
@@ -50,7 +59,10 @@ declare global {
   }
 }
 
-/** 진행률을 보고하면서 파일을 받는다. 11MB 신경망은 체감이 커서 표시가 필요하다. */
+/**
+ * 진행률을 보고하면서 파일을 받는다. 엔진 wasm 이 쓴다 - 이것만은 다 받아야 판이 뜨므로
+ * 받는 동안 무엇을 기다리는지 보여야 한다. 신경망은 뒤에서 받으니 표시가 필요 없다.
+ */
 async function fetchWithProgress(
   url: string,
   stage: string,
@@ -80,6 +92,44 @@ async function fetchWithProgress(
     offset += c.length;
   }
   return out;
+}
+
+/**
+ * 압축해 둔 신경망을 받아서 푼다. 5.74MB 를 받아 11.26MB 를 얻는다.
+ *
+ * **왜 우리가 푸나** — 서버가 `Content-Encoding` 을 붙여 주면 브라우저가 알아서 풀어
+ * 준다. 그 길을 안 간 까닭은 그러면 동작이 **우리 코드가 아니라 호스트 설정에 달리기**
+ * 때문이다. 헤더가 빠진 날에는 압축 덩어리가 그대로 넘어오고, 앱은 신경망 없이 조용히
+ * 돈다 - 이미 한 번 당한 모양이다(NNUE_MIN_BYTES 주석). 우리가 풀면 어디에 올리든 같다.
+ *
+ * brotli 면 4.88MB 로 더 작지만 브라우저에 brotli 를 푸는 API 가 없어서, 쓰려면 위
+ * 헤더에 기대는 수밖에 없다. 0.86MB 를 호스트 의존과 바꾸지 않았다.
+ *
+ * **이미 풀려서 올 수도 있다.** 서버가 제 딴에는 도우려고 `Content-Encoding` 을 붙이면
+ * 브라우저가 먼저 푼다. 그래서 받은 것이 정말 gzip 인지 **앞 두 바이트를 보고** 가른다
+ * (0x1f 0x8b). 아니면 이미 풀린 것이니 그대로 쓴다. 파일 이름으로 그런 서버를 피해
+ * 두긴 했지만(NNUE_PACKED 주석), 올릴 데마다 확인하느니 양쪽을 다 받는 편이 낫다.
+ *
+ * **그래도 못 쓰는 경우가 둘이다.** 서버가 신경망 대신 index.html 을 돌려줬거나(그건
+ * gzip 도 아니고 11MB 도 아니라 부르는 쪽 크기 검사에 걸린다), DecompressionStream 이
+ * 없는 옛 브라우저이거나(사파리 16.3 이하, 파이어폭스 112 이하). 둘 다 부르는 쪽이
+ * 장부에 적고 classical 로 둔다.
+ */
+async function fetchNnue(): Promise<Uint8Array> {
+  const res = await fetch(ENGINE_BASE + NNUE_PACKED);
+  if (!res.ok) {
+    throw new Error("장기 신경망 내려받기 실패 (HTTP " + res.status + ")");
+  }
+  const got = new Uint8Array(await res.arrayBuffer());
+
+  const isGzip = got[0] === 0x1f && got[1] === 0x8b;
+  if (!isGzip) return got;
+
+  if (typeof DecompressionStream === "undefined") {
+    throw new Error("이 브라우저는 gzip 을 풀지 못합니다.");
+  }
+  const packed = new Blob([got]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(packed).arrayBuffer());
 }
 
 function loadEngineScript(): Promise<void> {
@@ -157,9 +207,9 @@ export class JanggiEngine {
   /**
    * 신경망을 뒤에서 받아 갈아 끼운다.
    *
-   * **왜 기다리지 않나** — 신경망은 11MB 다. 다 받아야 판이 뜨게 해 두면 처음 온 사람이
-   * 빈 화면을 10초 넘게 본다(휴대폰이면 더). 엔진 자체는 1.6MB 라, 그것만 받고 뜨면
-   * 체감이 여덟 배 빠르다. 그 사이에도 엔진은 classical 평가로 멀쩡히 둔다.
+   * **왜 기다리지 않나** — 신경망은 받는 데 5.74MB(푼 뒤 11.26MB)다. 다 받아야 판이 뜨게
+   * 해 두면 처음 온 사람이 빈 화면을 한참 본다(휴대폰이면 더). 엔진 자체는 1.6MB 라,
+   * 그것만 받고 뜨면 체감이 훨씬 빠르다. 그 사이에도 엔진은 classical 평가로 멀쩡히 둔다.
    *
    * **언제 갈아 끼우나** — 큐에 넣는다. 탐색이 돌고 있으면 그 탐색이 끝난 뒤다. 중간에
    * 끊지 않는다 - 끊으면 AI 가 두던 수가 사라진다.
@@ -169,7 +219,7 @@ export class JanggiEngine {
    */
   private async loadNnue(): Promise<void> {
     try {
-      const nnue = await fetchWithProgress(ENGINE_BASE + NNUE_FILE, "장기 신경망", () => {});
+      const nnue = await fetchNnue();
       if (nnue.byteLength < NNUE_MIN_BYTES) {
         throw new Error(
           "신경망이 아닌 것을 받았습니다. (" + nnue.byteLength + "바이트)"

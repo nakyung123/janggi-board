@@ -8,12 +8,15 @@
 
 import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
+import { gunzipSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENGINE_DIR = join(ROOT, "public", "engine");
 const NNUE_NAME = "janggi-9991472750de.nnue";
+// 신경망은 압축해서 둔다(scripts/fetch-engine.mjs). 브라우저가 풀듯 여기서도 푼다.
+const NNUE_GZ = NNUE_NAME + ".gz.bin";
 
 const require = createRequire(import.meta.url);
 
@@ -113,7 +116,7 @@ async function main() {
   // 브라우저에서도 완전히 동일한 방식이다.
   // 순서가 중요하다. UCI_Variant 는 다음 `position` 명령을 받아야 실제로 적용되고,
   // EvalFile 은 그 뒤에 걸어야 장기용 신경망으로 인식된다.
-  const nnue = new Uint8Array(await readFile(join(ENGINE_DIR, NNUE_NAME)));
+  const nnue = new Uint8Array(gunzipSync(await readFile(join(ENGINE_DIR, NNUE_GZ))));
   engine.FS.writeFile("/" + NNUE_NAME, nnue);
   uci.send("setoption name UCI_Variant value janggi");
   uci.send(`position fen ${START_FEN}`);
