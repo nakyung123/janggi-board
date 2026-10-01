@@ -1170,8 +1170,8 @@ const FEEDBACK_ENTRY = import.meta.env.VITE_FEEDBACK_ENTRY ?? "";
  * 어떤 판이었는지를 매번 되물어야 하는데 - 제보는 몇 건 안 오고 되물으면 절반은
  * 답이 오지 않는다.
  *
- * @param sep 줄을 잇는 글자. 폼의 '환경' 칸이 단답형이면 줄바꿈이 **지워져서**
- *   "v0.1.0대국" 처럼 붙어 버린다. 그래서 미리 채울 때는 가운뎃점으로 잇는다.
+ * @param sep 줄을 잇는 글자. 폼의 받는 칸이 **장문형이어야** 줄바꿈이 남는다.
+ *   단답형이면 줄바꿈이 지워져 "v0.1.0대국" 처럼 붙으므로 가운뎃점(" · ")으로 넘긴다.
  */
 function reportInfo(detail: string, sep = "\n"): string {
   return [
@@ -1192,7 +1192,8 @@ function reportInfo(detail: string, sep = "\n"): string {
 function feedbackLink(detail: string): string {
   if (!FEEDBACK_ENTRY) return FEEDBACK_URL;
   const sep = FEEDBACK_URL.includes("?") ? "&" : "?";
-  const info = encodeURIComponent(reportInfo(detail, " · "));
+  // 받는 칸이 장문형이라 줄바꿈이 그대로 남는다(단답형이었을 때는 줄이 뭉개져 붙었다).
+  const info = encodeURIComponent(reportInfo(detail));
   return `${FEEDBACK_URL}${sep}usp=pp_url&${FEEDBACK_ENTRY}=${info}`;
 }
 
@@ -1229,14 +1230,14 @@ function FeedbackButton({ detail }: { detail: string }) {
 
   return (
     /*
-     * 글자를 짧게 둔다.
+     * 버그만 받는 창구가 아니다.
      *
-     * "피드백 · 버그 제보"(142)로 뒀더니 1280×720 에서 상차림 마지막 칸을 덮었다.
-     * 떠 있는 것은 넓을수록 많이 가린다. 여기서 몇 자를 아끼는 것이 가려지는
-     * 버튼 하나를 살린다.
+     * 한동안 `버그 제보`(91)로 짧게 뒀다 - 넓을수록 많이 가려서다. 그런데 그 글자는
+     * 받을 것을 좁힌다. "이건 버그는 아닌데" 싶은 말은 보내지 않게 되고, 쓰는 사람이
+     * 바라는 것은 대개 버그가 아니라 그쪽이다. 가려지는 것은 아래 Known Gaps 에 적었다.
      */
     <button type="button" className="feedback-fab" onClick={onClick}>
-      {copied ? "복사했어요" : "버그 제보"}
+      {copied ? "복사했어요" : "피드백 및 버그 제보"}
     </button>
   );
 }
