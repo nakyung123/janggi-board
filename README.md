@@ -12,8 +12,6 @@
   <p align="center">
     급수를 골라 AI와 한 판 두고, 끝난 판을 한 수씩 되짚으며 복기를 받는 장기
     <br />
-    <a href="docs/DECISIONS.md"><strong>기술 기록 보기 »</strong></a>
-    <br />
     <br />
     <a href="https://github.com/nakyung123/janggi-board/releases">릴리스</a>
     &middot;
@@ -173,8 +171,7 @@ AI의 수     32포35
 | `Home` `End` | 처음 · 끝으로 |
 | `F` | 판 뒤집기 |
 
-무엇을 왜 그렇게 정했는지는 [docs/DECISIONS.md](docs/DECISIONS.md), 화면의 기준은
-[DESIGN.md](DESIGN.md) 에 있다.
+화면의 기준은 [DESIGN.md](DESIGN.md) 에 있다.
 
 <p align="right">(<a href="#readme-top">맨 위로</a>)</p>
 
