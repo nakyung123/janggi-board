@@ -116,8 +116,10 @@ export function ReviewPanel(props: Props) {
 
   const current = reviewed.find((r) => r.index === cursor) ?? null;
 
+  // grown — 복기를 돌린 뒤에만 이 패널이 오른쪽 칸의 남는 높이를 먹는다(layout.css).
+  // 돌리기 전에는 넣을 것이 깊이와 시작 버튼뿐이라, 늘려 봐야 빈 칸만 커진다.
   return (
-    <div className="panel review">
+    <div className="panel review grown">
       <div className="panel-title">복기</div>
       {current ? (
         <MoveComment
