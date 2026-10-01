@@ -14,7 +14,6 @@
 // hooks/ 에 있다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft } from "lucide-react";
 
 import { Board } from "./components/board/Board";
 import { BoardControls } from "./components/board/BoardControls";
@@ -22,6 +21,7 @@ import { PlayerCard } from "./components/board/PlayerCard";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { FeedbackButton } from "./report/feedback";
 import { EvalGraph } from "./components/games/EvalGraph";
+import { GameBar } from "./components/games/GameBar";
 import { GameList } from "./components/games/GameList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
@@ -31,7 +31,7 @@ import type { Mode } from "./components/layout/ModeTabs";
 import { GameOverDialog } from "./components/play/GameOverDialog";
 import { PlayPanel } from "./components/play/PlayPanel";
 
-import { playMoveSound, playPickSound } from "./audio/sound";
+import { playMoveSound } from "./audio/sound";
 import {
   DEFAULT_LEVEL_ID,
   DEFAULT_REVIEW_DEPTH_ID,
@@ -52,10 +52,12 @@ import { useClockTicking, useGameClock } from "./hooks/useGameClock";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useNarrow } from "./hooks/useNarrow";
 import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
+import { useBoardTouch } from "./hooks/useBoardTouch";
+import { useCallout } from "./hooks/useCallout";
 import { useGames } from "./hooks/useGames";
 import { useReview } from "./hooks/useReview";
 
-import { newGameId, resultTag, upsertGame, whenLabel } from "./janggi/archive";
+import { newGameId, upsertGame } from "./janggi/archive";
 import type { ArchivedGame, ArchivedResult } from "./janggi/archive";
 import type { Position, Square } from "./janggi/board";
 import { START_FEN, parseFen, toFen, undoTarget } from "./janggi/board";
@@ -401,6 +403,20 @@ export default function App() {
       archivedSelf.result.kind !== "abandoned" &&
       archivedSelf.history.length === playHistory.length);
 
+  // --- 장군·멍군·빅장 외치기 ------------------------------------------------
+
+  /*
+   * 방금 둔 수로 장군·멍군·빅장이 걸렸으면 판 가운데에 한 번 외친다. 어느 국면에서
+   * 외쳤는지와 앞 국면이 장군이었는지를 기억해야 해서 따로 뒀다(useCallout).
+   */
+  const callouts = useCallout({
+    active: mode === "play",
+    probed,
+    checkers,
+    cursor: playCursor,
+    kind: gstatus.kind,
+  });
+
   // --- 수 두기 ----------------------------------------------------------
 
   /** 둘 차례인 쪽. 시계가 이 쪽의 시간을 깎는다. */
@@ -419,9 +435,6 @@ export default function App() {
     key: number;
   } | null>(null);
 
-  /** 방금 수를 둬서 생긴 국면 번호. 장군·빅장을 그 순간에만 외치려고 기억한다. */
-  const justMoved = useRef<number | null>(null);
-
   /**
    * 한 수를 둔다. 사람의 수도 엔진의 수도 여기를 지난다. from === to 는 한수쉼.
    * animate 가 false 면 날리지 않는다(끌어서 둔 수는 이미 손으로 옮겼다).
@@ -436,7 +449,7 @@ export default function App() {
           ? { from, to, captured: position.board[to], ply: playCursor + 1, key: Date.now() }
           : null
       );
-      justMoved.current = playCursor + 1;
+      callouts.justMoved(playCursor + 1);
       setPlayHistory((prev) => {
         const base = prev.slice(0, playCursor + 1);
         return [...base, nextEntry(base[base.length - 1].fen, from, to)];
@@ -445,45 +458,8 @@ export default function App() {
       setSelected(null);
       commitClock(mover);
     },
-    [playCursor, mover, position.board, commitClock]
+    [playCursor, mover, position.board, commitClock, callouts]
   );
-
-  // --- 장군·멍군·빅장 외치기 ------------------------------------------------
-
-  /**
-   * 국면 번호마다 장군이 걸려 있었는지. 멍군을 가리려면 바로 앞 국면이 장군이었는지
-   * 알아야 한다. 대국 탭에서는 다음 수를 두기 전에 반드시 엔진 답(probed)을 받으므로
-   * (합법수가 있어야 둔다) 앞 국면의 값은 늘 채워져 있다.
-   */
-  const checkAt = useRef(new Map<number, boolean>());
-  const [callout, setCallout] = useState<{ text: string; key: number } | null>(null);
-
-  /*
-   * 방금 둔 수로 장군이나 빅장이 걸렸으면 판 가운데에 외친다(CheckCallout).
-   *
-   * 장군을 받은 쪽이 피하면서 되받아 장군을 부르면 멍군이다 - 앞 국면도 이번 국면도
-   * 장군. 외통은 외치지 않는다(결과 창이 바로 뜬다). 되짚거나 무르다가 장군 국면에
-   * 와도 외치지 않는다. 빅장은 받은 쪽이 모르고 한수쉼을 두면 판이 끝나서 외친다.
-   */
-  useEffect(() => {
-    if (mode !== "play" || !probed) return;
-    checkAt.current.set(playCursor, checkers.length > 0);
-    if (justMoved.current !== playCursor) return;
-    justMoved.current = null;
-    if (gstatus.kind === "check") {
-      const text = checkAt.current.get(playCursor - 1) ? "멍군!" : "장군!";
-      setCallout({ text, key: playCursor });
-    } else if (gstatus.kind === "facing") {
-      setCallout({ text: "빅장!", key: playCursor });
-    }
-  }, [mode, probed, checkers, playCursor, gstatus.kind]);
-
-  useEffect(() => {
-    if (!callout) return;
-    // CSS 가 1.1초에 걸쳐 떴다 사라진다. 요소는 조금 뒤에 걷는다.
-    const t = window.setTimeout(() => setCallout(null), 1200);
-    return () => window.clearTimeout(t);
-  }, [callout]);
 
   // --- 시계 ------------------------------------------------------------
 
@@ -582,85 +558,28 @@ export default function App() {
 
   // --- 판 만지기 ----------------------------------------------------------
 
-  /** 기물 자리 → 그 기물이 갈 수 있는 자리들. 엔진이 알려 준 합법수에서 만든다. */
-  const legalFrom = useMemo(() => {
-    const map = new Map<Square, Square[]>();
-    for (const move of legal) {
-      const { from, to } = splitMove(move);
-      if (!from) continue;
-      const list = map.get(from) ?? [];
-      list.push(to);
-      map.set(from, list);
-    }
-    return map;
-  }, [legal]);
-
-  const targets = selected ? (legalFrom.get(selected) ?? []) : [];
-
   /**
    * 판을 만질 수 있는지. 대국 탭에서 내 차례에만, 판이 끝나기 전까지. 기보 탭은 읽기만 한다.
    * over 가 아니라 ended 를 본다 - 끝난 판을 앞 국면으로 되짚어도 잠겨 있어야 한다.
    */
   const canTouchBoard = mode === "play" && !ended && !engineTurn;
 
-  /** 집어 들 수 있는 기물. 둘 차례인 쪽의 기물이고 갈 곳이 있어야 한다. */
-  const canPick = (square: Square) => {
-    const piece = position.board[square];
-    return (
-      canTouchBoard &&
-      piece !== undefined &&
-      sideOf(piece) === position.turn &&
-      legalFrom.has(square)
-    );
-  };
-
-  /** 눌러서 두기: 기물을 집고, 갈 곳을 누르면 둔다. 집은 기물을 다시 누르면 놓는다. */
-  const handleSquareClick = (square: Square) => {
-    if (!canTouchBoard) return;
-    if (selected && targets.includes(square)) {
-      pushMove(selected, square);
-      return;
-    }
-    if (canPick(square)) {
-      const picking = selected !== square;
-      setSelected(picking ? square : null);
-      // 집을 때도 소리를 낸다. 알을 판에서 살짝 드는 소리라 착수음보다 얕다.
-      if (picking) playPickSound();
-    } else {
-      setSelected(null);
-    }
-  };
-
-  /** 끌어서 두기. 기물은 손을 따라 이미 도착했으므로 날리지 않는다. */
-  const handleMove = (from: Square, to: Square) => {
-    if (!canTouchBoard) return;
-    if (legalFrom.get(from)?.includes(to)) pushMove(from, to, false);
-    else setSelected(null);
-  };
-
-  /**
-   * 한수쉼 - 궁을 제자리에 둔다. 엔진이 한수쉼을 합법수로 알려 준 때만 된다. 합법수를
-   * 받기 전(수를 둔 직후)이나 장군을 받고 있을 때는 없어서, 그동안은 버튼도 잠근다.
-   * 잠그지 않으면 눌러도 아무 일이 없다.
-   */
-  const passSquare = useMemo(() => {
-    const king = Object.entries(position.board).find(
-      ([, p]) => p.toLowerCase() === "k" && sideOf(p) === position.turn
-    );
-    return king && legal.has(king[0] + king[0]) ? king[0] : null;
-  }, [position, legal]);
-  const passMove = () => {
-    if (passSquare) pushMove(passSquare, passSquare);
-  };
+  /** 집고·끌고·한수쉼. 엔진이 알려 준 합법수를 '이 기물은 어디로 가나' 로 바꾼다. */
+  const touch = useBoardTouch({
+    legal,
+    position,
+    selected,
+    setSelected,
+    canTouch: canTouchBoard,
+    pushMove,
+  });
 
   // --- 판 새로 놓기 -------------------------------------------------------
 
   /** 날던 수·외친 말·장군 기억을 버린다. 판을 새로 놓으면 국면 번호가 다시 0부터다. */
   const forgetMoves = () => {
     setFly(null);
-    setCallout(null);
-    justMoved.current = null;
-    checkAt.current.clear();
+    callouts.forget();
   };
 
   /** 상차림을 바꾸면 그 판을 새 시작 국면으로 삼는다. 첫 수를 두기 전에만 된다. */
@@ -854,30 +773,10 @@ export default function App() {
   }
 
   const thinking = engineTurn && Boolean(snapshot?.running);
-  const openTag = openGame ? resultTag(openGame) : null;
 
-  /*
-   * 연 판의 머리 한 줄: 목록으로 · 어떤 판인지 · 저장.
-   *
-   * 목록으로는 이전·다음과 같은 테두리 버튼이다. 테두리 없는 글자 버튼일 때는 버튼으로
-   * 보이지 않았다. 저장도 이 판에 하는 일이라 같은 줄에 둔다. 폰은 오른쪽 칸이 판 아래로
-   * 내려가 판을 지나야 보이므로, 이 줄만 판 위로 올린다.
-   */
-  const gameBar = openGame && openTag && (
-    <div className="game-back">
-      <button type="button" className="back" onClick={archive.close} disabled={review.running}>
-        <ChevronLeft size={20} strokeWidth={2} aria-hidden />
-        목록으로
-      </button>
-      {/* 승부를 앞에 둔다. 폰에서 자리가 모자라면 뒤(언제 뒀는지)부터 말줄임으로 준다. */}
-      <span className="game-back-meta">
-        <b className={"game-result " + openTag.tone}>{openTag.text}</b> · vs {openGame.levelName} ·{" "}
-        {whenLabel(openGame.endedAt)}
-      </span>
-      <button type="button" className="save" onClick={archive.save} aria-label="파일로 저장">
-        저장
-      </button>
-    </div>
+  /* 연 판의 머리 한 줄(목록으로·어떤 판인지·저장). 폰에서는 판 위로 올라간다. */
+  const gameBar = openGame && (
+    <GameBar game={openGame} busy={review.running} onClose={archive.close} onSave={archive.save} />
   );
 
   return (
@@ -925,17 +824,17 @@ export default function App() {
                   board={position.board}
                   flipped={boardFlipped}
                   selected={selected}
-                  targets={targets}
+                  targets={touch.targets}
                   lastMove={lastMove}
                   bestMove={bestArrow}
                   checkedKing={checkedKing}
-                  onSquareClick={handleSquareClick}
-                  onMove={handleMove}
-                  onPick={handleSquareClick}
-                  canPick={canPick}
+                  onSquareClick={touch.onSquareClick}
+                  onMove={touch.onMove}
+                  onPick={touch.onSquareClick}
+                  canPick={touch.canPick}
                   // 지금 보고 있는 국면이 방금 난 그 국면일 때만 난다. 두 탭 모두에서.
                   flyMove={fly && fly.ply === cursor ? fly : null}
-                  callout={mode === "play" ? callout : null}
+                  callout={mode === "play" ? callouts.callout : null}
                 />
               </div>
 
@@ -958,12 +857,12 @@ export default function App() {
               mode={mode}
               cursor={cursor}
               last={history.length - 1}
-              canPass={canTouchBoard && passSquare !== null}
+              canPass={canTouchBoard && touch.passSquare !== null}
               finished={mode === "play" && ended}
               onJump={goTo}
               onUndo={undoMove}
               onFlip={flip}
-              onPass={passMove}
+              onPass={touch.pass}
             />
 
             {mode === "play" && (

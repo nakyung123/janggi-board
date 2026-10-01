@@ -8,7 +8,7 @@
 // 여기 없는 것: '지금 화면에 떠 있는 판' 을 고르는 일(대국 탭이냐 기보 탭이냐)은
 // App 이 한다. 이 훅은 기보 탭 안의 일만 안다.
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { JanggiEngine } from "../engine/engine";
 import type { Variant } from "../engine/types";
@@ -112,26 +112,15 @@ export function useGames(options: Options): GamesState {
     }
   }
 
-  return {
-    games,
-    setGames,
-    openGame,
-    listView: active && !openGame,
-    page,
-    setPage: (next) => {
-      setPage(next);
-      setError(null);
-    },
-    error,
-    setError,
-    freshId,
-    // 연 판보다 뒤를 가리키고 있으면 눌러 준다(복기가 판을 갈아 끼울 때 생길 수 있다).
-    cursor: openGame ? Math.min(cursor, openGame.history.length - 1) : cursor,
-    setCursor,
-    flipped,
-    flip: () => setFlipped((f) => !f),
+  const goPage = useCallback((next: number) => {
+    setPage(next);
+    setError(null);
+  }, []);
 
-    open: (id) => {
+  const flip = useCallback(() => setFlipped((v) => !v), []);
+
+  const open = useCallback(
+    (id: string) => {
       const game = games.find((g) => g.id === id);
       if (!game || busy) return null;
       setOpenId(game.id);
@@ -141,23 +130,25 @@ export function useGames(options: Options): GamesState {
       setError(null);
       return game;
     },
+    [games, busy]
+  );
 
-    close: () => {
-      if (busy) return;
-      setOpenId(null);
-    },
+  const close = useCallback(() => {
+    if (!busy) setOpenId(null);
+  }, [busy]);
 
-    reset: () => {
-      setOpenId(null);
-      setPage(0);
-      setError(null);
-    },
+  const reset = useCallback(() => {
+    setOpenId(null);
+    setPage(0);
+    setError(null);
+  }, []);
 
-    /**
-     * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
-     * 넣은 판의 카드가 잠깐 도드라지고, 못 넣으면 목록 제목 아래에 까닭이 남는다.
-     */
-    load: async (file) => {
+  /**
+   * 파일로 저장해 둔 기보를 목록 맨 위(첫 쪽)에 한 판으로 넣는다. 두던 판은 그대로다.
+   * 넣은 판의 카드가 잠깐 도드라지고, 못 넣으면 목록 제목 아래에 까닭이 남는다.
+   */
+  const load = useCallback(
+    async (file: File) => {
       setError(null);
       try {
         const game = gameOfRecord(await readRecordFile(file));
@@ -172,9 +163,46 @@ export function useGames(options: Options): GamesState {
         setError(`기보를 불러오지 못했습니다. ${noteTrouble("기보 불러오기", err).message}`);
       }
     },
+    // checkMoves 는 engine·variant 만 쓴다. 렌더마다 새로 만들어지지만 값은 이 둘로 정해진다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [engine, variant, onLoaded, setGames]
+  );
 
-    save: () => {
-      if (openGame) downloadRecord(recordOfGame(openGame));
-    },
-  };
+  const save = useCallback(() => {
+    if (openGame) downloadRecord(recordOfGame(openGame));
+  }, [openGame]);
+
+  /*
+   * 돌려주는 것을 붙박아 둔다.
+   *
+   * App 이 이 객체를 effect·useMemo 의 의존성에 둔다. 매 렌더 새 객체면 그것들이 매 렌더
+   * 다시 돌고, 그 끝에 엔진 착수 타이머가 끊기는 일이 실제로 있었다(useCallout 주석).
+   */
+  return useMemo(
+    () => ({
+      games,
+      setGames,
+      openGame,
+      listView: active && !openGame,
+      page,
+      setPage: goPage,
+      error,
+      setError,
+      freshId,
+      // 연 판보다 뒤를 가리키고 있으면 눌러 준다(복기가 판을 갈아 끼울 때 생길 수 있다).
+      cursor: openGame ? Math.min(cursor, openGame.history.length - 1) : cursor,
+      setCursor,
+      flipped,
+      flip,
+      open,
+      close,
+      reset,
+      load,
+      save,
+    }),
+    [
+      games, setGames, openGame, active, page, goPage, error, freshId,
+      cursor, flipped, flip, open, close, reset, load, save,
+    ]
+  );
 }
