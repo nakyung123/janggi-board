@@ -2,6 +2,9 @@
 //
 // UCI 는 한 번에 한 가지 일만 하는 줄 단위 프로토콜이라, 명령을 마구 던지면
 // 응답이 뒤섞인다. 여기서 요청을 직렬화하고, 탐색 중에는 stop 으로만 끊는다.
+//
+// 뜨는 순서가 중요하다. 엔진(wasm 1.6MB)만 받으면 바로 둘 수 있고, 신경망(11MB)은
+// 뒤에서 받아 다 받은 뒤에 갈아 끼운다. 자세한 까닭은 loadNnue 주석에 있다.
 
 import type {
   AnalysisLine,
@@ -13,6 +16,7 @@ import type {
   SearchLimits,
   Variant,
 } from "./types";
+import { noteTrouble } from "../report/errors";
 import { positionCommand } from "./types";
 import { parseInfo, parsePerftMoves } from "./uci";
 
@@ -20,6 +24,17 @@ const ENGINE_BASE = "/engine/";
 const NNUE_FILE = "janggi-9991472750de.nnue";
 /** 엠스크립튼 가상 파일시스템 안에서의 신경망 경로 */
 const NNUE_VFS_PATH = "/" + NNUE_FILE;
+/**
+ * 신경망이라고 받아들일 최소 크기. 실측 11,261,920 바이트.
+ *
+ * 크기를 봐야 하는 까닭 - 없는 주소를 물으면 **200 으로 index.html 이 돌아오는** 서버가
+ * 있다(쪽 하나짜리 앱의 흔한 기본 동작이다). 그러면 res.ok 가 true 라 그냥 통과하고,
+ * HTML 1KB 를 신경망이라고 엔진에 써넣게 된다. 엔진은 조용히 classical 로 두는데 우리는
+ * 신경망이 물린 줄 안다. 실제로 그랬다 - 파일을 치우고 띄워 보다가 찾았다.
+ *
+ * 빌드 스크립트도 같은 까닭으로 같은 검사를 한다(scripts/fetch-engine.mjs 의 minBytes).
+ */
+const NNUE_MIN_BYTES = 10_000_000;
 
 type Listener = (line: string) => void;
 
@@ -88,6 +103,10 @@ export class JanggiEngine {
   private searchGen = 0;
   /** 진행 중인(또는 대기 중인) 탐색 작업. stop() 이 이걸 기다린다. */
   private searchSettled: Promise<unknown> = Promise.resolve();
+  /** 신경망이 가상 파일시스템에 올라가 EvalFile 로 물렸는지. */
+  private nnueLoaded = false;
+  /** 신경망이 다 물릴 때까지. 실패해도 reject 하지 않는다(그래도 둘 수 있다). */
+  private strongReady: Promise<void> = Promise.resolve();
   private options: EngineOptions = {
     threads: 1,
     hashMb: 128,
@@ -122,21 +141,59 @@ export class JanggiEngine {
       "엔진",
       onProgress
     );
-    const nnue = await fetchWithProgress(
-      ENGINE_BASE + NNUE_FILE,
-      "장기 신경망",
-      onProgress
-    );
-
     onProgress({ stage: "엔진 초기화", loaded: 0, total: 0 });
     const raw = await factory({ wasmBinary });
     const engine = new JanggiEngine(raw);
 
     await engine.handshake();
-    raw.FS.writeFile(NNUE_VFS_PATH, nnue);
     await engine.applyOptions();
 
+    // 신경망은 기다리지 않는다. 받는 동안에도 둘 수 있다(loadNnue 주석).
+    engine.strongReady = engine.loadNnue();
+
     return engine;
+  }
+
+  /**
+   * 신경망을 뒤에서 받아 갈아 끼운다.
+   *
+   * **왜 기다리지 않나** — 신경망은 11MB 다. 다 받아야 판이 뜨게 해 두면 처음 온 사람이
+   * 빈 화면을 10초 넘게 본다(휴대폰이면 더). 엔진 자체는 1.6MB 라, 그것만 받고 뜨면
+   * 체감이 여덟 배 빠르다. 그 사이에도 엔진은 classical 평가로 멀쩡히 둔다.
+   *
+   * **언제 갈아 끼우나** — 큐에 넣는다. 탐색이 돌고 있으면 그 탐색이 끝난 뒤다. 중간에
+   * 끊지 않는다 - 끊으면 AI 가 두던 수가 사라진다.
+   *
+   * **실패해도 던지지 않는다.** 신경망이 없어도 앱은 돈다. 예전에는 이 내려받기가
+   * 실패하면 앱이 아예 안 떴다.
+   */
+  private async loadNnue(): Promise<void> {
+    try {
+      const nnue = await fetchWithProgress(ENGINE_BASE + NNUE_FILE, "장기 신경망", () => {});
+      if (nnue.byteLength < NNUE_MIN_BYTES) {
+        throw new Error(
+          "신경망이 아닌 것을 받았습니다. (" + nnue.byteLength + "바이트)"
+        );
+      }
+      await this.queue(async () => {
+        this.raw.FS.writeFile(NNUE_VFS_PATH, nnue);
+        this.nnueLoaded = true;
+        await this.applyOptions();
+      });
+    } catch (err) {
+      noteTrouble("장기 신경망 내려받기", err);
+    }
+  }
+
+  /**
+   * 신경망까지 물리기를 기다린다. 이미 물렸거나 실패했으면 바로 끝난다.
+   *
+   * 대국은 기다릴 필요가 없다 - 몇 수 약하게 두는 것이 10초 기다리는 것보다 낫고,
+   * 사람이 첫 수를 두는 동안 어차피 다 받는다. 복기는 다르다. 한 번 매긴 등급이 그대로
+   * 남으므로, 신경망으로 매겨야 한다.
+   */
+  whenStrong(): Promise<void> {
+    return this.strongReady;
   }
 
   // --- 저수준 통신 -------------------------------------------------------
@@ -196,7 +253,12 @@ export class JanggiEngine {
     // EvalFile 이 장기용 신경망으로 인식된다.
     this.send("setoption name UCI_Variant value " + o.variant);
     this.send("position startpos");
-    this.send("setoption name EvalFile value " + NNUE_VFS_PATH);
+    if (this.nnueLoaded) {
+      this.send("setoption name EvalFile value " + NNUE_VFS_PATH);
+    } else {
+      // 아직 파일이 없다. 켜 두면 엔진이 없는 파일을 찾는다. 꺼 두면 classical 로 둔다.
+      this.send("setoption name Use NNUE value false");
+    }
     this.send("setoption name Threads value " + o.threads);
     this.send("setoption name Hash value " + o.hashMb);
     this.send("setoption name MultiPV value " + o.multiPV);

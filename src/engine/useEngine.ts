@@ -38,7 +38,12 @@ export interface EngineState {
   status: EngineStatus;
   progress: LoadProgress | null;
   error: string | null;
-  /** 신경망이 실제로 물렸는지 알려주는 엔진 자체 응답 */
+  /**
+   * 신경망이 실제로 물렸는지 알려주는 엔진 자체 응답.
+   *
+   * 신경망은 뒤에서 받으므로(engine.ts 의 loadNnue) 처음에는 null 이고, 다 물린 뒤에
+   * 채워진다. 여기서 classical 이 나오면 신경망이 끝내 안 붙은 것이라 실력이 떨어진다.
+   */
   evalMode: string | null;
 }
 
@@ -62,21 +67,24 @@ export function useEngine(): EngineState {
     sharedEngine()
       .then(async (engine) => {
         if (!alive) return;
-        // 로딩이 끝나자마자 신경망 적용 여부를 한 번 물어본다.
-        // 여기서 classical 이 나오면 신경망이 안 붙은 것이라 실력이 크게 떨어진다.
+        /*
+         * 엔진(1.6MB)만 받으면 바로 둘 수 있다. 여기서 판을 띄운다.
+         *
+         * 예전에는 신경망 11MB 까지 다 받고서야 띄웠다. 처음 온 사람이 빈 화면을
+         * 10초 넘게 봤다. 그 사이에도 엔진은 classical 평가로 멀쩡히 둔다.
+         */
+        setState({ engine, status: "ready", progress: null, error: null, evalMode: null });
+
+        // 신경망이 물린 뒤에 한 번 물어본다. 진단용이라 급하지 않다.
+        await engine.whenStrong();
+        if (!alive) return;
         const evalMode = await engine
           .evaluationMode(
             "rnba1abnr/4k4/1c5c1/p1p1p1p1p/9/9/P1P1P1P1P/1C5C1/4K4/RNBA1ABNR w - - 0 1"
           )
           .catch(() => null);
         if (!alive) return;
-        setState({
-          engine,
-          status: "ready",
-          progress: null,
-          error: null,
-          evalMode,
-        });
+        setState((s) => ({ ...s, evalMode }));
       })
       .catch((err: unknown) => {
         if (!alive) return;

@@ -79,6 +79,15 @@ export function useReview(engine: JanggiEngine | null) {
     setPartial(null);
     setRunning(true);
     try {
+      /*
+       * 신경망이 다 물릴 때까지 기다린다.
+       *
+       * 대국은 기다리지 않는다 - 몇 수 약하게 두는 것이 10초 기다리는 것보다 낫다.
+       * 복기는 다르다. 한 번 매긴 등급이 기보에 그대로 남아서, 신경망 없이 매긴 등급과
+       * 있이 매긴 등급이 한 목록에 섞이면 서로 견줄 수 없게 된다.
+       * 이미 물렸으면 바로 지나간다.
+       */
+      await engine.whenStrong();
       // 두던 탐색을 먼저 세운다.
       await engine.stop();
       await engine.setOptions(options);

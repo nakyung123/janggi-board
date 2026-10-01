@@ -82,6 +82,14 @@ export class FakeEngine {
 
   // --- App 이 부르는 것 -------------------------------------------------------
 
+  /**
+   * 진짜 엔진은 신경망(11MB)을 뒤에서 받고 다 받으면 갈아 끼운다(engine.ts 의 loadNnue).
+   * 가짜는 받을 것이 없으니 바로 끝난다.
+   */
+  whenStrong(): Promise<void> {
+    return Promise.resolve();
+  }
+
   async evaluationMode(): Promise<string> {
     return "NNUE evaluation (가짜 엔진)";
   }
