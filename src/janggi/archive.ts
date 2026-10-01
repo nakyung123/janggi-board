@@ -166,17 +166,26 @@ function isPly(v: unknown): boolean {
   );
 }
 
+/**
+ * 화면에 그대로 찍히는 짧은 글자인지. 길이를 보는 까닭은 record.ts 의 MAX_TEXT 와 같다 -
+ * 이름 하나가 10만 자면 목록이 무너지고 저장 공간이 찬다. 브라우저에 남은 값도
+ * 사람이 직접 고칠 수 있으니 파일과 똑같이 본다.
+ */
+const MAX_TEXT = 60;
+const isShortText = (v: unknown): v is string =>
+  typeof v === "string" && v.length <= MAX_TEXT;
+
 export function isArchivedGame(v: unknown): v is ArchivedGame {
   if (typeof v !== "object" || v === null) return false;
   const g = v as Record<string, unknown>;
   const r = g.result as Record<string, unknown> | null;
   return (
-    typeof g.id === "string" &&
+    isShortText(g.id) &&
     typeof g.endedAt === "number" &&
     SIDES.includes(g.mySide as string) &&
-    typeof g.levelId === "string" &&
-    typeof g.levelName === "string" &&
-    typeof g.variant === "string" &&
+    isShortText(g.levelId) &&
+    isShortText(g.levelName) &&
+    isShortText(g.variant) &&
     typeof r === "object" &&
     r !== null &&
     KINDS.includes(r.kind as ArchivedKind) &&

@@ -65,7 +65,7 @@ import { hangulHistory, movesOf, nextEntry, startHistory } from "./janggi/histor
 import { arrowOf, splitMove } from "./janggi/notation";
 import type { PieceChar, PieceType, Side } from "./janggi/pieces";
 import { sideOf } from "./janggi/pieces";
-import { downloadRecord, gameOfRecord, parseRecord, recordOfGame } from "./janggi/record";
+import { downloadRecord, gameOfRecord, readRecordFile, recordOfGame } from "./janggi/record";
 import { bestArrowOf } from "./janggi/review";
 import type { SavedGame } from "./janggi/savedGame";
 import { isSavedGame } from "./janggi/savedGame";
@@ -794,7 +794,7 @@ export default function App() {
   const loadRecord = async (file: File) => {
     setListError(null);
     try {
-      const game = gameOfRecord(parseRecord(await file.text()));
+      const game = gameOfRecord(await readRecordFile(file));
       await checkMoves(game);
       setGames((list) => upsertGame(list, game));
       setListPage(0);

@@ -20,6 +20,23 @@ const RECORD_FORMAT_V1 = "janggi-board/1";
 const FEN_TEXT = /^[A-Za-z0-9/\- ]{1,200}$/;
 /** 한 판에 받아 줄 수의 한도. 장기 규칙상 200수를 넘지 않지만 넉넉히 둔다. */
 const MAX_MOVES = 1000;
+/**
+ * 파일에서 온 글자(이름·규칙 이름·메모·기보 표기)의 길이 한도.
+ *
+ * 이 글자들은 화면에 그대로 찍히고 브라우저에도 그대로 남는다. 길이를 안 보면
+ * 10만 자짜리 이름 하나로 목록이 무너지고 저장 공간이 찬다. React 가 글자를
+ * 이스케이프해 주므로 스크립트가 끼어들지는 못하지만, **길이는 막아 주지 않는다.**
+ */
+const MAX_TEXT = 60;
+
+/**
+ * 기보 파일의 크기 한도.
+ *
+ * 1000수(위 MAX_MOVES)를 꽉 채운 기보도 200KB 를 넘지 않는다. 1MB 면 한참 넉넉하다.
+ * 크기를 **읽기 전에** 봐야 한다 - File.text() 는 통째로 메모리에 올리므로, 500MB
+ * 짜리 파일은 받아들일지 판단하기도 전에 탭을 멈춰 세운다.
+ */
+export const MAX_RECORD_BYTES = 1_000_000;
 
 export interface RecordMove {
   /** 엔진 좌표. 예: a4b4 */
@@ -79,6 +96,21 @@ export function buildRecord(input: {
   };
 }
 
+/**
+ * 고른 파일에서 기보를 읽는다. **크기부터 보고** 읽는다(위 MAX_RECORD_BYTES).
+ *
+ * 기보 파일은 남이 보낸 것일 수 있다. 내용을 거르기 전에 크기를 거르는 문이 하나
+ * 더 있어야 한다.
+ */
+export async function readRecordFile(file: File): Promise<GameRecord> {
+  if (file.size > MAX_RECORD_BYTES) {
+    throw new Error(
+      `파일이 너무 큽니다. (${(file.size / 1e6).toFixed(1)}MB, 최대 ${MAX_RECORD_BYTES / 1e6}MB)`
+    );
+  }
+  return parseRecord(await file.text());
+}
+
 /** 파일로 받은 내용을 믿지 않고 하나씩 확인한다. 이상하면 왜 이상한지 알려준다. */
 export function parseRecord(text: string): GameRecord {
   let raw: unknown;
@@ -121,6 +153,11 @@ function readRecord(raw: unknown): GameRecord {
     if (!m || typeof m.move !== "string" || !isMoveString(m.move)) {
       throw new Error(`${i + 1}번째 수의 형식이 맞지 않습니다.`);
     }
+    // 표기는 화면에 쓰지 않고 수순에서 다시 만든다(gameOfRecord). 그런데 수를 둘 수
+    // 없을 때의 오류 글에는 파일의 표기가 그대로 들어가므로 길이는 봐야 한다.
+    if (m.notation !== undefined && !isShortText(m.notation)) {
+      throw new Error(`${i + 1}번째 수의 표기가 너무 길거나 형식이 맞지 않습니다.`);
+    }
   }
 
   return {
@@ -128,24 +165,34 @@ function readRecord(raw: unknown): GameRecord {
     savedAt: typeof r.savedAt === "string" ? r.savedAt : "",
     startFen: r.startFen,
     moves: r.moves,
-    variant: typeof r.variant === "string" ? r.variant : "janggi",
+    variant: isShortText(r.variant) ? r.variant : "janggi",
     players: {
       cho: readPlayer(r.players?.cho),
       han: readPlayer(r.players?.han),
     },
     result: readResult(r.result),
-    note: typeof r.note === "string" ? r.note : undefined,
+    note: isShortText(r.note) ? r.note : undefined,
   };
 }
 
+/** 화면에 그대로 찍어도 되는 짧은 글자인지. 없는 값(undefined)은 아니다. */
+function isShortText(v: unknown): v is string {
+  return typeof v === "string" && v.length <= MAX_TEXT;
+}
+
+/**
+ * 누가 잡았는지. 이름(label)은 목록 카드와 대국자 칸에 그대로 찍히므로 길이를 본다.
+ * 너무 길면 거절하지 않고 '사람' 으로 돌린다 - 이름 하나 때문에 기보 전체를 못 열
+ * 이유는 없다. 수와 국면은 다르다. 그쪽은 엔진에 넘어가므로 거절한다.
+ */
 function readPlayer(p: unknown): RecordPlayer {
   if (!p || typeof p !== "object") return ANONYMOUS;
   const v = p as Partial<RecordPlayer>;
   const kind = v.kind === "engine" ? "engine" : "human";
   return {
     kind,
-    level: typeof v.level === "string" ? v.level : undefined,
-    label: typeof v.label === "string" && v.label ? v.label : ANONYMOUS.label,
+    level: isShortText(v.level) ? v.level : undefined,
+    label: isShortText(v.label) && v.label ? v.label : ANONYMOUS.label,
   };
 }
 
