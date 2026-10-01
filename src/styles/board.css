@@ -25,11 +25,24 @@
   letter-spacing: 0;
 }
 
+/*
+ * 폰에서는 판 위에서도 쪽이 위아래로 밀린다.
+ *
+ * 판이 화면 폭을 꽉 채워 화면 대부분을 차지하는데, 판 전체가 touch-action: none 이면
+ * 손가락이 판에 닿은 채로는 아래(판 조작 줄·설정)로 내려갈 길이 없다. 위아래 밀기만
+ * 브라우저에 돌려준다. 내 기물을 끄는 동안에는 쪽이 따라 움직이면 안 되므로, 들 수
+ * 있는 기물에서 시작한 손길만 따로 막는다(아래 규칙과 Board.tsx 의 touchstart).
+ */
 @media (max-width: 900px) {
   .board {
     width: 100%;
     height: auto;
+    touch-action: pan-y;
   }
+}
+
+.board .piece:not(.fixed) {
+  touch-action: none;
 }
 
 /* 격자선. 실물 장기판의 선처럼 또렷하게(투명도 0.92). */

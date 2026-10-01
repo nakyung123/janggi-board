@@ -192,6 +192,39 @@
 }
 
 /*
+ * 360 보다 좁은 폰(320)의 한 줄 카드.
+ *
+ * 쓸 수 있는 폭이 296 인데 초읽기에 들어가면 시계 칸이 "24 ●●" 로 넓어져(58 → 76)
+ * '둘 차례' 가 아랫줄로 떨어지고 카드가 38 에서 64 로 자랐다. 글자는 줄이지 않고,
+ * 없어도 읽히는 것부터 뺀다.
+ *
+ *   - 사이 12 → 8
+ *   - 'AI'·'사람' : 이름("12급", "나")이 이미 말한다
+ *   - '둘 차례'   : 둘 차례인 카드만 흰 바탕에 진영색 테라 색으로 읽힌다. 화면 읽기에는 남긴다
+ *   - '덤 1.5'    : 점수에는 이미 들어 있다
+ *
+ * 장군·승패는 그대로 선다. 시계와 함께 이 줄에서 가장 급한 말이다.
+ */
+@media (max-width: 359px) {
+  .player-card.row {
+    gap: 8px;
+  }
+
+  .player-card.row .player-kind,
+  .player-card.row .player-komi {
+    display: none;
+  }
+
+  .player-card.row .player-turn {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/*
  * 오른쪽 칸의 두 줄 카드(PlayerCard layout="stacked").
  *
  *   윗줄: 진영 · 이름 · 차례/장군/승패 ········ 시계

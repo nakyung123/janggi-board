@@ -6,7 +6,7 @@
 // 판은 규칙을 모른다. 어느 기물을 집을 수 있는지(canPick)와 어디로 갈 수 있는지
 // (targets)는 App 이 엔진에게 받은 합법수로 정해 넘긴다.
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Board as BoardMap, Square } from "../../janggi/board";
 import { FILES, RANKS, fileIdxOf, rankOf, sq } from "../../janggi/board";
 import { pieceInfo } from "../../janggi/pieces";
@@ -92,6 +92,25 @@ export function Board(props: BoardProps) {
      */
     held: boolean;
   } | null>(null);
+
+  /*
+   * 들 수 있는 기물에서 시작한 손길은 쪽을 밀지 않는다.
+   *
+   * 폰에서는 판 위에서도 쪽이 위아래로 밀리게 풀어 뒀다(board.css). 그대로 두면 내
+   * 기물을 위로 끌 때 브라우저가 그것을 스크롤로 가져가 끌기가 끊긴다. 스크롤을 막는
+   * 것은 touchstart 에서만 되고, React 가 거는 touchstart 는 passive 라 막지 못해서
+   * 직접 건다. 들 수 없는 기물(.fixed)과 빈 자리는 건드리지 않는다 - 거기서는 밀려야 한다.
+   */
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const holdPage = (e: TouchEvent) => {
+      const piece = (e.target as Element | null)?.closest?.(".piece");
+      if (piece && !piece.classList.contains("fixed") && e.cancelable) e.preventDefault();
+    };
+    svg.addEventListener("touchstart", holdPage, { passive: false });
+    return () => svg.removeEventListener("touchstart", holdPage);
+  }, []);
 
   // 화면 좌표 ↔ 교차점 --------------------------------------------------
   const xOf = useCallback(
