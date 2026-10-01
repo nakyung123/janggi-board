@@ -22,6 +22,7 @@
 // 팽팽한 판에서 3점 흘린 수가 같은 악수가 되는데, 앞의 것은 이기는 판이 그대로 이기는
 // 판이다. 복기 카드가 보여 주는 "한 35% → 27%" 와도 같은 말을 한다.
 
+import type { ReviewPlan } from "../engine/levels";
 import type {
   AnalysisSnapshot,
   PositionProbe,
@@ -190,6 +191,11 @@ export interface ReviewedMove {
    */
   winDrop: number;
   grade: MoveGrade;
+  /**
+   * 2차에서 고른 깊이로 다시 본 수인지. 1차(가볍게 훑기)로만 본 수는 false 다.
+   * 예전 복기에는 이 값이 없다 - 그때는 모든 수를 같은 깊이로 봤다.
+   */
+  deep?: boolean;
   /** 화면에 띄우는 설명 */
   note: MoveNote;
 }
@@ -322,8 +328,10 @@ export interface ReviewEngine {
 export interface ReviewProgress {
   /** 끝낸 국면 수 */
   done: number;
-  /** 봐야 할 국면 수 */
+  /** 봐야 할 국면 수. 2차가 몇 국면을 볼지는 1차가 끝나야 정해져서, 그때 한 번 줄어든다. */
   total: number;
+  /** scan = 기보 전체를 가볍게 훑는 중, deep = 고른 수를 다시 보는 중 */
+  stage: "scan" | "deep";
 }
 
 export interface RunReviewOptions {
@@ -331,9 +339,15 @@ export interface RunReviewOptions {
   startFen: string;
   /** 기보의 모든 수 (엔진 좌표) */
   moves: string[];
-  /** 한 국면에 쓸 탐색량 */
-  nodes: number;
+  /** 몇 국면을 어떤 탐색량으로 볼지 (engine/levels.ts 의 reviewPlan) */
+  plan: ReviewPlan;
   onProgress: (p: ReviewProgress) => void;
+  /**
+   * 설명이 하나 생기거나 바뀔 때마다 지금까지의 것을 넘긴다.
+   * 다 끝나기를 기다리지 않고 화면에 띄우려는 것이다 - 1차가 끝나면 모든 수에 설명이
+   * 붙고, 2차는 고른 수의 설명을 더 정확한 것으로 갈아 끼운다.
+   */
+  onPartial?: (reviewed: ReviewedMove[]) => void;
   /** true 를 돌려주면 그 자리에서 그만둔다 */
   shouldStop: () => boolean;
 }
@@ -350,88 +364,164 @@ function advance(board: Board, move: string): Board {
   return next;
 }
 
+/** 한 국면을 엔진에게 물어 얻은 것. 1차와 2차가 같은 모양으로 담는다. */
+interface Look {
+  score: number;
+  best: string | null;
+  pv: string[];
+  /** 2차에서 고른 깊이로 본 국면인지 */
+  deep: boolean;
+}
+
+/**
+ * 2차에서 다시 볼 수를 고른다.
+ *
+ * 1차로 매긴 승률 하락이 큰 순서로 limit 개. 바닥(floor)을 두는 까닭은, 깨끗하게 둔
+ * 판에서까지 억지로 limit 개를 채우면 아무 일도 없던 수에 200만 노드를 쓰기 때문이다.
+ * 바닥은 부정확(5%p)보다 낮게 잡는다 - 1차는 얕게 본 값이라 경계에 걸친 수가 2차에서
+ * 등급을 넘나들 수 있고, 그 수야말로 다시 봐야 할 수다.
+ *
+ * 돌려주는 것은 수 번호(0부터)이고, 기보 순서로 정렬해 돌려준다.
+ */
+export function pickDeepMoves(winDrops: number[], limit: number, floor = 0.02): number[] {
+  return winDrops
+    .map((drop, move) => ({ drop, move }))
+    .filter((x) => x.drop >= floor)
+    .sort((a, b) => b.drop - a.drop || a.move - b.move)
+    .slice(0, Math.max(0, limit))
+    .map((x) => x.move)
+    .sort((a, b) => a - b);
+}
+
 /**
  * 기보를 처음부터 끝까지 한 수씩 훑는다.
  *
  * 국면마다 엔진을 한 번씩 돌린다. 수가 n 개면 국면은 n+1 개다. 한 국면의
  * 평가치는 그 앞 수의 '둔 뒤 점수'이자 다음 수의 '두기 전 점수'라서,
  * 국면당 한 번이면 충분하다.
+ *
+ * 두 번에 나눠 본다(engine/levels.ts 의 reviewPlan).
+ *   1차  기보 전체를 가볍게. 끝나면 모든 수에 설명이 붙는다.
+ *   2차  승률이 크게 움직인 수만 골라 고른 깊이로 다시 본다.
+ *
+ * **한 수의 두 끝은 늘 같은 깊이로 본 값이다.** 등급은 두 국면의 승률 차이로 매기는데,
+ * 한쪽만 깊게 보면 깊이가 달라서 생긴 값 차이가 그대로 '손해' 로 읽힌다. 그래서 고른 수는
+ * 앞뒤 국면을 둘 다 다시 보고, 고르지 않은 수는 양쪽 다 1차 값으로 둔다.
+ *
+ * 중간에 멈추면 1차가 끝났을 때까지만 돌려준다(그래야 수마다 설명이 다 있다).
+ * 1차 도중에 멈추면 빈 목록이다 - 설명이 반만 있는 복기는 남겨도 쓸 데가 없다.
  */
 export async function runReview(opts: RunReviewOptions): Promise<ReviewedMove[]> {
-  const { engine, startFen, moves, nodes, onProgress, shouldStop } = opts;
+  const { engine, startFen, moves, plan, onProgress, onPartial, shouldStop } = opts;
 
   const positions = moves.length + 1;
-  const scores: number[] = [];
-  const bests: (string | null)[] = [];
-  const pvs: string[][] = [];
-
-  onProgress({ done: 0, total: positions });
-
-  for (let i = 0; i < positions; i++) {
-    if (shouldStop()) return [];
-
-    const snap = await engine.analyzeOnce(
-      { startFen, moves: moves.slice(0, i) },
-      { nodes }
-    );
-    const line = snap.lines[0];
-
-    // 대국이 끝난 국면에는 둘 수가 없어 줄이 비어 있다. 앞 점수를 이어 쓴다.
-    scores.push(
-      line ? clampScore(line.score, line.mate) : (scores[i - 1] ?? 0)
-    );
-    bests.push(snap.bestmove ?? line?.pv[0] ?? null);
-    pvs.push(line?.pv ?? []);
-
-    onProgress({ done: i + 1, total: positions });
-  }
-
-  // 모아둔 점수를 수 단위로 엮는다.
-  const reviewed: ReviewedMove[] = [];
-  let board = parseFen(startFen).board;
+  const looks: Look[] = [];
   const startsWithCho = startFen.split(/\s+/)[1] !== "b";
 
-  for (let m = 0; m < moves.length; m++) {
-    if (shouldStop()) return reviewed;
+  // 판은 앞에서부터 한 수씩 둬 가며 만든다. m 번째 수를 두기 직전의 판이 boards[m] 이다.
+  const boards: Board[] = [parseFen(startFen).board];
+  for (const move of moves) boards.push(advance(boards[boards.length - 1], move));
 
+  const look = async (i: number, nodes: number, deep: boolean): Promise<Look> => {
+    const snap = await engine.analyzeOnce({ startFen, moves: moves.slice(0, i) }, { nodes });
+    const line = snap.lines[0];
+    return {
+      // 대국이 끝난 국면에는 둘 수가 없어 줄이 비어 있다. 앞 점수를 이어 쓴다.
+      score: line ? clampScore(line.score, line.mate) : (looks[i - 1]?.score ?? 0),
+      best: snap.bestmove ?? line?.pv[0] ?? null,
+      pv: line?.pv ?? [],
+      deep,
+    };
+  };
+
+  /**
+   * m 번째 수의 설명을 짓는다. 양 끝 국면을 이미 본 뒤에만 부른다.
+   *
+   * 최선수가 장군인지는 판만 봐서는 알 수 없다. 규칙 판정은 전부 엔진 몫이라 그 수를 둔
+   * 국면을 따로 한 번 물어본다(실제로 둔 수와 같으면 물을 것도 없다).
+   */
+  const build = async (m: number): Promise<ReviewedMove> => {
     const played = moves[m];
-    const before = board;
-    const after = advance(before, played);
-    const mover: Side = (m % 2 === 0) === startsWithCho ? "cho" : "han";
-    const best = bests[m];
+    const best = looks[m].best;
 
-    // 최선수가 장군인지는 판만 봐서는 알 수 없다. 규칙 판정은 전부 엔진 몫이라
-    // 그 수를 둔 국면을 따로 한 번 물어본다. 실제로 둔 수와 같으면 물을 것도 없다.
     let bestGivesCheck = false;
     if (best && best !== played) {
       try {
-        const probe = await engine.probe({
-          startFen,
-          moves: [...moves.slice(0, m), best],
-        });
+        const probe = await engine.probe({ startFen, moves: [...moves.slice(0, m), best] });
         bestGivesCheck = probe.checkers.length > 0;
       } catch {
         bestGivesCheck = false;
       }
     }
 
-    reviewed.push(
-      reviewMove({
+    return {
+      ...reviewMove({
         index: m + 1,
-        mover,
-        before,
-        after,
+        mover: ((m % 2 === 0) === startsWithCho ? "cho" : "han") as Side,
+        before: boards[m],
+        after: boards[m + 1],
         played,
         best,
-        replyPv: pvs[m + 1] ?? [],
-        scoreBefore: scores[m],
-        scoreAfter: scores[m + 1] ?? scores[m],
+        replyPv: looks[m + 1]?.pv ?? [],
+        scoreBefore: looks[m].score,
+        scoreAfter: looks[m + 1]?.score ?? looks[m].score,
         bestGivesCheck,
-      })
-    );
+      }),
+      deep: looks[m].deep && (looks[m + 1]?.deep ?? false),
+    };
+  };
 
-    board = after;
+  const reviewed: ReviewedMove[] = [];
+  let total = positions + plan.deepPositions;
+  let done = 0;
+
+  onProgress({ done, total, stage: plan.single ? "deep" : "scan" });
+
+  // --- 1차: 기보 전체 ---------------------------------------------------
+  for (let i = 0; i < positions; i++) {
+    if (shouldStop()) return [];
+
+    looks[i] = await look(i, plan.scanNodes, plan.single);
+    done += 1;
+    onProgress({ done, total, stage: plan.single ? "deep" : "scan" });
+
+    // 국면 i 를 보고 나면 그 앞 수(i-1)의 두 끝이 다 채워진다.
+    if (i >= 1) {
+      reviewed.push(await build(i - 1));
+      onPartial?.([...reviewed]);
+    }
   }
+
+  if (plan.single) return reviewed;
+
+  // --- 2차: 고른 수만 -----------------------------------------------------
+  const picks = pickDeepMoves(
+    reviewed.map((r) => r.winDrop),
+    plan.deepMoves
+  );
+  const again = new Set<number>();
+  for (const m of picks) {
+    again.add(m);
+    again.add(m + 1);
+  }
+
+  // 1차가 끝나야 2차가 몇 국면인지 정해진다. 그때 분모를 실제 값으로 줄인다.
+  total = positions + again.size;
+  onProgress({ done, total, stage: "deep" });
+
+  for (const i of [...again].sort((a, b) => a - b)) {
+    if (shouldStop()) return reviewed;
+
+    looks[i] = await look(i, plan.deepNodes, true);
+    done += 1;
+    onProgress({ done, total, stage: "deep" });
+  }
+
+  for (const m of picks) {
+    if (shouldStop()) return reviewed;
+    reviewed[m] = await build(m);
+  }
+  onPartial?.([...reviewed]);
 
   return reviewed;
 }

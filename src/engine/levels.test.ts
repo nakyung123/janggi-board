@@ -14,7 +14,11 @@ import {
   levelWaitLabel,
   limitsOf,
   REVIEW_DEPTHS,
+  REVIEW_SCAN_NODES,
+  reviewDeepMoves,
   reviewDepthById,
+  reviewPlan,
+  reviewSeconds,
   thinkSeconds,
 } from "./levels";
 
@@ -111,6 +115,62 @@ describe("복기 깊이", () => {
 
   it("모르는 id 는 기본 깊이로 떨어진다", () => {
     expect(reviewDepthById("없는-깊이").id).toBe(DEFAULT_REVIEW_DEPTH_ID);
+  });
+});
+
+describe("복기를 두 번에 나눠 보기", () => {
+  const 빠름 = reviewDepthById("quick");
+  const 정밀 = reviewDepthById("deep");
+
+  it("'빠름' 은 1차와 같은 탐색량이라 나누지 않는다", () => {
+    expect(reviewPlan(빠름, 60).single).toBe(true);
+  });
+
+  it("짧은 기보는 나누지 않는다 - 2차가 볼 국면이 기보 전체와 비슷하다", () => {
+    // 2차가 다섯 수(국면 열)를 보는데 기보가 열 수(국면 열하나)면 나눌 까닭이 없다.
+    expect(reviewPlan(정밀, 8).single).toBe(true);
+    expect(reviewPlan(정밀, 60).single).toBe(false);
+  });
+
+  it("긴 기보는 1차를 가볍게 훑고 고른 수만 깊게 본다", () => {
+    const plan = reviewPlan(정밀, 60);
+    expect(plan.scanNodes).toBe(REVIEW_SCAN_NODES);
+    expect(plan.deepNodes).toBe(정밀.nodes);
+    // 고른 수마다 앞뒤 두 국면
+    expect(plan.deepPositions).toBe(plan.deepMoves * 2);
+  });
+
+  it("다시 볼 수는 기보가 길어져도 끝없이 늘지 않는다", () => {
+    expect(reviewDeepMoves(10)).toBe(5);
+    expect(reviewDeepMoves(50)).toBe(10);
+    expect(reviewDeepMoves(200)).toBe(15);
+  });
+
+  it("나눠 보면 한 번에 다 보는 것보다 적게 뒤진다", () => {
+    const 나눔 = reviewPlan(정밀, 100).nodes;
+    const 통째 = 101 * 정밀.nodes;
+    expect(나눔).toBeLessThan(통째 / 2);
+  });
+});
+
+describe("복기 예상 시간", () => {
+  const 정밀 = reviewDepthById("deep");
+
+  it("스레드가 많을수록 짧다", () => {
+    // 한동안 스레드를 보지 않고 늘 1개 기준으로 적어서, 화면의 숫자가 실제의 3.6배였다.
+    expect(reviewSeconds(정밀, 40, 4)).toBeCloseTo(reviewSeconds(정밀, 40, 1) / 4, 5);
+  });
+
+  it("실제로 걸린 시간과 비슷하게 적는다", () => {
+    // 2026-10-01 실측: 40수 기보를 스레드 4개로, 정밀 한 번에 다 보니 89초.
+    // 지금은 나눠 보므로 그 절반쯤이어야 한다.
+    const sec = reviewSeconds(reviewDepthById("deep"), 40, 4);
+    expect(sec).toBeGreaterThan(30);
+    expect(sec).toBeLessThan(60);
+  });
+
+  it("수가 없는 기보는 0 이 아니라 시작 국면 하나만큼 걸린다", () => {
+    expect(reviewSeconds(reviewDepthById("quick"), 0, 1)).toBeGreaterThan(0);
   });
 });
 

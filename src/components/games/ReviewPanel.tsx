@@ -22,6 +22,8 @@ import { SIDE_LABEL } from "../../janggi/pieces";
 interface Props {
   moveCount: number;
   depthId: string;
+  /** 엔진이 쓰는 스레드 수. 예상 시간이 여기에 반비례한다. */
+  threads: number;
   onDepth: (id: string) => void;
   running: boolean;
   progress: ReviewProgress | null;
@@ -35,22 +37,40 @@ interface Props {
 
 export function ReviewPanel(props: Props) {
   const {
-    moveCount, depthId, onDepth, running, progress, reviewed, cursor, error, onStart, onStop,
+    moveCount, depthId, threads, onDepth, running, progress, reviewed, cursor, error, onStart, onStop,
   } = props;
 
   const depth = reviewDepthById(depthId);
+  const current = reviewed?.find((r) => r.index === cursor) ?? null;
 
   // 돌아가는 중
   if (running) {
     const pct = progress ? (progress.done / progress.total) * 100 : 0;
     return (
-      <div className="panel review">
+      <div className={"panel review" + (reviewed ? " grown" : "")}>
         <div className="panel-title">
           복기
           <span className="panel-meta">
-            {progress ? `${progress.done} / ${progress.total} 국면` : "준비 중"}
+            {progress
+              ? `${progress.stage === "scan" ? "훑는 중" : "자세히 보는 중"} ${progress.done} / ${progress.total}`
+              : "준비 중"}
           </span>
         </div>
+
+        {/*
+          1차가 끝나면 모든 수에 설명이 붙는다. 다 끝나기를 기다릴 까닭이 없다 -
+          읽는 동안 2차가 돌면서 중요한 수의 설명이 더 정확한 것으로 바뀐다.
+        */}
+        {reviewed &&
+          (current ? (
+            <MoveComment
+              r={current}
+              nth={reviewed.filter((r) => r.mover === current.mover && r.index <= current.index).length}
+            />
+          ) : (
+            <p className="muted">시작 국면</p>
+          ))}
+
         <div className="review-bar">
           <div style={{ width: `${pct}%` }} />
         </div>
@@ -98,7 +118,7 @@ export function ReviewPanel(props: Props) {
           {reviewed ? "다시 복기" : "복기 시작"}
         </button>
         <span className="muted">
-          {moveCount}수에 {어림시간(reviewSeconds(depth, moveCount))}
+          {moveCount}수에 {어림시간(reviewSeconds(depth, moveCount, threads))}
         </span>
       </div>
       {error && <p className="error">{error}</p>}
@@ -114,7 +134,24 @@ export function ReviewPanel(props: Props) {
     );
   }
 
-  const current = reviewed.find((r) => r.index === cursor) ?? null;
+  /*
+   * 몇 수를 다시 봤는지 한 줄로 밝힌다.
+   *
+   * 복기는 기보 전체를 가볍게 훑은 뒤 승률이 크게 움직인 수만 고른 깊이로 다시 본다.
+   * 그러면 '좋은 수' 라고 적힌 수가 사실은 가볍게만 본 수일 수 있다. 어디까지 믿을
+   * 글인지는 읽는 사람이 알아야 한다. 다시 볼 것이 하나도 없었을 때도 말해야 한다 -
+   * 아무 말이 없으면 고른 깊이로 전부 본 줄로 읽는다.
+   *
+   * 모든 수를 같은 깊이로 본 복기(짧은 기보·'빠름')는 밝힐 것이 없다. 예전 복기에는
+   * 이 값 자체가 없어서(deep === undefined) 역시 아무 말도 하지 않는다.
+   */
+  const deepCount = reviewed.filter((r) => r.deep).length;
+  const twoPass = reviewed.some((r) => r.deep !== undefined) && deepCount < reviewed.length;
+  const deepNote = !twoPass
+    ? null
+    : deepCount > 0
+      ? `기보 전체를 훑고, 판이 갈린 ${deepCount}수를 다시 자세히 봤습니다.`
+      : "기보 전체를 훑었습니다. 크게 갈린 수가 없어 더 볼 곳이 없었습니다.";
 
   // grown — 복기를 돌린 뒤에만 이 패널이 오른쪽 칸의 남는 높이를 먹는다(layout.css).
   // 돌리기 전에는 넣을 것이 깊이와 시작 버튼뿐이라, 늘려 봐야 빈 칸만 커진다.
@@ -129,7 +166,10 @@ export function ReviewPanel(props: Props) {
       ) : (
         <p className="muted">시작 국면</p>
       )}
-      <div className="review-again">{start}</div>
+      <div className="review-again">
+        {deepNote && <p className="muted review-deep-note">{deepNote}</p>}
+        {start}
+      </div>
     </div>
   );
 }

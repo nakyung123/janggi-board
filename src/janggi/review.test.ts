@@ -9,7 +9,7 @@ import { START_FEN, parseFen } from "./board";
 import type { Board } from "./board";
 import type { ReviewInput, ReviewedMove } from "./review";
 import {
-  clampScore, gradeOf, reviewMove, bestArrowOf, winChance, winPercent,
+  clampScore, gradeOf, pickDeepMoves, reviewMove, bestArrowOf, winChance, winPercent,
 } from "./review";
 
 const before: Board = parseFen(START_FEN).board;
@@ -203,5 +203,32 @@ describe("복기 화살표", () => {
   it("보통 수는 출발과 도착을 준다", () => {
     const r = { best: "a4a5" } as ReviewedMove;
     expect(bestArrowOf(r)).toEqual({ from: "a4", to: "a5" });
+  });
+});
+
+describe("다시 볼 수 고르기", () => {
+  it("승률이 크게 떨어진 수부터 고른다", () => {
+    //        0수    1수    2수    3수
+    const 하락 = [0.01, 0.3, 0.05, 0.12];
+    expect(pickDeepMoves(하락, 2)).toEqual([1, 3]);
+  });
+
+  it("고른 수는 기보 순서로 돌려준다", () => {
+    // 읽는 쪽(runReview)이 앞에서부터 차례로 다시 보게 하려는 것이다.
+    expect(pickDeepMoves([0.5, 0.1, 0.9, 0.2], 3)).toEqual([0, 2, 3]);
+  });
+
+  it("아무 일도 없던 수는 고르지 않는다 - 자리를 채우려고 끌어오지 않는다", () => {
+    // 깨끗하게 둔 판에서 억지로 limit 개를 채우면 그 노드가 전부 버려진다.
+    expect(pickDeepMoves([0, 0.001, 0, 0], 5)).toEqual([]);
+  });
+
+  it("바닥은 부정확(5%p)보다 낮다 - 경계에 걸친 수야말로 다시 봐야 한다", () => {
+    expect(pickDeepMoves([0.03], 5)).toEqual([0]);
+  });
+
+  it("고를 수 있는 것보다 적게 달라고 해도 탈이 없다", () => {
+    expect(pickDeepMoves([0.5, 0.4], 0)).toEqual([]);
+    expect(pickDeepMoves([], 5)).toEqual([]);
   });
 });

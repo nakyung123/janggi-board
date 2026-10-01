@@ -138,8 +138,7 @@ export interface ReviewDepth {
 
 /**
  * 복기는 기보 한 수마다 엔진을 한 번씩 돌린다. 100수짜리 기보면 101번이다.
- * 그래서 깊이를 고를 수 있어야 한다. 아래 예상 시간은 한 수당 대략
- * 25만 노드/초 기준이다.
+ * 그래서 깊이를 고를 수 있어야 한다.
  */
 export const REVIEW_DEPTHS: ReviewDepth[] = [
   { id: "quick", name: "빠름", desc: "한 국면에 10만 노드", nodes: 100_000 },
@@ -147,14 +146,102 @@ export const REVIEW_DEPTHS: ReviewDepth[] = [
   { id: "deep", name: "정밀", desc: "한 국면에 200만 노드", nodes: 2_000_000 },
 ];
 
+/** 1차로 기보 전체를 훑을 때 한 국면에 쓰는 탐색량. '빠름' 과 같은 값이다. */
+export const REVIEW_SCAN_NODES = 100_000;
+
+/**
+ * 스레드 하나가 1초에 뒤지는 국면 수.
+ *
+ * 쟀다(2026-10-01, 6코어 노트북). 스레드 1개 25만, 2개 49만, 4개 92만 - 거의 선형이다.
+ * 브라우저에서 40수 기보를 보통(50만)으로 복기하니 24.6초였고, 41국면 × 50만 / 24.6 =
+ * 초당 83만, 스레드 4개로 나누면 하나당 21만이다. 조금 낮춰 20만으로 잡는다.
+ *
+ * 한동안 이 값이 25만으로 박혀 있었다. 그건 **스레드 하나일 때** 값인데 앱은 넷을 쓴다.
+ * 그래서 화면에 적히는 예상 시간이 실제의 3.6배였다 - "약 5분 20초" 라고 적고 1분 29초에
+ * 끝났다. 겁을 주고 시작하게 만드는 숫자였다.
+ */
+const NODES_PER_SECOND_PER_THREAD = 200_000;
+
+/**
+ * 복기를 어떻게 돌릴지. 예상 시간을 적을 때와 실제로 돌릴 때가 이 한 곳을 같이 본다 -
+ * 둘이 갈라지면 화면의 숫자가 또 거짓말이 된다.
+ */
+export interface ReviewPlan {
+  /** true 면 모든 국면을 같은 탐색량으로 한 번만 본다 */
+  single: boolean;
+  /** 1차로 기보 전체를 훑을 때의 탐색량 */
+  scanNodes: number;
+  /** 2차로 고른 수만 다시 볼 때의 탐색량 */
+  deepNodes: number;
+  /** 2차로 다시 볼 수의 최대 개수 */
+  deepMoves: number;
+  /** 2차가 볼 국면 수(고른 수마다 앞뒤 둘). 예상 시간용 최대치다. */
+  deepPositions: number;
+  /** 다 돌리면 뒤지게 될 국면 수 */
+  nodes: number;
+}
+
+/**
+ * 한 기보에서 정밀하게 다시 볼 수의 개수.
+ *
+ * 기보가 길수록 짚을 곳도 늘지만 끝없이 늘지는 않는다. 한 판에서 정말 갈린 수는
+ * 몇 개뿐이고, 나머지는 '그럴 수밖에 없던 수' 다. 수의 1/5, 다섯에서 열다섯 사이.
+ */
+export function reviewDeepMoves(moves: number): number {
+  return Math.max(5, Math.min(15, Math.round(Math.max(0, moves) * 0.2)));
+}
+
+/**
+ * 이 기보를 이 깊이로 복기하면 무엇을 얼마나 뒤지게 되는지.
+ *
+ * 두 번 훑는다. 1차로 기보 전체를 가볍게(10만) 보고, **승률이 크게 움직인 수만 골라**
+ * 2차에서 고른 깊이로 다시 본다. 조용히 흘러간 수에 200만 노드를 쓰는 것은 거의 전부
+ * 버리는 일이다 - 40수 기보 정밀 복기가 1분 29초에서 45초로, 100수 기보는 4분 12초에서
+ * 1분 28초로 준다.
+ *
+ * 고른 수는 **앞뒤 국면을 둘 다** 깊게 본다. 등급은 두 국면의 승률 차이로 매기는데,
+ * 한쪽만 깊게 보면 깊이가 달라서 생긴 값 차이가 그대로 '손해' 로 읽힌다.
+ *
+ * 두 경우에는 한 번만 본다. (1) '빠름' - 1차와 같은 탐색량이라 2차가 의미 없다.
+ * (2) 짧은 기보 - 2차가 볼 국면이 기보 전체와 비슷하면 나눌 까닭이 없다.
+ */
+export function reviewPlan(depth: ReviewDepth, moves: number): ReviewPlan {
+  const positions = Math.max(0, moves) + 1;
+  const deepMoves = reviewDeepMoves(moves);
+  const single = depth.nodes <= REVIEW_SCAN_NODES || positions <= deepMoves * 2;
+
+  if (single) {
+    return {
+      single: true,
+      scanNodes: depth.nodes,
+      deepNodes: depth.nodes,
+      deepMoves: 0,
+      deepPositions: 0,
+      nodes: positions * depth.nodes,
+    };
+  }
+
+  const deepPositions = Math.min(positions, deepMoves * 2);
+  return {
+    single: false,
+    scanNodes: REVIEW_SCAN_NODES,
+    deepNodes: depth.nodes,
+    deepMoves,
+    deepPositions,
+    nodes: positions * REVIEW_SCAN_NODES + deepPositions * depth.nodes,
+  };
+}
+
 /**
  * 이 기보를 이 깊이로 복기하면 얼마나 걸릴지(초).
  *
  * 그 판의 실제 수로 잰다 - "100수에 약 3분" 처럼 박아 두면 4수짜리 기보에도 3분이라
- * 적혀 기다릴 각오를 잘못 하게 만든다. 급수와 같은 기준(보통 PC 초당 25만 노드)을 쓴다.
+ * 적혀 기다릴 각오를 잘못 하게 만든다. 스레드 수도 받는다 - 앱이 몇 개를 쓰느냐에
+ * 따라 몇 배씩 달라지는 값이라, 하나로 박아 두면 틀린 숫자가 된다.
  */
-export function reviewSeconds(depth: ReviewDepth, moves: number): number {
-  return (Math.max(0, moves) * depth.nodes) / 250_000;
+export function reviewSeconds(depth: ReviewDepth, moves: number, threads = 1): number {
+  const nps = NODES_PER_SECOND_PER_THREAD * Math.max(1, threads);
+  return reviewPlan(depth, moves).nodes / nps;
 }
 
 /**

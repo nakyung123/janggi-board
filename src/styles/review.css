@@ -247,3 +247,8 @@
 .review-depth-help {
   margin-top: 8px;
 }
+
+/* 몇 수를 다시 봤는지 밝히는 줄. 다시 복기 묶음 맨 위에 선다. */
+.review-deep-note {
+  margin-bottom: 12px;
+}

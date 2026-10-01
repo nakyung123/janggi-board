@@ -42,6 +42,7 @@ import {
   levelById,
   limitsOf,
   reviewDepthById,
+  reviewPlan,
 } from "./engine/levels";
 import type { EngineOptions, PositionRef, SearchLimits, Variant } from "./engine/types";
 import { forgetIfMoved, isEnginePrefs, isVariant, positionKey } from "./engine/types";
@@ -175,10 +176,20 @@ export default function App() {
 
   // --- 지금 화면에 떠 있는 판 ---------------------------------------------
 
-  const history = openGame ? openGame.history : playHistory;
+  /*
+   * 복기가 도는 동안의 중간 결과. 지금 연 판의 것일 때만 쓴다.
+   * 다 끝나기를 기다리지 않고 설명과 형세를 띄우려는 것이다 - 1차가 끝나면(기보 전체를
+   * 가볍게 훑는 데 몇 초) 모든 수에 설명이 붙고, 2차가 고른 수를 갈아 끼운다.
+   */
+  const partial =
+    review.partial && openGame && review.partial.gameId === openGame.id
+      ? review.partial
+      : null;
+
+  const history = openGame ? (partial?.history ?? openGame.history) : playHistory;
   const cursor = openGame ? Math.min(viewCursor, openGame.history.length - 1) : playCursor;
   const setCursor = openGame ? setViewCursor : setPlayCursor;
-  const reviewed = openGame?.reviewed ?? null;
+  const reviewed = openGame?.reviewed ?? partial?.reviewed ?? null;
   const boardFlipped = openGame ? viewFlipped : flipped;
 
   const entry = history[cursor];
@@ -813,7 +824,7 @@ export default function App() {
     const run = await review.start(
       game,
       { ...prefs, variant, multiPV: 1, skill: 20 },
-      reviewDepthById(reviewDepthId).nodes
+      reviewPlan(reviewDepthById(reviewDepthId), game.history.length - 1)
     );
     if (!run?.complete) return;
     setGames((list) =>
@@ -1064,6 +1075,7 @@ export default function App() {
                 <ReviewPanel
                   moveCount={openGame.history.length - 1}
                   depthId={reviewDepthId}
+                  threads={prefs.threads}
                   onDepth={setReviewDepthId}
                   running={review.running}
                   progress={review.progress}
