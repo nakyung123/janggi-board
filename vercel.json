@@ -19,6 +19,10 @@
       "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
     },
     {
+      "source": "/licenses/third-party.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    },
+    {
       "source": "/engine/AUTHORS",
       "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
     },

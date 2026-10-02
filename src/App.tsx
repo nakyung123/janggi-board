@@ -26,6 +26,7 @@ import { GameList } from "./components/games/GameList";
 import { ReviewPanel } from "./components/games/ReviewPanel";
 import { AppHeader } from "./components/layout/AppHeader";
 import { BootScreen } from "./components/layout/BootScreen";
+import { NoticeDialog } from "./components/layout/NoticeDialog";
 import { UpdatesDialog } from "./components/layout/UpdatesDialog";
 import type { Mode } from "./components/layout/ModeTabs";
 import { GameOverDialog } from "./components/play/GameOverDialog";
@@ -620,6 +621,7 @@ export default function App() {
 
   /** 헤더의 '업데이트 내역' 으로 여는 창. 두던 판은 그대로 있다. */
   const [updatesOpen, setUpdatesOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
 
   // --- 탭 오가기 ----------------------------------------------------------
 
@@ -941,7 +943,16 @@ export default function App() {
         />
       )}
 
-      {updatesOpen && <UpdatesDialog onClose={() => setUpdatesOpen(false)} />}
+      {updatesOpen && (
+        <UpdatesDialog
+          onClose={() => setUpdatesOpen(false)}
+          onNotice={() => {
+            setUpdatesOpen(false);
+            setNoticeOpen(true);
+          }}
+        />
+      )}
+      {noticeOpen && <NoticeDialog onClose={() => setNoticeOpen(false)} />}
 
       {/* 새 대국은 언제 눌러도 묻는다. 무엇이 달라지는지 한 줄만 상황마다 다르게 적는다. */}
       {asking === "new" && (

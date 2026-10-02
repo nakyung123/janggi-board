@@ -2,7 +2,7 @@
 //
 // 1) node_modules 의 fairy-stockfish-nnue.wasm 런타임 파일을 public/engine 으로 복사
 // 2) 장기 전용 NNUE 신경망(11MB)을 내려받아 압축해서(5.7MB) public/engine 에 저장
-// 3) 라이선스 고지를 public/licenses 로 복사 (GPL v3 전문·제3자 고지·엔진 저작자)
+// 3) 라이선스 전문을 public/licenses 로 복사 (GPL v3 전문·그 밖의 라이선스 모음·엔진 저작자)
 //
 // 두 자산 모두 용량이 커서 저장소에 커밋하지 않는다(.gitignore 등록).
 // 이미 받아둔 파일이 있으면 건너뛰므로 predev/prebuild 에서 매번 돌려도 부담이 없다.
@@ -243,14 +243,18 @@ async function fetchNnue() {
 }
 
 /*
- * 고지를 배포본에 싣는다.
+ * 라이선스 전문을 배포본에 싣는다.
  *
- * GPL v3(엔진과 이 앱)·CC BY-SA 3.0(기물 글자)·OFL 1.1(글꼴)이 모두 **배포물에 고지가
- * 따라붙을 것**을 요구한다. 그런데 번들러는 주석을 지우고, NOTICE.md 는 저장소에만 있다.
- * public/ 아래 것만 dist/ 로 그대로 복사되므로 여기로 옮겨 둔다.
+ * GPL v3(엔진과 이 앱)·MIT·ISC(React·아이콘)·OFL 1.1(글꼴)이 모두 **배포물에 저작권
+ * 표시와 라이선스 글이 따라붙을 것**을 요구한다. 그런데 번들러는 주석을 지워서 빌드된
+ * 파일에는 한 줄도 남지 않는다. public/ 아래 것만 dist/ 로 그대로 복사되므로 여기로
+ * 옮겨 둔다.
  *
- * 손으로 복사해 두면 반드시 어긋난다. 원본은 NOTICE.md 와 엔진 패키지 하나씩이고,
- * 여기서 만든 사본은 .gitignore 로 제외한다 - 고칠 곳이 늘 한 군데가 되게.
+ * 손으로 복사해 두면 반드시 어긋난다. 원본은 설치된 패키지 안의 파일이고, 여기서 만든
+ * 사본은 .gitignore 로 제외한다 - 패키지를 올리면 사본도 따라 바뀐다.
+ *
+ * 무엇을 썼는지 적은 짧은 글(NOTICE.md)은 여기서 옮기지 않는다. 앱이 번들에 넣어 고지
+ * 창으로 보여 준다(src/components/layout/NoticeDialog.tsx).
  */
 async function copyNotices() {
   await mkdir(LICENSE_DIR, { recursive: true });
@@ -266,55 +270,48 @@ async function copyNotices() {
     const { size } = await stat(to);
     console.log(`  + ${to.slice(ROOT.length + 1).replaceAll("\\", "/")} (${mb(size)})`);
   }
-  await writeNoticePage();
+  await writeThirdParty();
+  // 예전에는 NOTICE.md 를 쪽으로 만들어 여기 뒀다. 받아 둔 폴더에 남아 있으면 지운다 -
+  // public/ 은 통째로 배포본에 들어가므로, 남겨 두면 아무도 잇지 않는 옛 글이 같이 올라간다.
+  await rm(join(LICENSE_DIR, "index.html"), { force: true });
 }
 
 /*
- * 제3자 고지는 **쪽으로** 만든다. 글자가 깨지지 않게 하려고다.
+ * 번들에 함께 실리는 패키지들의 라이선스 전문을 한 파일로 모은다.
  *
- * 처음에는 NOTICE.md 를 .txt 로 복사해 뒀다. 띄워 보니 한글이 전부 깨졌다 -
- * 서버가 `Content-Type: text/plain` 만 보내고 charset 을 안 붙이면 브라우저가 UTF-8 로
- * 읽지 않는다. 고지는 **읽히라고** 올리는 글이라, 읽히지 않으면 올린 뜻이 없다.
- *
- * 헤더로 고칠 수도 있지만 그러면 이 파일이 **어디에 올라가느냐에 따라** 읽히기도 하고
- * 안 읽히기도 한다. 쪽 안에 <meta charset> 을 박아 두면 호스트가 무엇이든 읽힌다.
+ * 머리말을 영어로만 적는 까닭 - 서버가 `Content-Type: text/plain` 만 보내고 charset 을
+ * 안 붙이면 브라우저가 UTF-8 로 읽지 않아 한글이 깨진다(실제로 겪었다). 어디에 올리든
+ * 읽히게 ASCII 만 쓴다. 패키지의 글에 다른 글자가 섞여 있으면 여기서 멈춘다.
  */
-async function writeNoticePage() {
-  const 본문 = await readFile(join(ROOT, "NOTICE.md"), "utf8");
-  const 안전하게 = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-  const html = `<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- 빈 아이콘. 안 적어 두면 브라우저가 /favicon.ico 를 찾다가 404 를 콘솔에 남긴다. -->
-<link rel="icon" href="data:,">
-<title>오픈소스 고지 — 장기 AI</title>
-<style>
-  :root { color-scheme: light dark; }
-  body {
-    margin: 0 auto; padding: 24px 16px 64px; max-width: 760px;
-    font: 16px/1.7 system-ui, -apple-system, "Segoe UI", sans-serif;
+const THIRD_PARTY = [
+  ["React (react, react-dom, scheduler)", "react/LICENSE"],
+  ["Lucide (lucide-react)", "lucide-react/LICENSE"],
+  ["Pretendard (pretendard)", "pretendard/dist/LICENSE.txt"],
+  ["Vercel Analytics (@vercel/analytics)", "@vercel/analytics/LICENSE"],
+];
+
+async function writeThirdParty() {
+  const rule = "=".repeat(72);
+  const parts = [
+    "Third-party software bundled with Janggi AI, with the license of each.",
+    "The engine (Fairy-Stockfish, GPL v3) is covered by GPL-3.0.txt and /engine/AUTHORS.",
+  ];
+  for (const [name, file] of THIRD_PARTY) {
+    const from = join(ROOT, "node_modules", file);
+    if (!existsSync(from)) throw new Error(`고지 원본이 없습니다: ${from}`);
+    const text = (await readFile(from, "utf8")).replaceAll("\r\n", "\n").trim();
+    parts.push([rule, name, rule, "", text].join("\n"));
   }
-  nav { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid currentColor; }
-  nav a { margin-right: 16px; }
-  pre { white-space: pre-wrap; word-break: break-word; font: inherit; margin: 0; }
-</style>
-</head>
-<body>
-<nav>
-  <a href="/">장기 AI 로 돌아가기</a>
-  <a href="/licenses/GPL-3.0.txt">GPL v3 전문</a>
-  <a href="/engine/AUTHORS">엔진 저작자</a>
-</nav>
-<pre>${안전하게(본문)}</pre>
-</body>
-</html>
-`;
-  const dest = join(LICENSE_DIR, "index.html");
-  await writeFile(dest, html, "utf8");
-  const { size } = await stat(dest);
-  console.log(`  + public/licenses/index.html (${mb(size)})`);
+  const body = parts.join("\n\n") + "\n";
+  const odd = body.match(/[^\x00-\x7F]/);
+  if (odd) {
+    throw new Error(
+      `third-party.txt 에 ASCII 가 아닌 글자가 있습니다: "${odd[0]}". 글자가 깨질 수 있습니다.`
+    );
+  }
+  const dest = join(LICENSE_DIR, "third-party.txt");
+  await writeFile(dest, body, "utf8");
+  console.log(`  + public/licenses/third-party.txt (${mb(Buffer.byteLength(body))})`);
 }
 
 async function main() {

@@ -121,6 +121,21 @@
   gap: 24px;
 }
 
+/* 스크롤 막대는 오른쪽 칸(layout.css 의 .side-col)과 같은 모양 - 얇고 옅게. 테는 창 바탕색이다. */
+.updates-body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.updates-body::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+  border: 2px solid var(--panel);
+}
+
+.updates-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 /* 날짜가 이 묶음의 제목이다. 버전은 옆에 옅게 - 제보할 때 짚을 것이 이 글자다. */
 .updates-when {
   display: flex;
@@ -163,11 +178,33 @@
   background: var(--disabled);
 }
 
+/* --- 오픈소스 고지 창 ---------------------------------------------------- */
+
 /*
- * 업데이트 창 맨 아래 오픈소스 고지 한 줄. 버튼 줄과 본문 사이에 둔다 -
- * 읽을 사람은 드물지만, 찾을 때 창을 닫고 다시 뒤지게 하면 안 된다.
+ * 업데이트 내역 창과 같은 틀(.dialog.updates)을 쓴다. 묶음 제목은 그 창의 날짜와 같은
+ * 20/600 이고, 목록도 같은 점 목록이다. 여기서 더하는 것은 링크와 코드 글자뿐이다.
  */
-.updates-legal {
-  margin-top: 16px;
-  text-align: center;
+.notice-head {
+  margin-bottom: 12px;
+  font-size: var(--fs-title);
+  font-weight: 600;
+}
+
+/*
+ * 링크는 먹빛에 밑줄. 브라우저 기본 파랑을 두면 이 앱의 규칙(색은 진영과 기계가
+ * 알려주는 값에만)이 깨진다.
+ */
+.dialog.notice a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* 파일 이름·경로. 글꼴은 그대로 두고 옅은 바탕으로만 가른다. */
+.dialog.notice code {
+  font: inherit;
+  letter-spacing: 0;
+  padding: 0 4px;
+  border-radius: var(--radius-xs);
+  background: var(--panel-2);
 }
