@@ -57,9 +57,36 @@ const headers = {
   "Referrer-Policy": "no-referrer",
 };
 
-export default defineConfig({
+/*
+ * 개발 서버(npm run dev)에서만 표식(nonce) 하나를 더 연다.
+ *
+ * 개발 서버는 화면을 새로 고치지 않고 바꿔 끼우려고(React Fast Refresh) index.html 안에
+ * 스크립트 한 토막을 **직접 적어 넣는다.** script-src 'self' 는 쪽 안에 적힌 스크립트를
+ * 막으므로 그 토막이 돌지 못하고, 그러면 앱이 통째로 안 떠서 화면이 하얗다(콘솔에
+ * "can't detect preamble"). 위의 CSP 를 넣을 때 미리보기에서만 확인해서 몰랐고, 서버를
+ * 새로 켠 날 드러났다.
+ *
+ * Vite 가 자기가 넣는 태그에 이 표식을 붙여 주므로(html.cspNonce), 헤더에서 같은 표식만
+ * 허락한다. 'unsafe-inline' 으로 통째로 여는 것보다 좁다. 표식이 고정 글자라 비밀은 아니다 -
+ * 내 컴퓨터에서만 도는 서버라 그래도 된다.
+ *
+ * 미리보기와 배포본에는 그 토막이 없으니 위의 엄격한 값을 그대로 쓴다. "개발에서만 느슨하면
+ * 배포하고 나서야 깨진 것을 본다" 는 걱정은 미리보기가 맡는다.
+ */
+const DEV_NONCE = "vite-dev";
+const devHeaders = {
+  ...headers,
+  "Content-Security-Policy": csp.replace(
+    "script-src 'self'",
+    `script-src 'self' 'nonce-${DEV_NONCE}'`
+  ),
+};
+
+export default defineConfig(({ command, isPreview }) => ({
   plugins: [react()],
-  server: { headers },
+  // 빌드한 index.html 에는 표식을 남기지 않는다. 개발 서버일 때만 붙인다.
+  html: command === "serve" && !isPreview ? { cspNonce: DEV_NONCE } : undefined,
+  server: { headers: devHeaders },
   preview: { headers },
   // 11MB 신경망과 1.6MB wasm 은 public/ 에 그대로 두고 fetch 로 읽는다.
   // 번들러가 건드리지 않도록 assetsInlineLimit 는 기본값을 유지한다.
@@ -76,4 +103,4 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     environment: "node",
   },
-});
+}));
