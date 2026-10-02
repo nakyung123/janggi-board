@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      소개 쪽. 검색에서 들어오는 사람과 검색 로봇이 읽는 글이다.
+
+      앱(/)은 본문을 프로그램이 그려서, 프로그램을 돌리지 않는 로봇에게는 빈 쪽이다.
+      이 앱이 무엇인지 글로 적어 둔 곳이 따로 있어야 검색에 걸린다. 앱 안에서는 이
+      쪽으로 잇지 않는다 - 두던 판을 떠나게 하는 문을 만들지 않기로 했다(DESIGN.md 의
+      업데이트 내역 창). 들어오는 길은 검색과 sitemap.xml 이다.
+
+      public/ 에 그냥 둔 파일이라 번들을 거치지 않는다. 그래서 둘을 손으로 맞춘다.
+        - 색과 치수는 src/styles/base.css 의 토큰을 옮겨 적은 것이다. 거기를 고치면
+          여기도 고친다.
+        - 글꼴은 앱이 번들에 넣은 Pretendard 를 가져오지 못한다(파일 이름에 해시가
+          붙는다). 기기에 Pretendard 가 있으면 그것을, 없으면 기기 고딕을 쓴다.
+
+      탭 아이콘은 index.html 과 같은 그림이다.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpolygon%20points='22.6,3%2029,9.4%2029,22.6%2022.6,29%209.4,29%203,22.6%203,9.4%209.4,3'%20fill='%23f7f2e4'%20stroke='%23a9742f'%20stroke-width='2'/%3E%3Ctext%20x='16'%20y='23'%20font-size='19'%20font-family='serif'%20font-weight='700'%20text-anchor='middle'%20fill='%2315653c'%3E%E6%A5%9A%3C/text%3E%3C/svg%3E"
+    />
+    <title>장기 AI 소개 - 무료 온라인 장기 대국과 복기</title>
+    <meta
+      name="description"
+      content="장기 AI는 설치와 가입 없이 브라우저에서 바로 두는 무료 온라인 장기입니다. 18급부터 9단까지 27단계 AI 대국, 기보 저장, 수마다 등급과 승률 변화를 알려 주는 복기를 소개합니다."
+    />
+    <link rel="canonical" href="https://janggi-ai.vercel.app/about/" />
+
+    <!-- 공유 미리보기. 그림은 앱과 같은 것을 쓴다(까닭은 index.html 에 적혀 있다). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="장기 AI" />
+    <meta property="og:title" content="장기 AI 소개" />
+    <meta
+      property="og:description"
+      content="설치와 가입 없이 브라우저에서 바로 두는 무료 온라인 장기. AI 대국, 기보, 복기."
+    />
+    <meta property="og:url" content="https://janggi-ai.vercel.app/about/" />
+    <meta property="og:image" content="https://janggi-ai.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <style>
+      :root {
+        --bg: #f4efe6;
+        --text: #2a2119;
+        --muted: #6b5c48;
+        --ink: #2a2119;
+        --ink-hover: #45372a;
+        --on-ink: #ffffff;
+        --accent: #2563eb;
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Pretendard Variable", Pretendard, "Malgun Gothic", "맑은 고딕", system-ui,
+          -apple-system, sans-serif;
+        font-size: 16px;
+        line-height: 1.4;
+        letter-spacing: -0.025em;
+        /* 한글은 낱말 중간에서 줄이 갈리면 읽기 어렵다. */
+        word-break: keep-all;
+      }
+
+      /* 글만 있는 쪽이라 줄이 길어지지 않게 좁게 잡는다. 폰에서는 좌우 24. */
+      main {
+        max-width: 688px;
+        margin: 0 auto;
+        padding: 32px 24px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.2;
+      }
+
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .lead {
+        margin-top: 12px;
+        color: var(--muted);
+      }
+
+      /* 주 버튼. 앱의 채운 버튼과 같은 모양이다. */
+      .go {
+        display: inline-flex;
+        align-items: center;
+        height: 40px;
+        margin-top: 24px;
+        padding: 0 20px;
+        border-radius: 8px;
+        background: var(--ink);
+        color: var(--on-ink);
+        font-weight: 500;
+        text-decoration: none;
+      }
+
+      /* 묶음은 선이 아니라 간격으로 가른다. 묶음 사이 32, 제목과 글 사이 12. */
+      section {
+        margin-top: 32px;
+      }
+
+      section > p {
+        margin-top: 12px;
+      }
+
+      /* 물음 하나와 답 하나가 한 묶음이다. 안은 4, 묶음 사이는 16. */
+      .faq h3 {
+        margin-top: 16px;
+      }
+
+      .faq h2 + h3 {
+        margin-top: 12px;
+      }
+
+      .faq p {
+        margin-top: 4px;
+        color: var(--muted);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      @media (hover: hover) {
+        .go:hover {
+          background: var(--ink-hover);
+        }
+      }
+
+      @media (pointer: coarse) {
+        .go {
+          height: 44px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>장기 AI</h1>
+      <p class="lead">설치와 가입 없이 브라우저에서 바로 두는 무료 온라인 장기입니다.</p>
+      <a class="go" href="/">장기 두러 가기</a>
+
+      <section>
+        <h2>대국</h2>
+        <p>
+          18급부터 9단까지 27단계 AI 가운데 상대를 고릅니다. 상차림 넷, 규칙 셋(표준, 현대,
+          전통), 시계(5분에 초읽기 30초 3회, 또는 없음)를 정할 수 있습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>기보</h2>
+        <p>
+          끝난 판은 목록에 저절로 남습니다(최근 100판). 다시 열어 한 수씩 되짚고, 파일로
+          저장하거나 불러올 수 있습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2>복기</h2>
+        <p>
+          AI가 기보를 처음부터 끝까지 다시 보고, 수마다 등급(최선수, 좋은 수, 아쉬운 수, 큰
+          실수)과 승률 변화, AI라면 둔 수를 알려 줍니다.
+        </p>
+      </section>
+
+      <section class="faq">
+        <h2>자주 묻는 질문</h2>
+
+        <h3>무료인가요?</h3>
+        <p>네. 무료이고 광고가 없습니다. 가입과 설치도 필요 없습니다.</p>
+
+        <h3>둔 판은 어디에 저장되나요?</h3>
+        <p>쓰고 있는 브라우저에만 남습니다. 서버로 보내지 않습니다.</p>
+
+        <h3>급수는 공인 급수인가요?</h3>
+        <p>아닙니다. 장기 급수의 이름을 빌린 이 앱 안의 눈금입니다.</p>
+
+        <h3>AI는 무엇으로 만들었나요?</h3>
+        <p>
+          Fairy-Stockfish 엔진에 장기 전용 신경망을 얹었고, 브라우저 안에서 돌아갑니다.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

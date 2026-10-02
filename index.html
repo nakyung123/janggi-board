@@ -12,11 +12,44 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Cpolygon%20points='22.6,3%2029,9.4%2029,22.6%2022.6,29%209.4,29%203,22.6%203,9.4%209.4,3'%20fill='%23f7f2e4'%20stroke='%23a9742f'%20stroke-width='2'/%3E%3Ctext%20x='16'%20y='23'%20font-size='19'%20font-family='serif'%20font-weight='700'%20text-anchor='middle'%20fill='%2315653c'%3E%E6%A5%9A%3C/text%3E%3C/svg%3E"
     />
-    <title>장기 AI</title>
+    <!--
+      검색에 걸리게 하는 자리(제목 · 설명 · 대표 주소 · 꼬리표).
+
+      검색 로봇은 화면이 아니라 이 파일의 글자를 읽는다. 장기판은 프로그램이 돈 뒤에야
+      그려지고 네이버 로봇과 AI 로봇은 대개 프로그램을 돌리지 않아서, 여기 적힌 것이
+      그쪽이 아는 전부다.
+
+      제목은 이름을 맨 앞에 두고 찾을 만한 말(무료 · 온라인 장기 · 대국 · 복기)을 뒤에
+      붙였다. 탭이 좁으면 뒤가 잘려 이름만 남는다. 공유 미리보기의 제목(og:title)은
+      이름만 둔다 - 거기는 그림과 설명이 같이 떠서 이름만으로 족하다.
+    -->
+    <title>장기 AI - 무료 온라인 장기 대국과 복기</title>
     <meta
       name="description"
-      content="브라우저에서 바로 두는 장기. 급수를 골라 AI와 두고, 끝나면 한 수씩 되짚습니다."
+      content="설치와 가입 없이 브라우저에서 바로 두는 무료 장기. 18급부터 9단까지 27단계 AI와 대국하고, 끝난 판은 AI가 수마다 등급과 승률 변화로 복기해 줍니다."
     />
+    <!-- 같은 쪽이 주소 여러 개(?ref=… 따위)로 잡혀도 이 주소 하나로 셈하게 한다. -->
+    <link rel="canonical" href="https://janggi-ai.vercel.app/" />
+    <!--
+      "무료로 쓰는 게임 웹 앱" 이라는 것을 로봇이 정해진 틀(schema.org)로 읽게 적는다.
+      type 이 자바스크립트가 아니라서 실행되지 않는 자료 칸이고, CSP 의 script-src 에
+      걸리지 않는다.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "장기 AI",
+        "url": "https://janggi-ai.vercel.app/",
+        "description": "설치와 가입 없이 브라우저에서 바로 두는 무료 장기. 18급부터 9단까지 27단계 AI와 대국하고, 끝난 판은 AI가 수마다 등급과 승률 변화로 복기해 줍니다.",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "자바스크립트와 WebAssembly 를 지원하는 브라우저",
+        "inLanguage": "ko",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW" }
+      }
+    </script>
 
     <!--
       공유 미리보기(Open Graph).
@@ -48,6 +81,28 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      프로그램을 돌리지 못하는 쪽에만 보이는 소개.
+
+      쓰는 사람에게는 로딩 중에도 보이지 않는다(프로그램이 켜져 있으면 브라우저가 이 칸을
+      아예 그리지 않는다). 읽는 것은 프로그램을 돌리지 않는 검색 로봇과, 자바스크립트를
+      꺼 둔 사람이다. #root 안에 넣으면 로봇은 같은 글을 읽지만 사람에게도 앱이 뜨기 전
+      잠깐 비친다 - 그게 싫어서 여기 둔다. 대가: 구글은 이 칸의 글을 거의 쳐 주지 않는다.
+      그쪽 몫은 소개 쪽(/about/)이 맡는다.
+    -->
+    <noscript>
+      <div style="max-width: 640px; margin: 0 auto; padding: 24px">
+        <h1>장기 AI</h1>
+        <p>
+          설치와 가입 없이 브라우저에서 바로 두는 무료 온라인 장기입니다. 18급부터 9단까지
+          27단계 AI와 대국하고, 끝난 판은 AI가 한 수씩 복기해 줍니다.
+        </p>
+        <p>
+          이 앱은 자바스크립트를 켜야 움직입니다.
+          <a href="/about/">장기 AI 소개 보기</a>
+        </p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

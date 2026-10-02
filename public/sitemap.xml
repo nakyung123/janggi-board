@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  검색 로봇에게 주는 주소 목록. 구글 서치 콘솔과 네이버 서치어드바이저에 이 파일을 낸다.
+  쪽을 더하거나 주소가 바뀌면 여기도 같이 고친다(지금은 janggi-ai.vercel.app).
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://janggi-ai.vercel.app/</loc>
+    <lastmod>2026-10-02</lastmod>
+  </url>
+  <url>
+    <loc>https://janggi-ai.vercel.app/about/</loc>
+    <lastmod>2026-10-02</lastmod>
+  </url>
+</urlset>

@@ -1,0 +1,7 @@
+# 검색 로봇에게 주는 안내. 막는 곳 없이 전부 읽어 가도 된다.
+# 주소가 바뀌면 아래 Sitemap 줄도 같이 고친다(지금은 janggi-ai.vercel.app).
+
+User-agent: *
+Allow: /
+
+Sitemap: https://janggi-ai.vercel.app/sitemap.xml
