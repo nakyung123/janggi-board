@@ -114,7 +114,6 @@ export function Dropdown<T extends string>(props: Props<T>) {
     if (!open || !place) return;
     document.getElementById(optionId(active))?.scrollIntoView({ block: "nearest" });
     // optionId 는 id 로만 정해진다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, place, active]);
 
   // 스페이스는 누를 때 우리가 처리하고, 뗄 때 버튼이 한 번 더 누르지 않게 막는다.

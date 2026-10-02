@@ -198,7 +198,6 @@ export function useAnalysis(
       void engine.stop();
     };
     // limits 는 매번 새 객체라 참조로 비교하면 무한 재실행된다. 문자열 키로 묶는다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engine, key, enabled, optionsKey]);
 
   // 지금 국면의 결과일 때만 내보낸다.

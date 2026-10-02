@@ -22,14 +22,6 @@ export function toJanggiCoord(square: string): string {
   return `${rank % 10}${file}`; // 열째 줄은 0으로 적는다
 }
 
-/** 궁이 제자리로 가는 수는 한수쉼이다. */
-export function isPassMove(move: string, board: Board): boolean {
-  const from = move.slice(0, move.length - (move.length > 4 ? 3 : 2));
-  const to = move.slice(from.length);
-  if (from !== to) return false;
-  return board[from]?.toLowerCase() === "k";
-}
-
 /** 엔진 좌표 수를 출발/도착으로 쪼갠다. i10 처럼 세 글자 좌표가 섞여 있다. */
 export function splitMove(move: string): { from: string; to: string } {
   const m = move.match(/^([a-i](?:10|[1-9]))([a-i](?:10|[1-9]))/);

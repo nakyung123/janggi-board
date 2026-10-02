@@ -90,7 +90,6 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
   const lastBoards = useMemo(
     () => new Map(shown.map((g) => [g.id, parseFen(g.history[g.history.length - 1].fen).board])),
     // shown 은 렌더마다 새 배열이라 그것을 만든 값으로 묶는다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [games, current, perPage]
   );
 
