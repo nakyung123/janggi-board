@@ -3,6 +3,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { inject } from "@vercel/analytics";
+import { injectSpeedInsights } from "@vercel/speed-insights";
 import App from "./App";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 import { watchTroubles } from "./report/errors";
@@ -32,6 +33,24 @@ watchTroubles();
  * 아무 일도 하지 않는다 - 에러가 나지는 않는다.
  */
 inject();
+
+/*
+ * 얼마나 빨리 보이는가를 **실제 사용자 기기에서** 잰다.
+ *
+ * 위의 집계는 "몇 번 열렸나" 까지만 센다. 그런데 우리가 모르는 것 중에 "쪽은 열렸는데
+ * 엔진이 뜨기 전에 나갔다" 가 있고, 그게 고장인지 **느려서인지**를 가를 수가 없었다.
+ * 6MB 를 내려받는 앱이라 느림이 진짜 후보다.
+ *
+ * 내 컴퓨터에서 재는 것과 다르다. 쓰는 사람의 68%가 폰이고, 느린 쪽 사람이 정확히
+ * 우리가 걱정하는 사람이다. 그래서 평균이 아니라 **p75(느린 쪽 네 명 중 한 명)** 로
+ * 본다 - 평균은 90명이 빠르면 10명이 20초를 기다려도 "괜찮네" 가 된다.
+ *
+ * inject() 와 같은 까닭으로 고른다 - 스크립트가 우리 주소에서 나온다
+ * (/_vercel/speed-insights/script.js). CSP 를 풀지 않는다.
+ *
+ * 대시보드에서 Speed Insights 를 켜 두어야 쌓인다. Hobby 는 달 10,000 건, 7일 보관이다.
+ */
+injectSpeedInsights();
 
 createRoot(root).render(
   <StrictMode>
