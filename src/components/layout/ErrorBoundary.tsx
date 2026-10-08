@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <pre>오류 코드 {trouble.code}</pre>
           <p className="muted small">
             새로고침하면 다시 시작합니다. 두던 판은 그대로 남아 있습니다.
-            {hasFeedback && " 같은 일이 되풀이되면 아래로 알려 주세요 — 코드가 이미 적혀 있습니다."}
+            {hasFeedback && " 같은 일이 되풀이되면 아래로 알려 주세요 - 코드가 이미 적혀 있습니다."}
           </p>
           <div className="boot-actions">
             <button type="button" onClick={() => window.location.reload()}>

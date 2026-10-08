@@ -99,12 +99,6 @@ export function feedbackLink(detail: string): string {
   return `${FEEDBACK_URL}${sep}usp=pp_url&${FEEDBACK_ENTRY}=${info}`;
 }
 
-/** 제보 창구를 새 탭으로 연다. 창구를 아직 열지 않았으면 아무 일도 없다. */
-export function openFeedback(detail: string): void {
-  if (!FEEDBACK_URL) return;
-  window.open(feedbackLink(detail), "_blank", "noopener,noreferrer");
-}
-
 /** 창구가 열려 있는지. 버튼을 그릴지 말지 가른다. */
 export const hasFeedback = Boolean(FEEDBACK_URL);
 
@@ -133,8 +127,24 @@ export function FeedbackButton({ detail }: { detail: string }) {
      * 받을 것을 좁힌다. "이건 버그는 아닌데" 싶은 말은 보내지 않게 되고, 쓰는 사람이
      * 바라는 것은 대개 버그가 아니라 그쪽이다. 가려지는 것은 Known Gaps 에 적었다.
      */
-    <button type="button" className="feedback-fab" onClick={() => openFeedback(detail)}>
+    /*
+     * 버튼이 아니라 링크다.
+     *
+     * 예전에는 <button> 에서 window.open 을 불렀는데, 팝업 차단기가 막으면 window.open 이
+     * null 을 돌려주고 조용히 끝난다. 우리는 그 값을 보지 않았으므로 **눌러도 아무 일도
+     * 일어나지 않았다** - 실제로 그런 제보를 받았고 WebKit 으로 재현했다. 차단기는
+     * 스크립트가 여는 창을 막지, 사람이 누른 링크는 막지 않는다. 애초에 팝업이 아니게 둔다.
+     *
+     * 생김새는 .feedback-fab 이 그대로 맡는다(base.css 의 button 규칙이 주던 테두리와
+     * 가운데 정렬을 그쪽에 직접 적어 두었다).
+     */
+    <a
+      className="feedback-fab"
+      href={feedbackLink(detail)}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       피드백 및 버그 제보
-    </button>
+    </a>
   );
 }

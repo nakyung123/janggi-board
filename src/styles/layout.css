@@ -47,6 +47,19 @@
   color: var(--han);
 }
 
+/*
+ * 진단 줄은 고장이 아니라 사실이라 붉게 두지 않는다. 한 번에 집히도록 user-select: all
+ * 을 준다 - 폰에서 길게 눌러 옮겨 적는 자리다.
+ *
+ * 선택자에 pre 를 같이 적는 까닭 - 바로 위 `.boot-error pre` 가 class 하나 + 요소
+ * 하나라 `.boot-diag` 혼자로는 색을 못 이긴다.
+ */
+.boot-error pre.boot-diag {
+  color: var(--muted);
+  -webkit-user-select: all;
+  user-select: all;
+}
+
 /* --- 풀스크린 뼈대 ------------------------------------------------------ */
 
 .app {
@@ -530,6 +543,19 @@
  * 기계가 알려주는 값에만)이 깨진다. 흰 바탕 위에서는 먹만으로도 충분히 선다.
  */
 .feedback-fab {
+  /*
+   * <a> 라서 base.css 의 button 규칙을 못 받는다. 거기서 오던 것(가운데 정렬 · 테두리 ·
+   * 글자 안 끌리게)을 여기 직접 적는다. 버튼이 아닌 까닭은 feedback.tsx 주석에 있다.
+   */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  border: 1px solid var(--ink);
   position: fixed;
   right: var(--fab-x, 16px);
   bottom: var(--fab-y, 16px);

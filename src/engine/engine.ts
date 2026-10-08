@@ -175,10 +175,18 @@ export class JanggiEngine {
   static async create(
     onProgress: (p: LoadProgress) => void
   ): Promise<JanggiEngine> {
+    /*
+     * 이 글은 **장기 두러 온 사람**이 읽는다(BootScreen 이 그대로 띄운다).
+     *
+     * 예전에는 "SharedArrayBuffer 를 쓸 수 없습니다 … npm run dev 또는 npm run preview" 였다.
+     * 쓰는 사람에게 npm 명령을 치라고 말한 셈이고, 실제로 이 화면을 본 사람은 까닭을 못
+     * 읽어 "광고차단앱 때문인가" 하고 디시에 물었다. 무엇이 막혔는지가 아니라 **무엇을
+     * 하면 되는지**를 적는다. 기술적인 사정은 BootScreen 의 진단 줄이 맡는다.
+     */
     if (!crossOriginIsolated) {
       throw new Error(
-        "SharedArrayBuffer 를 쓸 수 없습니다. COOP/COEP 헤더가 적용된 서버로 접속해야 합니다 " +
-          "(npm run dev 또는 npm run preview)."
+        "카카오톡·디시 같은 앱 안에서 열면 이럴 수 있어요. 화면 구석의 메뉴에서 " +
+          "'다른 브라우저로 열기' 를 눌러 보세요."
       );
     }
 
