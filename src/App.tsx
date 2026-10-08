@@ -14,6 +14,7 @@
 // hooks/ 에 있다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 import { Board } from "./components/board/Board";
 import { BoardControls } from "./components/board/BoardControls";
@@ -162,7 +163,7 @@ export default function App() {
 
   /*
    * 기보 탭이 들고 있던 것 일곱(목록·연 판·쪽·오류·방금 넣은 판·보는 수·뒤집기)과
-   * 거기서 하는 일(열기·닫기·파일 넣고 빼기)을 한 훅에 모았다. 일곱이 늘 같이
+   * 거기서 하는 일(열기·닫기·파일 넣고 빼기)을 한 ���에 모았다. 일곱이 늘 같이
    * 움직여서, 흩어 두면 그중 하나를 빠뜨리는 것이 버그가 된다.
    */
   const archive = useGames({
@@ -352,7 +353,7 @@ export default function App() {
     if (showOver) setSelected(null);
   }, [showOver]);
 
-  // --- 끝난 판을 기보 목록에 ----------------------------------------------
+  // --- 끝난 판을 기보 ���록에 ----------------------------------------------
 
   /** 대국 탭의 판을 기보 목록에 넣을 모양으로. */
   const archiveOf = useCallback(
@@ -600,7 +601,7 @@ export default function App() {
    * 들어간다), 목록이 '기보' 인 이상 거기 선 것은 다 둔 판으로 읽힌다. 몇 수 두다 만
    * 판이 섞여 서면 끝난 판을 골라내기가 오히려 어렵다. 없어지는 것은 새 대국을 묻는
    * 창이 미리 말한다. 파일에서 불러온 끝나지 않은 기보는 그대로 '중단' 으로 든다 -
-   * 그건 사람이 일부러 가져온 것이다.
+   * 그건 사람�� 일부러 가져온 것이다.
    */
   const newGame = () => {
     const base = parseFen(playHistory[0].fen);
@@ -986,6 +987,7 @@ export default function App() {
           onCancel={() => setAsking(null)}
         />
       )}
+      <SpeedInsights />
     </div>
   );
 }
