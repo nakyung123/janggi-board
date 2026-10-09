@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { noteTrouble } from "../report/errors";
+import { track } from "../report/events";
 import { JanggiEngine } from "./engine";
 import type {
   AnalysisSnapshot,
@@ -59,7 +60,15 @@ export function useEngine(): EngineState {
   useEffect(() => {
     let alive = true;
 
+    /*
+     * 마지막 진행 상황을 따로 들고 있는다. 실패했을 때 **어느 단계에서 터졌는지**를
+     * 같이 보내야 한다 - 엔진 파일을 받다가인지, 신경망을 받다가인지, wasm 을 켜다가
+     * 인지에 따라 원인이 아주 다르다. setState 는 비동기라 catch 안에서 못 읽는다.
+     */
+    let lastProgress: LoadProgress | null = null;
+
     const onProgress = (progress: LoadProgress) => {
+      lastProgress = progress;
       if (alive) setState((s) => ({ ...s, progress }));
     };
     progressWatchers.add(onProgress);
@@ -74,6 +83,13 @@ export function useEngine(): EngineState {
          * 10초 넘게 봤다. 그 사이에도 엔진은 classical 평가로 멀쩡히 둔다.
          */
         setState({ engine, status: "ready", progress: null, error: null, evalMode: null });
+
+        /*
+         * 깔때기의 분자. performance.now() 는 **쪽이 열린 시점**부터 흐르므로 그대로
+         * 쓴다 - 사람이 체감하는 것은 "열어서 판이 보이기까지" 이지 "엔진 만들기를
+         * 시작해서부터" 가 아니다.
+         */
+        track("engine_ready", { ms: Math.round(performance.now()) });
 
         // 신경망이 물린 뒤에 한 번 물어본다. 진단용이라 급하지 않다.
         await engine.whenStrong();
@@ -90,7 +106,28 @@ export function useEngine(): EngineState {
         if (!alive) return;
         // 엔진이 안 뜨면 앱이 통째로 멈추므로 화면에 까닭을 보여야 한다. 그래도 날것을
         // 그대로 쓰지는 않는다 - 우리가 쓴 한국어 글이면 그대로, 아니면 오류 코드다.
-        setState((s) => ({ ...s, status: "error", error: noteTrouble("엔진 준비", err).message }));
+        const trouble = noteTrouble("엔진 준비", err);
+        setState((s) => ({ ...s, status: "error", error: trouble.message }));
+
+        /*
+         * 지금 유일하게 알려진 장애다. 기기 정보는 공통으로 붙으니 여기서는 **이 실패에만
+         * 있는 것**을 적는다.
+         *
+         * detail 은 영어 원문이다. 화면에는 안 띄우지만(겁만 주고 아무것도 안 알려준다)
+         * 받는 쪽에는 사실이 가야 한다 - 1순위 용의자인 메모리 부족이 정확히 이 경로로
+         * 오고, code 는 되돌릴 수 없는 해시라 그것만으로는 원문을 알 수 없다.
+         *
+         * code 를 같이 보내는 까닭 - 사람이 제보에 "E-7F3A" 를 적어 보내면 **그 코드로
+         * 서버 기록을 찾아** 기기·단계·원문을 한꺼번에 볼 수 있다.
+         */
+        track("engine_failed", {
+          code: trouble.code,
+          stage: lastProgress?.stage ?? null,
+          loaded: lastProgress?.loaded ?? null,
+          total: lastProgress?.total ?? null,
+          detail: trouble.detail.slice(0, 200),
+          ms: Math.round(performance.now()),
+        });
       });
 
     return () => {

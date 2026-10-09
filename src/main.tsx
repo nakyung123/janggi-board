@@ -7,6 +7,7 @@ import { injectSpeedInsights } from "@vercel/speed-insights";
 import App from "./App";
 import { ErrorBoundary } from "./components/layout/ErrorBoundary";
 import { watchTroubles } from "./report/errors";
+import { startTracking } from "./report/events";
 import "./styles/index.css";
 
 const root = document.getElementById("root");
@@ -51,6 +52,17 @@ inject();
  * 대시보드에서 Speed Insights 를 켜 두어야 쌓인다. Hobby 는 달 10,000 건, 7일 보관이다.
  */
 injectSpeedInsights();
+
+/*
+ * 앱 안에서 무슨 일이 있었는지 잰다.
+ *
+ * 위의 둘은 남의 도구라 **쪽이 얼마나 빨리 보였나**까지만 안다. 그런데 우리 앱은 화면이
+ * 먼저 뜨고 그 뒤에 6MB 를 받는다 - 사람이 기다리는 구간을 아무도 안 재 준다. 엔진이
+ * 떴는지, 못 떴으면 어떤 기기였는지는 우리만 알 수 있다.
+ *
+ * 지금은 콘솔에만 찍는다. 보내는 자리는 events.ts 의 send() 하나다.
+ */
+startTracking();
 
 createRoot(root).render(
   <StrictMode>

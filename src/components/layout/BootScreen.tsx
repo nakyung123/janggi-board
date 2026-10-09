@@ -4,7 +4,12 @@
 // 있어서, 판이 먼저 떠도 누를 수 있는 것이 없다.
 
 import type { LoadProgress } from "../../engine/types";
-import { FeedbackButton, browserLabel, systemLabel } from "../../report/feedback";
+import {
+  FeedbackButton,
+  browserLabel,
+  inAppLabel,
+  systemLabel,
+} from "../../report/feedback";
 
 interface Props {
   /** true 면 까닭(error)을 보여주고, 아니면 내려받는 진행률을 보여준다. */
@@ -22,7 +27,9 @@ interface Props {
  * 무엇인지조차 몰라서 사흘을 짐작으로 보냈다. 이 줄이 있으면 다음 사람은 캡처 한 장으로
  * 끝난다.
  *
- * 무엇을 담는지가 중요하다. 격리 여부는 **유일한 실패 경로**라 반드시 있어야 하고,
+ * 무엇을 담는지가 중요하다. **앱 안에서 열었는지**는 지금 1순위 용의자다 - 이 글이
+ * "카카오톡·디시 같은 앱 안에서 열면" 이라고 말하면서 정작 그걸 확인할 수단이 없었다.
+ * 격리 여부는 **유일한 실패 경로**라 반드시 있어야 하고,
  * 코어 수와 기기 메모리는 **1순위 용의자인 메모리 부족**을 가리기 위한 것이다(우리는
  * 코어 수로 스레드를 최대 4까지 올린다 - App.tsx). deviceMemory 는 크로미움 계열에만
  * 있어서 없으면 뺀다 - 없다는 것 자체도 단서다.
@@ -34,6 +41,8 @@ function diagnosis(): string {
   return [
     browserLabel(ua),
     systemLabel(ua),
+    // 앱 안에서 열었을 때만 붙는다. 없으면 한 칸도 안 쓴다.
+    inAppLabel(ua),
     crossOriginIsolated ? "격리됨" : "격리 안 됨",
     `코어 ${navigator.hardwareConcurrency || "?"}`,
     mem ? `메모리 ${mem}GB` : null,

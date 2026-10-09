@@ -32,6 +32,16 @@ const BROWSERS: [RegExp, string][] = [
   [/Firefox\/(\d+)/, "파이어폭스"],
   [/Chrome\/(\d+)/, "크롬"],
   [/Version\/(\d+)[\d.]*\s+(?:Mobile\/\S+\s+)?Safari/, "사파리"],
+  /*
+   * 아이폰 앱 안의 브라우저는 **Safari 토큰을 빼고** 자기 이름을 붙인다.
+   *
+   *   ... Version/17.5 Mobile/15E148 KAKAOTALK 10.5.0
+   *
+   * 위 줄이 Safari 로 끝나기를 요구하므로 여기에 안 걸리고, 그러면 아래의 "모르는
+   * 브라우저는 그대로" 규칙에 떨어져 **UA 원문 180자가 통째로** 들어갔다. 진단 줄은
+   * 320 폰에서 한 줄이어야 하는데 그것만으로 화면을 덮었다. 측정을 붙여 보고 알았다.
+   */
+  [/Version\/(\d+)[\d.]*\s+Mobile\//, "사파리"],
 ];
 
 const SYSTEMS: [RegExp, string][] = [
@@ -54,6 +64,36 @@ export function browserLabel(ua: string): string {
 
 export function systemLabel(ua: string): string | null {
   for (const [re, name] of SYSTEMS) if (re.test(ua)) return name;
+  return null;
+}
+
+/*
+ * 앱 안에서 열었는가.
+ *
+ * **왜 필요한가** - 실패 화면이 "카카오톡·디시 같은 앱 안에서 열면 이럴 수 있어요" 라고
+ * 말하면서, 정작 그것을 확인할 수단이 없었다. 위의 BROWSERS 표는 이들을 그냥 "크롬" 으로
+ * 적는다 - 인앱 브라우저도 UA 에 Chrome 을 같이 적기 때문이다. 유입이 디시 글이었으니
+ * **가장 유력한 경로가 바로 안 보이던 자리**다.
+ *
+ * `; wv)` 는 안드로이드 웹뷰 공통 표시다. 이름을 안 붙이는 앱(디시 등)이 여기 걸린다.
+ * 그래서 맨 뒤에 둔다 - 이름이 있는 쪽을 먼저 본다.
+ *
+ * **한계** - 아이폰의 이름 없는 웹뷰는 못 가려낸다. UA 가 사파리와 거의 같다. 이름을
+ * 붙이는 앱(카카오톡·네이버 등)은 아이폰에서도 잡힌다.
+ */
+const IN_APP: [RegExp, string][] = [
+  [/KAKAOTALK/i, "카카오톡"],
+  [/NAVER\(inapp/i, "네이버앱"],
+  [/Instagram/i, "인스타그램"],
+  [/FBAN|FBAV/, "페이스북"],
+  [/Line\//, "라인"],
+  [/DaumApps/i, "다음앱"],
+  [/; wv\)/, "앱 안 브라우저"],
+];
+
+/** 앱 안에서 열었으면 그 앱 이름. 아니면 null. */
+export function inAppLabel(ua: string): string | null {
+  for (const [re, name] of IN_APP) if (re.test(ua)) return name;
   return null;
 }
 
