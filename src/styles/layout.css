@@ -9,8 +9,16 @@
 
 .boot {
   max-width: 460px;
-  margin: 16vh auto;
-  padding: 0 24px;
+  margin-inline: auto;
+  /*
+   * 세로 여백은 바깥(margin)이 아니라 안쪽(padding)에 둔다.
+   *
+   * `margin: 16vh auto` 였을 때 그 여백이 #root 를 지나 body 까지 새어 나가 **쪽
+   * 전체를 135px 내려놓았다.** 판으로 바뀌면 여백이 사라져 통째로 튀어 올라왔고,
+   * 그 두 번이 폰 CLS 0.32 의 전부였다(좋음 기준은 0.1). 안쪽 여백은 새지 않고,
+   * 로딩 글이 서는 자리는 똑같다.
+   */
+  padding: 16vh 24px;
   text-align: center;
 }
 
