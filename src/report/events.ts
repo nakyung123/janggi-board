@@ -1,7 +1,8 @@
 // 측정 — 앱 안에서 무슨 일이 있었는지 밖으로 알린다
 //
-// 지금은 **콘솔에만 찍는다.** 서버로 보내는 것은 다음 단계고, 바꿀 자리는 아래 send()
-// 하나뿐이다. 이벤트를 만드는 코드는 두 번 쓰지 않는다.
+// 쌓아 두었다가 쪽이 가려질 때 `/api/events` 로 보낸다. 그 주소 뒤는 우리 서버가 아니라
+// **측정 서버**(janggi-events)이고, 실제로는 `vercel.json` 의 되돌림이, 로컬에서는
+// `vite.config.ts` 의 proxy 가 넘긴다. 밖으로 나가는 자리는 아래 send() 하나뿐이다.
 //
 // 왜 이것부터 하는가 - 2026-10-07 디시 글로 34명이 들어왔는데 제보한 사람은 1명이고,
 // 그마저 폼이 아니라 갤러리 댓글이었다. 우리는 **제보 안 한 33명에게 무슨 일이 있었는지
@@ -114,15 +115,53 @@ function common(): Common {
  */
 const queue: Event[] = [];
 
-/*
- * 밖으로 내보내는 **유일한 자리**. 다음 단계에서 여기만 바꾸면 서버로 간다.
+/**
+ * 보낼 주소. 같은 출처라야 CSP 의 `connect-src 'self'` 를 지난다.
  *
- * 서버가 생기면 navigator.sendBeacon 을 쓴다. 평범한 fetch 는 보내는 중에 창이 닫히면
- * 취소되는데, 하필 그 사람들(열었다가 그냥 닫은 사람)이 제일 알고 싶은 쪽이다.
+ * `/api/` 뒤는 **우리 서버가 아니라 측정 서버**다. 실제로는 `vercel.json` 의 되돌림이,
+ * 로컬에서는 `vite.config.ts` 의 proxy 가 넘긴다. 둘 중 하나라도 빠지면 그쪽에서만
+ * 조용히 안 간다.
+ */
+const ENDPOINT = "/api/events";
+
+/** 서버가 한 번에 받는 최대 건수. 넘기면 **묶음 전체**를 거절한다. */
+const MAX_PER_REQUEST = 50;
+
+/*
+ * 밖으로 내보내는 **유일한 자리**.
+ *
+ * `sendBeacon` 을 쓰는 까닭 - 평범한 `fetch` 는 보내는 중에 창이 닫히면 취소되는데,
+ * 하필 그 사람들(열었다가 그냥 닫은 사람)이 제일 알고 싶은 쪽이다. `sendBeacon` 은
+ * 브라우저에 맡기고 떠나서, 쪽이 사라져도 브라우저가 마저 보낸다.
+ *
+ * 돌려받는 것을 읽지 않는다. 읽을 수도 없다 - 그래서 서버가 204(본문 없음)를 준다.
  */
 function send(batch: Event[]): void {
-  // 0.5단계 - 눈으로 보고 "이 칸은 쓸모없다 / 이게 빠졌다" 를 정하는 것이 전부다.
-  console.log(`[측정] 보냄 ${batch.length}건`, batch);
+  for (let i = 0; i < batch.length; i += MAX_PER_REQUEST) {
+    post(batch.slice(i, i + MAX_PER_REQUEST));
+  }
+}
+
+function post(events: Event[]): void {
+  const body = JSON.stringify({ events });
+
+  // Blob 으로 감싸서 종류를 json 으로 붙인다. 문자열을 그냥 주면 브라우저가 text/plain
+  // 으로 보내고, 서버는 그것을 JSON 으로 읽지 않아 415 로 거절한다.
+  const blob = new Blob([body], { type: "application/json" });
+
+  if (navigator.sendBeacon(ENDPOINT, blob)) return;
+
+  // false 가 오는 때 - 브라우저의 대기열이 찼거나 본문이 너무 클 때다. 드물지만
+  // **조용히 잃지는 않는다.** keepalive 는 쪽이 사라져도 보내 달라는 뜻이라
+  // sendBeacon 과 성질이 같다.
+  void fetch(ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => {
+    /* 측정 때문에 앱이 멈추지 않는다 */
+  });
 }
 
 function flush(): void {
@@ -139,10 +178,7 @@ function flush(): void {
 export function track(name: EventName, data: Record<string, unknown> = {}): void {
   try {
     if (isBot()) return;
-    const e: Event = { name, ...common(), data };
-    queue.push(e);
-    // 0.5단계라 쌓이는 족족 보여 준다. 서버로 갈 때는 이 줄이 빠진다.
-    console.log(`[측정] ${name}`, e);
+    queue.push({ name, ...common(), data });
   } catch {
     /* 측정이 앱을 깨뜨리지 않는다 */
   }
