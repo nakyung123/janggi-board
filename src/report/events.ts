@@ -88,6 +88,20 @@ function referrerHost(): string {
   }
 }
 
+/*
+ * 진짜 사람이 오는 주소. **이것만 prod 로 센다.**
+ *
+ * 처음에는 "localhost 가 아니면 prod" 였는데, 그러면 **Vercel 미리보기가 prod 로
+ * 들어간다.** 미리보기는 내가 고치는 중에 여는 자리라, 그 숫자가 실제 통계에 섞이면
+ * "오늘 몇 명 왔나" 를 못 믿게 된다. 하루 방문이 수십인데 내가 스무 번 열면 숫자가
+ * 통째로 망가진다.
+ *
+ * 그래서 **아는 주소만 세고 나머지는 전부 dev** 로 둔다. Vercel 이 자동으로 만들어
+ * 주는 다른 별명(janggi-ai-git-main-… 등)으로 들어온 사람은 안 세게 되지만, 그쪽으로
+ * 오는 사람은 사실상 없고 **덜 세는 쪽이 더 세는 쪽보다 안전하다.**
+ */
+const LIVE_HOST = "janggi-ai.vercel.app";
+
 function common(): Common {
   const ua = navigator.userAgent;
   // deviceMemory 와 connection 은 표준이 아니라 타입에 없다(크로미움 계열에만 있다).
@@ -103,7 +117,7 @@ function common(): Common {
     memory: nav.deviceMemory ?? null,
     screen: `${window.innerWidth}x${window.innerHeight}`,
     at: Date.now(),
-    env: /^(localhost|127\.|\[::1\])/.test(location.hostname) ? "dev" : "prod",
+    env: location.hostname === LIVE_HOST ? "prod" : "dev",
   };
 }
 
