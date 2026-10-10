@@ -82,12 +82,37 @@ const devHeaders = {
   ),
 };
 
+/*
+ * /api/ 로 오는 것을 측정 서버로 넘긴다. **vercel.json 의 되돌림과 짝이다.**
+ *
+ * 왜 서버 주소를 직접 부르지 않나 - CSP 의 `connect-src 'self'` 가 막는다. 브라우저는
+ * 포트가 다르면 다른 곳으로 보고, 4173 에서 8080 을 부르는 것은 남의 집에 말 거는 일이다.
+ * 실제 배포에서도 같은 이유로 Vercel 이 한 주소 뒤에 둘을 세운다. **여기서 같은 모양을
+ * 만들어야 로컬에서 미리 해 볼 수 있다.**
+ *
+ * 쓰려면 서버를 먼저 띄운다(janggi-events 저장소).
+ *
+ *     docker run -d --name ev -p 8080:9090 -e PORT=9090 janggi-events:dev
+ *
+ * 안 띄워 두면 /api/ 요청만 실패한다. 측정은 실패해도 앱을 깨뜨리지 않으므로 화면은
+ * 그대로 돈다 - 그래서 **안 띄운 줄 모르고 "기록이 안 온다" 고 헤맬 수 있다.**
+ */
+const API_PROXY = {
+  "/api": {
+    target: "http://localhost:8080",
+    changeOrigin: true,
+    rewrite: (p: string) => p.replace(/^\/api/, ""),
+  },
+};
+
 export default defineConfig(({ command, isPreview }) => ({
   plugins: [react()],
   // 빌드한 index.html 에는 표식을 남기지 않는다. 개발 서버일 때만 붙인다.
   html: command === "serve" && !isPreview ? { cspNonce: DEV_NONCE } : undefined,
-  server: { headers: devHeaders },
-  preview: { headers },
+  server: { headers: devHeaders, proxy: API_PROXY },
+  // 미리보기에도 같이 건다. 배포본과 같은 번들로 확인하는 자리라, 여기에만 길이
+  // 없으면 "개발에서는 되는데 미리보기에서는 안 되는" 상태가 된다.
+  preview: { headers, proxy: API_PROXY },
   // 11MB 신경망과 1.6MB wasm 은 public/ 에 그대로 두고 fetch 로 읽는다.
   // 번들러가 건드리지 않도록 assetsInlineLimit 는 기본값을 유지한다.
 
