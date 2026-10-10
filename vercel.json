@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://janggi-events-982664928901.asia-northeast1.run.app/:path*"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
