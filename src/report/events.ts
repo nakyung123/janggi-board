@@ -102,6 +102,24 @@ function referrerHost(): string {
  */
 const LIVE_HOST = "janggi-ai.vercel.app";
 
+/*
+ * 내가 확인하러 들어갈 때 붙이는 표. `?nostats` 가 있으면 무조건 dev 로 센다.
+ *
+ * **왜 `isBot()` 에 기대지 않나** - 2026-10-10 라이브를 확인할 때 Playwright 의
+ * `navigator.webdriver` 가 false 로 나왔다. UA 의 `HeadlessChrome` 만이 걸렀다. 울타리
+ * 하나가 운으로 걸린 것이고, 도구가 UA 를 바꾸는 날 나는 모른다 - **오염은 조용하다.**
+ * 숫자가 조금 틀린 것은 틀린 줄도 모른다.
+ *
+ * 그래서 걸러지기를 바라는 대신 **내가 나라고 말하고** 들어간다. 봇을 알아맞히는 일은
+ * 끝이 없지만 이것은 운이 끼지 않는다.
+ */
+const NO_STATS = "nostats";
+
+function currentEnv(): "dev" | "prod" {
+  if (new URLSearchParams(location.search).has(NO_STATS)) return "dev";
+  return location.hostname === LIVE_HOST ? "prod" : "dev";
+}
+
 function common(): Common {
   const ua = navigator.userAgent;
   // deviceMemory 와 connection 은 표준이 아니라 타입에 없다(크로미움 계열에만 있다).
@@ -117,7 +135,7 @@ function common(): Common {
     memory: nav.deviceMemory ?? null,
     screen: `${window.innerWidth}x${window.innerHeight}`,
     at: Date.now(),
-    env: location.hostname === LIVE_HOST ? "prod" : "dev",
+    env: currentEnv(),
   };
 }
 
