@@ -1,6 +1,6 @@
-// 오픈소스 고지 창
+// 고지 창 - 함께 쓰는 저작물과 수집하는 정보
 //
-// 업데이트 내역 창의 '오픈소스 고지' 를 누르면 같은 자리에 뜬다. 틀도 그 창과 같다
+// 업데이트 내역 창의 '고지' 를 누르면 같은 자리에 뜬다. 틀도 그 창과 같다
 // (styles/dialogs.css) - 제목, 구르는 본문, 닫기.
 //
 // 한동안 이것이 따로 선 쪽(/licenses/)이었다. 저장소의 NOTICE.md 를 기호째 그대로 찍어
@@ -40,7 +40,7 @@ interface Notice {
 
 /** NOTICE.md 를 창이 그릴 모양으로 나눈다. */
 function readNotice(md: string): Notice {
-  const out: Notice = { title: "오픈소스 고지", lead: [], sections: [], tail: [] };
+  const out: Notice = { title: "고지", lead: [], sections: [], tail: [] };
   let para: string[] = [];
   const flush = () => {
     if (para.length === 0) return;
