@@ -140,10 +140,11 @@ function common(): Common {
 }
 
 /*
- * 모았다가 한 번에 보낸다.
+ * 모았다가 한 번에 보낸다. **단 `app_open` 은 예외로 바로 보낸다.**
  *
- * 한 번 열 때 두세 개가 생기는데 그때마다 말을 걸면 낭비다. 그리고 **창이 닫히는 순간에
- * 보내야** 하는 것이 있어서, 쌓아 두었다가 쪽이 가려질 때 비운다.
+ * 창이 닫히는 순간에 보내야 하는 것이 있어서 쌓아 두었다가 쪽이 가려질 때 비운다.
+ * 그런데 그 방식만 쓰면 **떠나는 것을 못 잡은 사람이 통째로 안 보인다.** 하필 그 사람이
+ * 우리가 세려던 사람이다 - 자세한 까닭은 startTracking() 에 적었다.
  */
 const queue: Event[] = [];
 
@@ -228,6 +229,22 @@ export function startTracking(): void {
 
   const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
   track("app_open", { ref: referrerHost(), conn: conn?.effectiveType ?? null });
+
+  /*
+   * **열리자마자 보낸다.** 나머지처럼 쪽을 떠날 때 보내지 않는다.
+   *
+   * 우리가 답하려는 질문이 "들어온 사람 중 몇이 소식 없이 사라지나" 인데, 그 사람의
+   * 기록을 **떠날 때** 보내려 하면 못 잡는 순간 그 사람이 통째로 안 보인다. 세려던
+   * 대상을 세는 방식이 그 대상을 놓치는 모양이었다.
+   *
+   * 2026-10-11 에 Vercel 집계와 대 보니 쪽이 25번 열렸는데 우리 기록은 13개였다.
+   * 새로고침과 탭 전환은 아니었고(둘 다 확인했다), 남은 후보를 가를 수가 없었다.
+   * `app_open` 이 열릴 때 찍히면 Vercel 과 **같은 시점**이 되어 바로 대 볼 수 있다.
+   *
+   * 값은 요청 한 건이다. 세션당 1건에서 2건이 되는데, 하루 100세션이면 200건이고
+   * 무료 한도가 달 200만 건이다. 묶어 보내 아끼려던 것이 실재하지 않는 비용이었다.
+   */
+  flush();
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flush();
