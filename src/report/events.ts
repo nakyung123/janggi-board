@@ -12,14 +12,32 @@ import { APP_VERSION } from "../updates/log";
 import { browserLabel, inAppLabel, systemLabel } from "./feedback";
 
 /*
- * 1단계에서 답할 질문은 **하나**다.
+ * 1단계 질문은 **하나**였다.
  *
  *   들어온 100번 중에, 몇 번이 판을 보고 / 몇 번이 고장나고 / 몇 번이 소식 없이 사라지나?
  *
- * 그래서 이벤트가 셋뿐이다. 나머지(새 대국·첫 수·판 끝·복기)는 이 길이 끝까지 뚫린 뒤에
- * 더한다. 여덟 개를 다 만들어 놓고 안 들어오면 어디가 막힌 건지 모른다.
+ * **답이 났다.** 2026-10-11 까지 들어온 아홉 명 중 아홉 명이 엔진이 떴고 `engine_failed`
+ * 는 이레 동안 0건이다. 안 깨진다.
+ *
+ * 그래서 2단계 질문으로 넘어간다 - **그럼 왜 떠나나.** 머문 시간이 6초인 사람과 743초인
+ * 사람이 있는데 그 사이에 무엇을 했는지를 몰랐다.
+ *
+ *   app_open → engine_ready → first_move → game_end → game_start(한 판 더)
+ *
+ * 처음에 셋만 둔 까닭은 여덟 개를 다 만들어 놓고 안 들어오면 어디가 막힌 건지 모르기
+ * 때문이었다. **길이 끝까지 뚫린 것을 확인했으니** 이제 한 번에 더한다.
+ *
+ * **새 이름을 더할 때는 서버를 먼저 배포한다.** 서버에 없는 이름은 400 으로 거절되는데
+ * 우리는 답을 안 읽어서 조용히 버려진다.
  */
-type EventName = "app_open" | "engine_ready" | "engine_failed";
+type EventName =
+  | "app_open"
+  | "engine_ready"
+  | "engine_failed"
+  | "game_start"
+  | "first_move"
+  | "game_end"
+  | "review_open";
 
 /*
  * 모든 이벤트에 붙는 것.

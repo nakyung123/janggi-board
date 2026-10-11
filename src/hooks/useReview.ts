@@ -15,6 +15,7 @@ import type { HistoryEntry } from "../janggi/history";
 import { movesOf } from "../janggi/history";
 import type { ReviewProgress, ReviewedMove } from "../janggi/review";
 import { noteTrouble } from "../report/errors";
+import { track } from "../report/events";
 import { runReview } from "../janggi/review";
 
 /** 복기 한 번의 결과. 기보 목록의 그 판에 옮겨 적는다. */
@@ -72,6 +73,10 @@ export function useReview(engine: JanggiEngine | null) {
   ): Promise<ReviewRun | null> {
     const moves = movesOf(game.history);
     if (!engine || moves.length === 0) return null;
+
+    // 막힌 뒤가 아니라 **진짜 시작하는 자리**에서 알린다. 위 두 조건에 걸려 돌아가는
+    // 것까지 세면 "복기를 썼다" 가 부풀어 오른다.
+    track("review_open", { moves: moves.length });
 
     stopRequested.current = false;
     setError(null);

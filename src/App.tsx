@@ -20,6 +20,7 @@ import { BoardControls } from "./components/board/BoardControls";
 import { PlayerCard } from "./components/board/PlayerCard";
 import { ConfirmDialog } from "./components/common/ConfirmDialog";
 import { FeedbackButton } from "./report/feedback";
+import { track } from "./report/events";
 import { EvalGraph } from "./components/games/EvalGraph";
 import { GameBar } from "./components/games/GameBar";
 import { GameList } from "./components/games/GameList";
@@ -196,6 +197,23 @@ export default function App() {
   const position = useMemo(() => parseFen(entry.fen), [entry.fen]);
   /** 대국 탭의 판에 한 수라도 뒀는지. 시계·규칙 잠금·새 대국 확인이 본다. */
   const started = playHistory.length > 1;
+
+  /*
+   * 첫 수를 둔 것을 한 판에 한 번만 알린다.
+   *
+   * **판 번호로 기억하는 까닭** - `started` 만 보면 무르기로 첫 수를 되돌렸다가 다시 둘 때
+   * 또 찍힌다. 그러면 '한 수라도 둔 사람' 수가 실제보다 많아지고, 하필 그 숫자가 우리가
+   * 보려는 깔때기의 가운데 칸이다.
+   */
+  const firstMoveSent = useRef<string | null>(null);
+  useEffect(() => {
+    if (!started || firstMoveSent.current === gameId) return;
+    firstMoveSent.current = gameId;
+    // 엔진이 뜬 시각과 같은 잣대(performance.now)를 쓴다. 빼면 '엔진이 뜨고 몇 초 만에
+    // 첫 수를 뒀나' 가 나온다.
+    track("first_move", { ms: Math.round(performance.now()), level: levelId, side: mySide });
+    // gameId 와 started 만 본다. 급수·내 쪽을 넣으면 그것만 바뀌어도 다시 돈다.
+  }, [started, gameId]);
   /** 연 판은 그 판을 둔 규칙으로 판정한다. 빅장·수 반복이 규칙마다 다르다. */
   const variant: Variant =
     openGame && isVariant(openGame.variant) ? openGame.variant : prefs.variant;
@@ -386,7 +404,16 @@ export default function App() {
       prev.result.winner === outcome.winner;
     if (sameResult && prev.history.length === playHistory.length) return;
     setGames((list) => upsertGame(list, archiveOf(outcome)));
-    if (!sameResult) setResultOpen(true);
+    if (!sameResult) {
+      setResultOpen(true);
+      // 여기가 '방금 끝났다' 다. 위에서 이미 본 판을 걸러냈으므로 한 판에 한 번만 찍힌다.
+      track("game_end", {
+        kind: outcome.kind,
+        won: outcome.winner === mySide,
+        moves: playHistory.length - 1,
+        level: levelId,
+      });
+    }
   }, [outcome, games, gameId, playHistory, archiveOf, setGames]);
 
   /**
@@ -603,6 +630,13 @@ export default function App() {
    * 그건 사람이 일부러 가져온 것이다.
    */
   const newGame = () => {
+    /*
+     * **세션의 첫 판은 여기를 지나지 않는다.** 앱이 뜨면 판이 이미 놓여 있어서 '시작'
+     * 이라는 순간이 없다. 그래서 이것은 "판을 시작했다" 가 아니라 **"한 판 더 뒀다"** 다.
+     * 깔때기에서는 app_open·engine_ready 가 그 자리를 맡는다.
+     */
+    track("game_start", { level: levelId, side: mySide, clock: clockId, variant: prefs.variant });
+
     const base = parseFen(playHistory[0].fen);
     setPlayHistory(startHistory(toFen({ ...base, turn: "cho", halfmove: 0, fullmove: 1 })));
     setPlayCursor(0);
