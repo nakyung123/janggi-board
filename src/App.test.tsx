@@ -22,11 +22,28 @@ vi.mock("./engine/engine", async () => ({
   JanggiEngine: (await import("./test/fakeEngine")).FakeEngine,
 }));
 
+/*
+ * 밖으로 나가는 측정을 가로채 이름만 모은다. 진짜 `track` 은 `sendBeacon` 으로
+ * 던지는데, 테스트에서 그걸 들여다보려면 beacon 을 흉내 내야 하고 **그러면 beacon 이
+ * 아니라 내 흉내를 시험하게 된다.** 보내는 함수 자체를 바꿔 끼우는 쪽이 짧고 정확하다.
+ *
+ * `track` 만 내보내는 것으로 충분하다 - 화면 쪽에서 이 파일에서 가져다 쓰는 것이 그것
+ * 하나다(`startTracking` 은 `main.tsx` 만 쓰고, 테스트는 App 을 바로 띄운다).
+ */
+const 보냄 = vi.hoisted(() => ({ 이름들: [] as string[] }));
+vi.mock("./report/events", () => ({
+  track: (name: string) => {
+    보냄.이름들.push(name);
+  },
+}));
+const 보낸횟수 = (name: string) => 보냄.이름들.filter((n) => n === name).length;
+
 const engine = () => FakeEngine.current;
 
 beforeEach(() => {
   localStorage.clear();
   engine().reset();
+  보냄.이름들.length = 0;
 });
 afterEach(cleanup);
 
@@ -243,5 +260,52 @@ describe("기보 파일 불러오기", () => {
     await waitFor(() => expect(cards()).toHaveLength(1));
     expect(screen.queryByRole("alert")).toBeNull();
     expect(cards()[0].classList.contains("fresh")).toBe(true);
+  });
+});
+
+describe("깔때기 숫자", () => {
+  /** 두던 판 하나. 수를 한 개 둔 상태로 저장돼 있다. */
+  const 두던판 = JSON.stringify({
+    id: "saved-1",
+    history: [
+      { fen: START_FEN, move: null, notation: "시작", mover: null, score: null },
+      {
+        fen: "rnba1abnr/4k4/1c5c1/p1p1p1p1p/9/2P6/P1P1P1P1P/1C5C1/4K4/RNBA1ABNR b - - 0 1",
+        move: "c4c5",
+        notation: "73졸63",
+        mover: "cho",
+        score: null,
+      },
+    ],
+    cursor: 1,
+    resigned: null,
+    flagged: null,
+  });
+
+  it("두던 판을 들고 들어온 것만으로는 first_move 를 보내지 않는다", async () => {
+    /*
+     * 복구하면 쪽이 뜨는 순간 이미 `playHistory.length > 1` 이라, 그걸 '수를 뒀다' 로
+     * 세면 **사람이 아무것도 안 했는데 찍힌다.**
+     *
+     * 2026-10-12 에 실서버에서 실제로 그랬다. 엔진은 1102ms 에 떴는데 첫 수가 126ms 로
+     * 찍혀 있었다 - 엔진이 뜨기 전에 둘 수는 없으니 사람이 만든 줄이 아니었다.
+     * 하필 그 칸이 깔때기에서 제일 크게 깎일 자리라 **부풀면 전체를 못 믿는다.**
+     */
+    localStorage.setItem("janggi:game", 두던판);
+    await start();
+    expect(보낸횟수("first_move")).toBe(0);
+  });
+
+  it("새로 들어와 한 수 두면 그때 first_move 를 한 번만 보낸다", async () => {
+    // 위 고침이 정상까지 막아 버리면 깔때기의 가운데 칸이 영영 0이 된다.
+    await start();
+    expect(보낸횟수("first_move")).toBe(0);
+
+    drag("c4", "c5");
+    await waitFor(() => expect(보낸횟수("first_move")).toBe(1));
+
+    // 엔진이 받아 두어도 한 판에 한 번이다.
+    await engineReply(1);
+    expect(보낸횟수("first_move")).toBe(1);
   });
 });

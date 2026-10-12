@@ -204,8 +204,17 @@ export default function App() {
    * **판 번호로 기억하는 까닭** - `started` 만 보면 무르기로 첫 수를 되돌렸다가 다시 둘 때
    * 또 찍힌다. 그러면 '한 수라도 둔 사람' 수가 실제보다 많아지고, 하필 그 숫자가 우리가
    * 보려는 깔때기의 가운데 칸이다.
+   *
+   * **두던 판을 들고 들어온 사람은 처음부터 보낸 것으로 친다.** 그러지 않으면 쪽이 뜨는
+   * 순간 `started` 가 이미 참이라 **수를 한 개도 안 뒀는데 찍힌다.** 2026-10-12 에 실제로
+   * 그랬다 - 엔진이 1102ms 에 떴는데 첫 수가 126ms 로 찍혀 있었다. 엔진이 뜨기 전에 둘
+   * 수는 없으니, 그 줄은 사람이 아니라 복구가 만든 것이다.
+   *
+   * 대가로 **이어서 두는 사람은 안 세어진다.** 그 대신 새 판을 시작하면(`gameId` 가
+   * 바뀌면) 그때부터 정상으로 센다. 세려던 것이 "들어와서 수를 두나" 라서, 부풀리는
+   * 쪽보다 덜 세는 쪽을 골랐다 - **깔때기는 과장되면 쓸모가 없다.**
    */
-  const firstMoveSent = useRef<string | null>(null);
+  const firstMoveSent = useRef<string | null>(savedGame ? gameId : null);
   useEffect(() => {
     if (!started || firstMoveSent.current === gameId) return;
     firstMoveSent.current = gameId;
