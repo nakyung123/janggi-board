@@ -18,7 +18,7 @@
 // 판 자리가 낮아질 때마다 덩어리 폭을 따라 줄이면 헤더와 패널이 옆으로 움직인다.
 // 가장 컸던 값을 쥐고 있다가 창 크기가 바뀌면 새로 잰다.
 
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 /**
  * @param shown 판이 화면에 붙어 있는지. 엔진을 받는 동안(로딩 화면)과 기보 목록
@@ -28,7 +28,17 @@ import { useEffect, useRef } from "react";
 export function useBoardFit(shown: boolean) {
   const tableRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // useEffect 가 아니라 useLayoutEffect 이고, **그 안에서 한 번 직접 잰다.** 판이 붙는
+  // 프레임이 --board-fit 없이 그려지면 다음 프레임에 좁아져 화면이 밀린다 - 1280 폭에서
+  // 엔진이 뜨는 1.1초쯤에 .layout 과 .top 이 1178px -> 1095px 로 움직여 CLS 0.029 가
+  // 찍혔다.
+  //
+  // **ResizeObserver 를 앞당겨 등록하는 것으로는 안 고쳐진다.** useEffect -> 
+  // useLayoutEffect 만 바꿔 재 봤더니 같은 자리에서 같은 크기로 그대로 밀렸다. 첫 관측이
+  // 그리기 전에 전달될 것으로 봤는데 아니었다. 그래서 콜백을 기다리지 않고 measure() 를
+  // 그 자리에서 한 번 부른다 - 그리기 전에 값이 걸려 있어야 한다. 관찰자는 그 뒤로
+  // 창이 바뀔 때를 위해 그대로 둔다.
+  useLayoutEffect(() => {
     if (!shown) return;
     const table = tableRef.current;
     const svg = table?.querySelector<SVGSVGElement>("svg.board");
@@ -37,7 +47,7 @@ export function useBoardFit(shown: boolean) {
     const host = table.closest<HTMLElement>(".app") ?? table;
     let fitFor = "";
     let fit = 0;
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       const drawn = svg.getBoundingClientRect();
       host.style.setProperty("--board-w", `${Math.ceil(drawn.width)}px`);
       host.style.setProperty("--board-h", `${Math.floor(drawn.height)}px`);
@@ -49,7 +59,9 @@ export function useBoardFit(shown: boolean) {
       const { width: vbW, height: vbH } = svg.viewBox.baseVal;
       fit = Math.max(fit, Math.ceil((stage.getBoundingClientRect().height * vbW) / vbH));
       host.style.setProperty("--board-fit", `${fit}px`);
-    });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
     ro.observe(svg);
     ro.observe(stage);
     return () => ro.disconnect();
