@@ -184,6 +184,34 @@ function common(): Common {
  * 그런데 그 방식만 쓰면 **떠나는 것을 못 잡은 사람이 통째로 안 보인다.** 하필 그 사람이
  * 우리가 세려던 사람이다 - 자세한 까닭은 startTracking() 에 적었다.
  */
+/*
+ * **즉시 보내는 것.** 나머지는 쪽이 가려질 때 묶어서 보낸다.
+ *
+ * 묶어 보내면 **못 잡고 사라진 사람이 통째로 안 보인다.** 2026-10-11 에 Vercel 집계와
+ * 대 보니 쪽이 25번 열렸는데 우리 기록은 13개였다(새로고침과 탭 전환은 아니었다 - 둘 다
+ * 확인했다). `app_open` 을 열릴 때 바로 보내 고쳤고, Vercel 과 같은 시점이 되어 바로
+ * 대 볼 수 있게 됐다.
+ *
+ * **2026-10-13 에 깔때기 아래쪽도 같은 병을 앓는 것을 봤다.** 하루 20명이 쪽을 열었는데
+ * `engine_ready` 는 16개였다. "느려서 기다리다 떠났다" 로 읽었는데 근거가 없었다 -
+ * `app_open` 만 즉시 가고 나머지는 묶음이라, **엔진은 떴지만 묶음이 안 간 사람**과
+ * 구별되지 않는다. 폰에서 앱을 강제로 닫거나 탭을 날리면 `pagehide` 가 안 불린다.
+ *
+ * **셋만 즉시로 바꾸고 나머지는 묶음으로 남긴다.** 전부 바꾸면 격차가 닫힌 것만 알고
+ * **얼마나 새고 있었나**를 모른다. 남겨 둔 쪽이 대조군이고, 두 격차의 차이가 곧 묶음
+ * 유실률이다. 재고 나면 나머지도 옮길지 정한다.
+ *
+ * 값은 요청 한 건이다. 하루 20세션이면 40건에서 80건이 되고 무료 한도가 달 200만
+ * 건이다. 다만 **문지기 한도(분당 120)에는 더 가까워진다** - 사람이 몰리면
+ * `JANGGI_GUARD_LIMIT_PER_MINUTE` 로 배포 없이 올린다.
+ */
+const NOW: ReadonlySet<EventName> = new Set<EventName>([
+  "app_open",
+  "engine_ready",
+  "engine_failed",
+  "first_move",
+]);
+
 const queue: Event[] = [];
 
 /**
@@ -249,7 +277,16 @@ function flush(): void {
 export function track(name: EventName, data: Record<string, unknown> = {}): void {
   try {
     if (isBot()) return;
-    queue.push({ name, ...common(), data });
+    const event: Event = { name, ...common(), data };
+
+    if (NOW.has(name)) {
+      // **flush() 를 부르지 않는다.** 그것은 대기열을 통째로 비우므로, 유실률을 재려고
+      // 묶음으로 남겨 둔 대조군까지 같이 나가 버린다. 이 한 건만 보낸다.
+      send([event]);
+      return;
+    }
+
+    queue.push(event);
   } catch {
     /* 측정이 앱을 깨뜨리지 않는다 */
   }
@@ -267,22 +304,6 @@ export function startTracking(): void {
 
   const conn = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
   track("app_open", { ref: referrerHost(), conn: conn?.effectiveType ?? null });
-
-  /*
-   * **열리자마자 보낸다.** 나머지처럼 쪽을 떠날 때 보내지 않는다.
-   *
-   * 우리가 답하려는 질문이 "들어온 사람 중 몇이 소식 없이 사라지나" 인데, 그 사람의
-   * 기록을 **떠날 때** 보내려 하면 못 잡는 순간 그 사람이 통째로 안 보인다. 세려던
-   * 대상을 세는 방식이 그 대상을 놓치는 모양이었다.
-   *
-   * 2026-10-11 에 Vercel 집계와 대 보니 쪽이 25번 열렸는데 우리 기록은 13개였다.
-   * 새로고침과 탭 전환은 아니었고(둘 다 확인했다), 남은 후보를 가를 수가 없었다.
-   * `app_open` 이 열릴 때 찍히면 Vercel 과 **같은 시점**이 되어 바로 대 볼 수 있다.
-   *
-   * 값은 요청 한 건이다. 세션당 1건에서 2건이 되는데, 하루 100세션이면 200건이고
-   * 무료 한도가 달 200만 건이다. 묶어 보내 아끼려던 것이 실재하지 않는 비용이었다.
-   */
-  flush();
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") flush();
