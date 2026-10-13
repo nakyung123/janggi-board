@@ -55,7 +55,8 @@ interface Common {
   os: string | null;
   /** 앱 안에서 열었으면 그 앱 이름. 지금 1순위 용의자다. */
   inApp: string | null;
-  isolated: boolean;
+  /** 격리됐나. **모르는 경우가 있다** - 아래 isolatedNow() 에 까닭이 있다. */
+  isolated: boolean | null;
   cores: number | null;
   memory: number | null;
   screen: string;
@@ -138,6 +139,25 @@ function currentEnv(): "dev" | "prod" {
   return location.hostname === LIVE_HOST ? "prod" : "dev";
 }
 
+/*
+ * 격리됐는지. **그냥 참조하면 안 된다.**
+ *
+ * `crossOriginIsolated` 는 사파리 15.2 이전에 아예 정의되지 않은 전역이다. 선언되지
+ * 않은 이름을 맨몸으로 읽으면 ReferenceError 가 나고, `track()` 이 그것을 삼킨다 -
+ * 그러면 그 기기에서는 **측정이 통째로 안 간다.** 하필 그 기기가 SharedArrayBuffer 가
+ * 없어서 엔진이 못 뜨는 쪽이라, **가장 알고 싶은 사람이 안 보이는** 모양이었다.
+ * `engine_failed` 가 0건인 것을 "안 깨진다" 로 읽을 수가 없게 된다.
+ *
+ * 2026-10-13 에 events.ts 테스트를 처음 쓰다가 jsdom 에서 드러났다. 그때까지 이 파일에
+ * 테스트가 없어서 아무도 밟지 않았다.
+ *
+ * `typeof` 는 선언되지 않은 이름에도 던지지 않는다. 없을 때는 거짓이 아니라 **null**
+ * 이다 - "격리 안 됨" 과 "모름" 은 다른 말이고, 서버도 그 칸을 비워 둘 수 있다.
+ */
+function isolatedNow(): boolean | null {
+  return typeof crossOriginIsolated === "undefined" ? null : crossOriginIsolated;
+}
+
 function common(): Common {
   const ua = navigator.userAgent;
   // deviceMemory 와 connection 은 표준이 아니라 타입에 없다(크로미움 계열에만 있다).
@@ -148,7 +168,7 @@ function common(): Common {
     browser: browserLabel(ua),
     os: systemLabel(ua),
     inApp: inAppLabel(ua),
-    isolated: crossOriginIsolated,
+    isolated: isolatedNow(),
     cores: navigator.hardwareConcurrency || null,
     memory: nav.deviceMemory ?? null,
     screen: `${window.innerWidth}x${window.innerHeight}`,
