@@ -69,8 +69,16 @@ export interface GameRow {
  *
  * <b>순서는 끝난 때 내림차순이다.</b> 서버도 같은 순서로 주지만, 섞고 나면 다시
  * 세워야 한다 - 기기에만 있는 판이 중간에 끼어든다.
+ *
+ * <b>서버 목록만 보고 "서버에 있나" 를 정하지 않는다.</b> 그 목록은 쪽을 열 때 한 번
+ * 받아 둔 것이라, <b>방금 올린 판이 들어 있지 않다.</b> 올린 기록도 같이 본다 - 안
+ * 그러면 올라간 판에 "이 기기에만 있음" 이 그대로 남는다(2026-10-14 로컬 확인).
  */
-export function mergeRows(기기: ArchivedGame[], 서버: ServerSummary[]): GameRow[] {
+export function mergeRows(
+  기기: ArchivedGame[],
+  서버: ServerSummary[],
+  올렸나: (id: string) => boolean = () => false
+): GameRow[] {
   const 줄: GameRow[] = 기기.map((g) => ({
     id: g.id,
     endedAt: g.endedAt,
@@ -81,7 +89,7 @@ export function mergeRows(기기: ArchivedGame[], 서버: ServerSummary[]): Game
     reviewed: g.reviewed !== null,
     lastFen: g.history[g.history.length - 1]?.fen ?? null,
     local: true,
-    onServer: false,
+    onServer: 올렸나(g.id),
     serverId: null,
   }));
   const 자리 = new Map(줄.map((r) => [r.id, r]));
@@ -253,7 +261,7 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
   const onServer = useCallback((id: string) => uploaded[id] !== undefined, [uploaded]);
 
   /** 화면이 그대로 그릴 한 벌. 기기 목록과 서버 목록을 합친 것이다. */
-  const rows = useMemo(() => mergeRows(games, 서버목록), [games, 서버목록]);
+  const rows = useMemo(() => mergeRows(games, 서버목록, onServer), [games, 서버목록, onServer]);
 
   /**
    * 서버에만 있는 판을 받아 온다.
