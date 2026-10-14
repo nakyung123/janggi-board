@@ -14,13 +14,13 @@ import { ChevronLeft, ChevronRight, ScrollText } from "lucide-react";
 import { parseFen } from "../../janggi/board";
 import { pageItems, resultTag, whenLabel } from "../../janggi/archive";
 import { SIDE_LABEL } from "../../janggi/pieces";
-import type { ArchivedGame } from "../../janggi/archive";
-import type { ServerGames } from "../../hooks/useServerGames";
+import type { GameRow, ServerGames } from "../../hooks/useServerGames";
 import { LOGIN_PATH } from "../../server/api";
 import { MiniBoard } from "./MiniBoard";
 
 interface Props {
-  games: ArchivedGame[];
+  /** 기기의 판과 서버의 판을 합친 목록. 만드는 곳은 `useServerGames` 다. */
+  rows: GameRow[];
   /** 지금 시각. "3시간 전" 을 셀 때 쓴다. 부르는 쪽이 주면 테스트·캡처가 쉽다. */
   now: number;
   onOpen: (id: string) => void;
@@ -45,6 +45,23 @@ interface Props {
   server: ServerGames;
 }
 
+/**
+ * 끝났을 때의 판을 그림으로.
+ *
+ * <b>못 읽어도 터지지 않는다.</b> 서버에서 온 값은 우리가 만든 것이 아니다 - 옛
+ * 판에서 온 것일 수도, 사람이 고친 것일 수도 있다. 한 칸을 못 읽었다고 목록 전체가
+ * 안 보이면 안 된다. 실제로 그렇게 됐다(2026-10-14, 로컬 확인). 카드의 글은 그대로
+ * 남고 그림 자리만 빈다.
+ */
+function 판으로(fen: string | null) {
+  if (!fen) return {};
+  try {
+    return parseFen(fen).board;
+  } catch {
+    return {};
+  }
+}
+
 /** 카드 한 줄의 높이를 재기 전에 쓰는 값(작은 판 112 + 안쪽 여백 16×2). */
 const CARD_H = 144;
 
@@ -57,7 +74,7 @@ const PHONE_PER_PAGE = 10;
 const NARROW = "(max-width: 900px)";
 
 export function GameList(props: Props) {
-  const { games, now, onOpen, onLoad, page, onPage, error, freshId, server } = props;
+  const { rows, now, onOpen, onLoad, page, onPage, error, freshId, server } = props;
   const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -68,7 +85,7 @@ export function GameList(props: Props) {
    */
   const [perPage, setPerPage] = useState(12);
   // 목록 칸은 판이 하나라도 있어야 붙는다. 처음 한 판이 들어올 때 다시 건다.
-  const hasGames = games.length > 0;
+  const hasGames = rows.length > 0;
   useLayoutEffect(() => {
     const list = listRef.current;
     if (!list) return;
@@ -91,16 +108,22 @@ export function GameList(props: Props) {
     return () => ro.disconnect();
   }, [hasGames]);
 
-  const pages = Math.max(1, Math.ceil(games.length / perPage));
+  const pages = Math.max(1, Math.ceil(rows.length / perPage));
   // 창이 커져 쪽 수가 줄면 보던 쪽이 끝을 넘을 수 있다. 마지막 쪽으로 당긴다.
   const current = Math.min(page, pages - 1);
-  const shown = games.slice(current * perPage, (current + 1) * perPage);
+  const shown = rows.slice(current * perPage, (current + 1) * perPage);
 
-  // 판마다 마지막 국면. 이 쪽에 보이는 판만, 목록이 바뀔 때만 푼다.
+  /*
+   * 판마다 마지막 국면. 이 쪽에 보이는 판만, 목록이 바뀔 때만 푼다.
+   *
+   * **서버에만 있는 판도 그려진다** - 요약에 끝났을 때의 판(lastFen) 한 칸이 같이 오기
+   * 때문이다. 그 칸이 없으면 빈 판을 그린다. 그림 하나를 못 그리는 것이 목록이 통째로
+   * 안 보이는 것보다 낫다.
+   */
   const lastBoards = useMemo(
-    () => new Map(shown.map((g) => [g.id, parseFen(g.history[g.history.length - 1].fen).board])),
+    () => new Map(shown.map((r) => [r.id, 판으로(r.lastFen)])),
     // shown 은 렌더마다 새 배열이라 그것을 만든 값으로 묶는다.
-    [games, current, perPage]
+    [rows, current, perPage]
   );
 
   return (
@@ -108,7 +131,7 @@ export function GameList(props: Props) {
       <div className="games-head">
         <h2 className="games-title">
           기보
-          <span className="panel-meta">{games.length}판</span>
+          <span className="panel-meta">{rows.length}판</span>
         </h2>
         {error && (
           <p className="games-error" role="alert">
@@ -166,7 +189,7 @@ export function GameList(props: Props) {
         </p>
       )}
 
-      {games.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="empty">
           <ScrollText size={24} strokeWidth={1.75} aria-hidden />
           <p className="empty-title">아직 끝난 판이 없습니다</p>
@@ -193,14 +216,19 @@ export function GameList(props: Props) {
                       <b className={"game-result " + tag.tone}>{tag.text}</b>
                     </span>
                     <span className="game-moves">
-                      {g.history.length - 1}수{g.reviewed ? " · 복기함" : ""}
+                      {g.moves}수{g.reviewed ? " · 복기함" : ""}
                       {/*
-                        로그인했을 때만 붙인다. 로그인하지 않으면 모든 판이 기기에만 있어서,
-                        다 붙으면 아무것도 말해 주지 않는다. 올리기가 실패한 판에도 이 표시가
-                        남는다 - 실패를 조용히 넘기지 않는 자리다.
+                        **어디에 있는지를 말한다.** 로그인하지 않았으면 모든 판이 기기에만
+                        있어서 아무것도 안 붙인다 - 다 붙으면 알려 주는 것이 없다.
+
+                        "이 기기에만 있음" 은 올리기가 실패한 판에도 남는다. 실패를 조용히
+                        넘기지 않으면서 화면을 하나 더 만들지 않는 자리다.
                       */}
-                      {server.loggedIn === true && !server.onServer(g.id) && (
+                      {server.loggedIn === true && !g.onServer && (
                         <span className="game-local"> · 이 기기에만 있음</span>
+                      )}
+                      {server.loggedIn === true && !g.local && (
+                        <span className="game-local"> · 다른 기기에서 둔 판</span>
                       )}
                     </span>
                   </span>

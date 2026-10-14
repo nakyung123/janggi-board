@@ -692,13 +692,50 @@ export default function App() {
     [review.running, archive]
   );
 
-  /** 기보 탭에서 한 판을 연다. 목록 쪽 일은 훅이 하고, 판 바깥의 뒷정리만 여기 남는다. */
-  const openArchived = (id: string) => {
+  /** 기기에 있는 판을 연다. 목록 쪽 일은 훅이 하고, 판 바깥의 뒷정리만 여기 남는다. */
+  const 기기에서열기 = (id: string) => {
     if (!archive.open(id)) return;
     setMode("games");
     setSelected(null);
     setFly(null);
     review.clearError();
+  };
+
+  /**
+   * 받아 온 판을 **다음 그림에서** 연다.
+   *
+   * 받자마자 바로 열 수 없다. 목록에 넣는 것은 한 박자 뒤에 반영되므로, 그 자리에서
+   * 열려고 하면 "그런 판 없다" 가 되고, 다시 받으러 가면 **끝없이 받는다.** 실제로
+   * 그렇게 돌다가 서버의 분당 한도에 걸려 멈췄다(2026-10-14, 로컬 확인).
+   */
+  const [받고열판, set받고열판] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (받고열판 === null) return;
+    if (!games.some((g) => g.id === 받고열판)) return;
+    기기에서열기(받고열판);
+    set받고열판(null);
+    // 기기에서열기 는 렌더마다 새로 만들어지지만 하는 일은 같다. 목록에 들어온 것만 본다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [받고열판, games]);
+
+  /**
+   * 기보 탭에서 한 판을 연다.
+   *
+   * **다른 기기에서 둔 판은 먼저 받아 온다.** 받은 판은 이 기기의 목록에 들어가므로
+   * 그다음부터는 여기 있던 판과 똑같이 돈다 - 되짚기·복기·파일 저장이 갈라지지 않는다.
+   */
+  const openArchived = (id: string) => {
+    const 줄 = server.rows.find((r) => r.id === id);
+    if (줄 && !줄.local && 줄.serverId !== null) {
+      void server.pull(줄.serverId).then((game) => {
+        if (!game) return;
+        setGames((list) => upsertGame(list, game));
+        set받고열판(game.id);
+      });
+      return;
+    }
+    기기에서열기(id);
   };
 
   useKeyboard(
@@ -848,7 +885,7 @@ export default function App() {
       {listView ? (
         <main className="layout list">
           <GameList
-            games={games}
+            rows={server.rows}
             now={Date.now()}
             onOpen={openArchived}
             onLoad={archive.load}

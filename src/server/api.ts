@@ -6,6 +6,7 @@
 // `src/report/events.ts` 와 같은 길이다.
 
 import type { ArchivedGame } from "../janggi/archive";
+import { isArchivedGame } from "../janggi/archive";
 
 const BASE = "/api";
 
@@ -118,6 +119,78 @@ export async function uploadGame(game: ArchivedGame): Promise<number> {
   const body = (await res.json()) as { id?: unknown };
   if (typeof body.id !== "number") throw new ServerError("서버가 번호를 주지 않았습니다.");
   return body.id;
+}
+
+/**
+ * 서버가 주는 목록 한 줄.
+ *
+ * **판의 내용이 없다.** 끝났을 때의 판(`lastFen`) 하나만 온다 - 목록 카드의 작은
+ * 그림에 필요한 것이 그것뿐이고, 내용까지 실으면 스무 판에 수백 KB가 오간다. 한 판을
+ * 열 때 {@link fetchGame} 으로 그때 받아 온다.
+ */
+export interface ServerSummary {
+  /** 서버가 매긴 번호. 한 판을 열 때 쓴다. */
+  id: number;
+  /** 브라우저가 만든 번호. 기기에 있는 판과 같은 판인지 이것으로 가른다. */
+  clientId: string;
+  endedAt: number;
+  mySide: string;
+  levelId: string;
+  levelName: string;
+  variant: string;
+  resultKind: string;
+  resultWinner: string | null;
+  moves: number;
+  reviewed: boolean;
+  lastFen: string | null;
+}
+
+/** 내 기보 목록. 서버가 끝난 순서로 준다. */
+export async function fetchGames(): Promise<ServerSummary[]> {
+  const res = await read("/games");
+  if (res.status === 404) throw new ServerError("로그인이 풀려 기보를 받지 못했습니다.");
+  if (!res.ok) throw new ServerError(await reason(res));
+  const body = (await res.json()) as unknown;
+  if (!Array.isArray(body)) throw new ServerError("서버가 목록을 주지 않았습니다.");
+  return body as ServerSummary[];
+}
+
+/**
+ * 한 판의 내용.
+ *
+ * **기기에 없는 판을 열 때만 부른다.** 기기에 있으면 그것을 쓴다 - 같은 것을 또 받을
+ * 까닭이 없고, 받는 동안 기다리게 된다.
+ */
+export async function fetchGame(id: number): Promise<ArchivedGame> {
+  const res = await read(`/games/${id}`);
+  if (res.status === 404) throw new ServerError("그 기보를 찾지 못했습니다.");
+  if (!res.ok) throw new ServerError(await reason(res));
+  const 받은것 = (await res.json()) as Record<string, unknown>;
+
+  /*
+   * **서버의 모양을 기기의 모양으로 되돌린다.** 서버는 결과를 두 칸으로 펴서
+   * 두는데(`resultKind`·`resultWinner`), 기기 쪽은 `result` 한 덩이다. 올릴 때 편
+   * 것을 여기서 다시 묶는다.
+   *
+   * 번호도 바꿔 끼운다. 서버 번호가 아니라 **브라우저가 만든 번호**라야 기기에 있는
+   * 같은 판과 한 줄로 합쳐진다.
+   */
+  const game = {
+    id: 받은것.clientId,
+    endedAt: 받은것.endedAt,
+    mySide: 받은것.mySide,
+    levelId: 받은것.levelId,
+    levelName: 받은것.levelName,
+    variant: 받은것.variant,
+    result: { kind: 받은것.resultKind, winner: 받은것.resultWinner ?? null },
+    history: 받은것.history,
+    reviewed: 받은것.reviewed ?? null,
+  };
+
+  // 받은 것을 믿지 않는다. 모양이 아니면 여기서 멈춘다 - 반쪽짜리 판을 화면에 올리면
+  // 되짚기가 빈 판을 그린다.
+  if (!isArchivedGame(game)) throw new ServerError("기보 모양이 올바르지 않습니다.");
+  return game;
 }
 
 /** 로그아웃. 서버가 쿠키를 지운다. */

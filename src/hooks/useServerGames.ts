@@ -6,8 +6,10 @@
 // 처리되고, 서버는 같은 판 번호를 덮어쓴다.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ArchivedGame } from "../janggi/archive";
-import { fetchLoginState, logout, uploadGame } from "../server/api";
+import type { ArchivedGame, ArchivedResult, ArchivedKind } from "../janggi/archive";
+import type { ServerSummary } from "../server/api";
+import type { Side } from "../janggi/pieces";
+import { fetchGame, fetchGames, fetchLoginState, logout, uploadGame } from "../server/api";
 import { noteTrouble } from "../report/errors";
 import { usePersisted } from "./usePersisted";
 
@@ -33,11 +35,100 @@ function isRecord(v: unknown): boolean {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * 목록 카드 한 줄. **기기에 있는 판과 서버에만 있는 판을 같은 모양으로** 세운다.
+ *
+ * 카드가 쓰는 칸만 있다. 내용(`history`)은 없다 - 서버에만 있는 판은 열기 전까지
+ * 내용이 없기 때문이다. 열 때 받아 온다.
+ */
+export interface GameRow {
+  /** 브라우저가 만든 번호. 양쪽에서 같은 판을 가리킨다. */
+  id: string;
+  endedAt: number;
+  mySide: Side;
+  levelName: string;
+  result: ArchivedResult;
+  /** 수의 개수. */
+  moves: number;
+  reviewed: boolean;
+  /** 끝났을 때의 판. 카드의 작은 그림이 이것으로 그려진다. */
+  lastFen: string | null;
+  /** 이 기기에 있나. 없으면 열 때 서버에서 받아 온다. */
+  local: boolean;
+  /** 서버에도 있나. 없으면 "이 기기에만 있음" 이 붙는다. */
+  onServer: boolean;
+  /** 서버 번호. 서버에 없으면 `null`. */
+  serverId: number | null;
+}
+
+/**
+ * 기기의 목록과 서버의 목록을 한 줄로 합친다.
+ *
+ * <b>같은 판을 두 줄로 세우지 않는다.</b> 브라우저가 만든 번호(`id`)가 같으면 같은
+ * 판이다. 둘 다 있으면 <b>기기 쪽을 쓴다</b> - 내용이 들어 있어 열 때 기다리지 않는다.
+ *
+ * <b>순서는 끝난 때 내림차순이다.</b> 서버도 같은 순서로 주지만, 섞고 나면 다시
+ * 세워야 한다 - 기기에만 있는 판이 중간에 끼어든다.
+ */
+export function mergeRows(기기: ArchivedGame[], 서버: ServerSummary[]): GameRow[] {
+  const 줄: GameRow[] = 기기.map((g) => ({
+    id: g.id,
+    endedAt: g.endedAt,
+    mySide: g.mySide,
+    levelName: g.levelName,
+    result: g.result,
+    moves: g.history.length - 1,
+    reviewed: g.reviewed !== null,
+    lastFen: g.history[g.history.length - 1]?.fen ?? null,
+    local: true,
+    onServer: false,
+    serverId: null,
+  }));
+  const 자리 = new Map(줄.map((r) => [r.id, r]));
+
+  for (const s of 서버) {
+    const 이미있다 = 자리.get(s.clientId);
+    if (이미있다) {
+      이미있다.onServer = true;
+      이미있다.serverId = s.id;
+      continue;
+    }
+    const 새줄: GameRow = {
+      id: s.clientId,
+      endedAt: s.endedAt,
+      mySide: s.mySide as Side,
+      levelName: s.levelName,
+      result: { kind: s.resultKind as ArchivedKind, winner: (s.resultWinner as Side) ?? null },
+      moves: s.moves,
+      reviewed: s.reviewed,
+      lastFen: s.lastFen,
+      local: false,
+      onServer: true,
+      serverId: s.id,
+    };
+    줄.push(새줄);
+    자리.set(새줄.id, 새줄);
+  }
+
+  // 끝난 때가 같으면 번호로 가른다. 순서가 들쭉날쭉하면 쪽을 넘길 때 같은 판이 두 번
+  // 보이거나 건너뛴다.
+  줄.sort((a, b) => b.endedAt - a.endedAt || (a.id < b.id ? 1 : -1));
+  return 줄;
+}
+
 export interface ServerGames {
   /** 로그인되어 있나. 아직 물어보는 중이면 `null` 이다. */
   loggedIn: boolean | null;
   /** 이 판이 서버에도 있나. 표시를 붙일지 정할 때 쓴다. */
   onServer: (id: string) => boolean;
+  /** 기기와 서버를 합친 목록. 화면이 그대로 그린다. */
+  rows: GameRow[];
+  /**
+   * 서버에만 있는 판을 받아 온다. 받은 판은 기기 목록에 들어간다.
+   *
+   * 기기에 있는 판에는 쓰지 않는다 - 부르는 쪽이 먼저 가린다.
+   */
+  pull: (serverId: number) => Promise<ArchivedGame | null>;
   /** 올리는 중. 단추를 잠그는 데 쓴다. */
   busy: boolean;
   /** 마지막으로 어긋난 일. 한국어다. */
@@ -59,6 +150,9 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
   const before = useRef<Set<string> | null>(null);
   if (before.current === null) before.current = new Set(games.map((g) => g.id));
 
+  /** 서버가 가진 목록. 로그인했을 때 한 번 받아 둔다. */
+  const [서버목록, set서버목록] = useState<ServerSummary[]>([]);
+
   useEffect(() => {
     let 살아있다 = true;
     fetchLoginState()
@@ -75,6 +169,36 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
       살아있다 = false;
     };
   }, []);
+
+  /*
+   * 로그인했으면 서버 목록을 받아 둔다.
+   *
+   * **올린 판을 여기서 적어 둔다.** 그러지 않으면 로그아웃했다 다시 로그인한 사람의
+   * 화면에서, 서버에 있는 판이 "이 기기에만 있음" 으로 보인다 - 로그아웃이 적어 둔
+   * 기록을 지우기 때문이다. 서버가 말해 주는 것이 기록보다 정확하다.
+   */
+  useEffect(() => {
+    if (loggedIn !== true) return;
+    let 살아있다 = true;
+    fetchGames()
+      .then((목록) => {
+        if (!살아있다) return;
+        set서버목록(목록);
+        const 적을것: Record<string, string> = {};
+        for (const s of 목록) {
+          적을것[s.clientId] = `${s.moves + 1}:${s.reviewed ? 1 : 0}`;
+        }
+        setUploaded((before) => ({ ...before, ...적을것 }));
+      })
+      .catch((err) => {
+        // **목록을 못 받아도 올리기는 돈다.** 받아 오는 것은 "다른 기기의 판을 보여
+        // 주는" 일이라, 실패하면 이 기기의 판만 보이는 상태로 간다.
+        if (살아있다) setError(noteTrouble("기보 목록 받기", err).message);
+      });
+    return () => {
+      살아있다 = false;
+    };
+  }, [loggedIn, setUploaded]);
 
   /** 올려야 할 판. 새로 생긴 판이거나, 올린 뒤 복기가 붙은 판이다. */
   const 올릴것 = useMemo(() => {
@@ -128,6 +252,35 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
 
   const onServer = useCallback((id: string) => uploaded[id] !== undefined, [uploaded]);
 
+  /** 화면이 그대로 그릴 한 벌. 기기 목록과 서버 목록을 합친 것이다. */
+  const rows = useMemo(() => mergeRows(games, 서버목록), [games, 서버목록]);
+
+  /**
+   * 서버에만 있는 판을 받아 온다.
+   *
+   * **받은 판은 이 기기의 목록에 들어간다.** 그래야 되짚기·복기·파일 저장이 기기에
+   * 있던 판과 똑같이 돈다 - 서버에서 온 판만 따로 다루는 길을 만들지 않는다.
+   */
+  const pull = useCallback(
+    async (serverId: number) => {
+      setBusy(true);
+      try {
+        const game = await fetchGame(serverId);
+        // **방금 받은 것을 "올릴 것" 으로 세지 않는다.** 지문을 같이 적어 두지 않으면
+        // 받자마자 그대로 서버에 도로 올린다.
+        setUploaded((before) => ({ ...before, [game.id]: fingerprint(game) }));
+        setError(null);
+        return game;
+      } catch (err) {
+        setError(noteTrouble("기보 받기", err).message);
+        return null;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [setUploaded],
+  );
+
   const signOut = useCallback(() => {
     setBusy(true);
     logout()
@@ -137,10 +290,11 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
         // **올린 기록을 지운다.** 다음에 다른 사람이 로그인할 수 있다 - 남의 판을
         // "서버에 있음" 으로 표시하면 거짓이다.
         setUploaded({});
+        set서버목록([]);
       })
       .catch((err) => setError(noteTrouble("로그아웃", err).message))
       .finally(() => setBusy(false));
   }, [setUploaded]);
 
-  return { loggedIn, onServer, busy, error, signOut };
+  return { loggedIn, onServer, rows, pull, busy, error, signOut };
 }

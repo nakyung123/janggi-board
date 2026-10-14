@@ -12,18 +12,40 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArchivedGame } from "../janggi/archive";
-import { fetchLoginState, uploadGame } from "../server/api";
-import { useServerGames } from "./useServerGames";
+import type { ServerSummary } from "../server/api";
+import { fetchGames, fetchLoginState, uploadGame } from "../server/api";
+import { mergeRows, useServerGames } from "./useServerGames";
 
 vi.mock("../server/api", () => ({
   LOGIN_PATH: "/api/oauth2/authorization/google",
   fetchLoginState: vi.fn(),
+  fetchGames: vi.fn(),
+  fetchGame: vi.fn(),
   uploadGame: vi.fn(),
   logout: vi.fn(),
 }));
 
 const 로그인확인 = vi.mocked(fetchLoginState);
+const 목록받기 = vi.mocked(fetchGames);
 const 올리기 = vi.mocked(uploadGame);
+
+/** 서버가 주는 목록 한 줄. 끝난 때와 번호만 다르게 쓴다. */
+function 서버판(clientId: string, endedAt = 1760000000000, 복기 = false): ServerSummary {
+  return {
+    id: Math.abs(clientId.length * 7),
+    clientId,
+    endedAt,
+    mySide: "cho",
+    levelId: "k12",
+    levelName: "12급",
+    variant: "janggi",
+    resultKind: "resign",
+    resultWinner: "han",
+    moves: 1,
+    reviewed: 복기,
+    lastFen: "마지막판",
+  };
+}
 
 /** 끝난 판 하나. 올릴지 말지를 가르는 데 쓰이는 칸만 맞춰 둔다. */
 function 판(id: string, 복기 = false): ArchivedGame {
@@ -54,6 +76,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
   로그인확인.mockResolvedValue(true);
+  목록받기.mockResolvedValue([]);
   올리기.mockResolvedValue(1);
   // 실패를 일부러 내는 검사가 있다. 콘솔 기록은 여기서 볼 것이 아니다.
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -181,5 +204,67 @@ describe("어긋났을 때", () => {
     expect(겹친적있다).toBe(false);
     // 셋 다 적혀야 한다. 하나라도 빠지면 화면이 거짓말을 한다.
     expect(["가", "나", "다"].every((id) => result.current.onServer(id))).toBe(true);
+  });
+});
+
+describe("기기와 서버를 합친다", () => {
+  it("같은 판은 한 줄이다 - 번호가 같으면 같은 판이다", () => {
+    const 줄 = mergeRows([판("가")], [서버판("가")]);
+
+    expect(줄).toHaveLength(1);
+    expect(줄[0].local).toBe(true);
+    expect(줄[0].onServer).toBe(true);
+    // 기기에 있는 쪽을 쓴다 - 내용이 있어 열 때 기다리지 않는다.
+    expect(줄[0].moves).toBe(1);
+  });
+
+  it("서버에만 있는 판도 한 줄로 선다", () => {
+    const 줄 = mergeRows([], [서버판("서버것")]);
+
+    expect(줄).toHaveLength(1);
+    expect(줄[0].local).toBe(false);
+    expect(줄[0].serverId).toBeGreaterThan(0);
+    // 작은 그림을 그릴 수 있어야 한다. 이것이 없으면 카드가 빈 판이 된다.
+    expect(줄[0].lastFen).toBe("마지막판");
+  });
+
+  it("끝난 순서로 선다 - 기기 것과 서버 것이 섞여도", () => {
+    const 줄 = mergeRows(
+      [
+        { ...판("기기-오래된것"), endedAt: 100 },
+        { ...판("기기-새것"), endedAt: 300 },
+      ],
+      [서버판("서버-중간것", 200)],
+    );
+
+    expect(줄.map((r) => r.id)).toEqual(["기기-새것", "서버-중간것", "기기-오래된것"]);
+  });
+});
+
+describe("로그아웃했다 다시 로그인하면", () => {
+  it("서버 목록이 표시를 바로잡는다 - 올린 기록이 지워져 있어도", async () => {
+    // 기록은 비어 있는데(로그아웃이 지웠다) 서버에는 그 판이 있는 상태다.
+    목록받기.mockResolvedValue([서버판("예전판")]);
+
+    const { result } = renderHook(() => useServerGames([판("예전판")]));
+
+    await waitFor(() => expect(result.current.onServer("예전판")).toBe(true));
+    expect(result.current.rows[0].onServer).toBe(true);
+    // 서버가 가진 것을 다시 올리지 않는다.
+    await 잠깐();
+    expect(올리기).not.toHaveBeenCalled();
+  });
+
+  it("목록을 못 받아도 올리기는 돈다", async () => {
+    목록받기.mockRejectedValue(new Error("서버가 받지 않았습니다. (502)"));
+
+    const { result, rerender } = renderHook(({ games }) => useServerGames(games), {
+      initialProps: { games: [] as ArchivedGame[] },
+    });
+    await waitFor(() => expect(result.current.error).toContain("502"));
+
+    rerender({ games: [판("새판")] });
+
+    await waitFor(() => expect(올린것()).toEqual(["새판"]));
   });
 });
