@@ -31,6 +31,7 @@ src/
 ├── hooks/        규칙과 화면을 잇는 상태
 ├── components/   보여주기만. board · play · games · layout · common
 ├── report/       오류 · 제보 · 측정
+├── server/       우리 서버와 말하는 자리. 로그인 · 기보 올리기
 ├── styles/       CSS (규칙은 DESIGN.md)   audio/  소리   updates/  버전
 ```
 
@@ -39,12 +40,16 @@ src/
 ```
 components  ->  hooks  ->  janggi
      └──────────────────->  engine (타입과 급수 표만)
+                 hooks  ->  server (바깥과 말하는 것은 여기 하나)
 ```
 
 - **`janggi/` 는 화면도 엔진도 모른다.** 규칙만 있어서 테스트가 쉽다 - 278개 중
   대부분이 여기 있다.
 - **엔진을 돌리는 것은 `App.tsx` 하나다.** 컴포넌트는 `useEngine` 을 부르지 않는다.
 - **`hooks/` 는 컴포넌트를 부르지 않는다.** 반대로 가면 고리가 생긴다.
+- **`janggi/` 와 `components/` 는 `server/` 를 모른다.** 네트워크를 아는 곳은
+  `server/api.ts` 하나이고, 그걸 부르는 것은 `hooks/` 다. 규칙 안으로 들어가면
+  규칙을 검사할 때 서버가 필요해진다.
 
 새 기능은 **규칙 → 상태 → 화면** 순으로 만든다. 화면부터 만들면 규칙이 컴포넌트
 안으로 샌다.

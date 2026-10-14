@@ -57,6 +57,7 @@ import { readStored, usePersisted, writeStored } from "./hooks/usePersisted";
 import { useBoardTouch } from "./hooks/useBoardTouch";
 import { useCallout } from "./hooks/useCallout";
 import { useGames } from "./hooks/useGames";
+import { useServerGames } from "./hooks/useServerGames";
 import { useReview } from "./hooks/useReview";
 
 import { newGameId, upsertGame } from "./janggi/archive";
@@ -174,6 +175,12 @@ export default function App() {
     onLoaded: setNotice,
   });
   const { games, setGames, openGame, listView } = archive;
+
+  /*
+   * 로그인 상태와 "서버에도 남기기". 목록을 넘겨주면 바뀌는 것을 보고 알아서 올린다 -
+   * 판이 끝나는 자리와 복기가 끝나는 자리에 각각 붙이지 않는 까닭은 그 훅 주석에 있다.
+   */
+  const server = useServerGames(games);
 
   // --- 지금 화면에 떠 있는 판 ---------------------------------------------
 
@@ -849,6 +856,7 @@ export default function App() {
             onPage={archive.setPage}
             error={archive.error}
             freshId={archive.freshId}
+            server={server}
           />
         </main>
       ) : (

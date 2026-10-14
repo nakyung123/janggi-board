@@ -43,6 +43,61 @@
 }
 
 /*
+ * 로그인 줄. 제목 줄 아래, 목록 위에 선다.
+ *
+ * 폭 320 에서도 한 줄이다 - 설명이 길어지면 말줄임으로 준다. 단추는 안 줄인다.
+ */
+.games-login {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 16px;
+}
+
+.games-who {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
+
+/*
+ * 로그인은 링크다(쪽 전체가 구글로 옮겨간다). 그래도 사람 눈에는 단추여야 하므로
+ * 테두리 단추와 같은 모양을 준다.
+ */
+.games-signin {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .games-signin:hover {
+    background: var(--panel-2);
+  }
+}
+
+.games-login > button.ghost {
+  margin-left: auto;
+}
+
+/* 올리기가 어긋난 까닭. 목록 위에 남는다. */
+.games-sync-error {
+  margin: -8px 0 12px;
+  color: var(--han);
+  font-size: var(--fs-base);
+}
+
+/*
  * 파일을 못 읽은 까닭. 누른 버튼(파일 불러오기) 바로 왼쪽에 서고, 다음에 무언가를
  * 누를 때까지 남는다. 넓은 화면은 제목 줄에 남는 폭이 넉넉해 한 줄로 들어가서 목록 칸
  * 높이가 바뀌지 않는다(한 쪽에 들어가는 판 수가 그대로다). 폰은 제목 줄 아래로 내린다.
@@ -194,6 +249,14 @@
 
 .game-meta,
 .game-moves {
+  color: var(--muted);
+}
+
+/*
+ * "이 기기에만 있음". 수 개수 옆에 같은 흐린 색으로 둔다 - 알려 주되 겁주지 않는다.
+ * 올리기가 실패한 판에도 이것이 남는다.
+ */
+.game-local {
   color: var(--muted);
 }
 

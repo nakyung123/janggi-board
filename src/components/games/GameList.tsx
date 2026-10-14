@@ -15,6 +15,8 @@ import { parseFen } from "../../janggi/board";
 import { pageItems, resultTag, whenLabel } from "../../janggi/archive";
 import { SIDE_LABEL } from "../../janggi/pieces";
 import type { ArchivedGame } from "../../janggi/archive";
+import type { ServerGames } from "../../hooks/useServerGames";
+import { LOGIN_PATH } from "../../server/api";
 import { MiniBoard } from "./MiniBoard";
 
 interface Props {
@@ -34,6 +36,13 @@ interface Props {
   error: string | null;
   /** 방금 목록에 넣은 판. 그 카드가 잠깐 도드라진다. */
   freshId: string | null;
+  /**
+   * 로그인 상태와 "서버에도 있나".
+   *
+   * 칸을 하나씩 받지 않고 묶어 받는다 - 다섯이 늘 같이 움직여서, 흩어 두면 그중 하나를
+   * 빠뜨리는 것이 버그가 된다(`useGames` 를 한 훅에 모은 까닭과 같다).
+   */
+  server: ServerGames;
 }
 
 /** 카드 한 줄의 높이를 재기 전에 쓰는 값(작은 판 112 + 안쪽 여백 16×2). */
@@ -47,7 +56,8 @@ const CARD_H = 144;
 const PHONE_PER_PAGE = 10;
 const NARROW = "(max-width: 900px)";
 
-export function GameList({ games, now, onOpen, onLoad, page, onPage, error, freshId }: Props) {
+export function GameList(props: Props) {
+  const { games, now, onOpen, onLoad, page, onPage, error, freshId, server } = props;
   const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -121,6 +131,41 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
         />
       </div>
 
+      {/*
+        로그인 줄. **머리말이 아니라 여기 둔다** - 폭 320 에서 앱 이름 줄에 자리가 없고,
+        로그인이 하는 일(기보를 기기 밖에도 남기기)이 이 탭의 일이다. 이메일과 이름은
+        보이지 않는다. 로그인됨 표시만 둔다.
+      */}
+      <div className="games-login">
+        {server.loggedIn === null ? (
+          <span className="games-who">로그인 상태를 확인하는 중…</span>
+        ) : server.loggedIn ? (
+          <>
+            <span className="games-who">로그인됨 · 끝낸 판이 서버에도 남습니다</span>
+            <button type="button" className="ghost" onClick={server.signOut} disabled={server.busy}>
+              로그아웃
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="games-who">기보가 이 기기에만 남습니다</span>
+            {/*
+              단추가 아니라 링크다. 구글 동의 화면을 사람이 봐야 하므로 쪽 전체가 옮겨갔다
+              돌아온다 - fetch 로는 안 되는 일이다.
+            */}
+            <a className="games-signin" href={LOGIN_PATH}>
+              구글로 로그인
+            </a>
+          </>
+        )}
+      </div>
+
+      {server.error && (
+        <p className="games-sync-error" role="alert">
+          {server.error}
+        </p>
+      )}
+
       {games.length === 0 ? (
         <div className="empty">
           <ScrollText size={24} strokeWidth={1.75} aria-hidden />
@@ -149,6 +194,14 @@ export function GameList({ games, now, onOpen, onLoad, page, onPage, error, fres
                     </span>
                     <span className="game-moves">
                       {g.history.length - 1}수{g.reviewed ? " · 복기함" : ""}
+                      {/*
+                        로그인했을 때만 붙인다. 로그인하지 않으면 모든 판이 기기에만 있어서,
+                        다 붙으면 아무것도 말해 주지 않는다. 올리기가 실패한 판에도 이 표시가
+                        남는다 - 실패를 조용히 넘기지 않는 자리다.
+                      */}
+                      {server.loggedIn === true && !server.onServer(g.id) && (
+                        <span className="game-local"> · 이 기기에만 있음</span>
+                      )}
                     </span>
                   </span>
                   <MiniBoard
