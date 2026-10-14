@@ -84,6 +84,9 @@ export function GameList(props: Props) {
    * 또 스크롤하게 된다. 창 크기가 바뀌면 다시 잰다.
    */
   const [perPage, setPerPage] = useState(12);
+  // 탈퇴를 누르면 바로 보내지 않고 묻는 줄을 편다. 되돌릴 수 없어 보이는 일이라
+  // 한 번 더 묻는다 - 실제로는 30일 안에 되돌릴 수 있고, 그것도 글에 적는다.
+  const [탈퇴물음, set탈퇴물음] = useState(false);
   // 목록 칸은 판이 하나라도 있어야 붙는다. 처음 한 판이 들어올 때 다시 건다.
   const hasGames = rows.length > 0;
   useLayoutEffect(() => {
@@ -168,6 +171,14 @@ export function GameList(props: Props) {
             <button type="button" className="ghost" onClick={server.signOut} disabled={server.busy}>
               로그아웃
             </button>
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => set탈퇴물음(true)}
+              disabled={server.busy}
+            >
+              탈퇴
+            </button>
           </>
         ) : (
           <>
@@ -182,6 +193,39 @@ export function GameList(props: Props) {
           </>
         )}
       </div>
+
+      {/*
+        **묻는 줄.** 세 줄 다 사실이어야 한다. 셋째 줄이 특히 그렇다 - 되돌릴 수 있다는
+        것을 모르면 누를 사람이 겁만 먹고 만다. window.confirm 을 안 쓴 까닭은 글을 세
+        줄로 못 쓰고 모양도 못 맞춰서다.
+      */}
+      {server.loggedIn === true && 탈퇴물음 && (
+        <div className="games-leave" role="group" aria-label="탈퇴 확인">
+          <p className="games-leave-what">
+            서버에 있는 기보가 사라집니다.
+            <br />
+            이 기기의 기보는 그대로 남습니다.
+            <br />
+            30일 안에 다시 로그인하면 되돌릴 수 있습니다.
+          </p>
+          <div className="games-leave-buttons">
+            <button type="button" className="ghost" onClick={() => set탈퇴물음(false)}>
+              그만두기
+            </button>
+            <button
+              type="button"
+              className="primary danger"
+              disabled={server.busy}
+              onClick={() => {
+                set탈퇴물음(false);
+                server.withdraw();
+              }}
+            >
+              탈퇴하기
+            </button>
+          </div>
+        </div>
+      )}
 
       {server.error && (
         <p className="games-sync-error" role="alert">

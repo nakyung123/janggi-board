@@ -9,7 +9,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ArchivedGame, ArchivedResult, ArchivedKind } from "../janggi/archive";
 import type { ServerSummary } from "../server/api";
 import type { Side } from "../janggi/pieces";
-import { fetchGame, fetchGames, fetchLoginState, logout, uploadGame } from "../server/api";
+import {
+  fetchGame,
+  fetchGames,
+  fetchLoginState,
+  logout,
+  uploadGame,
+  withdraw as leave,
+} from "../server/api";
 import { noteTrouble } from "../report/errors";
 import { usePersisted } from "./usePersisted";
 
@@ -142,6 +149,13 @@ export interface ServerGames {
   /** 마지막으로 어긋난 일. 한국어다. */
   error: string | null;
   signOut: () => void;
+  /**
+   * 탈퇴. 서버의 기보가 사라진다.
+   *
+   * **이 기기의 기보는 안 지운다.** 서버에 둔 것만 가고, 30일 안에 다시 로그인하면
+   * 돌아온다. 화면의 글이 그렇게 적혀 있어야 한다.
+   */
+  withdraw: () => void;
 }
 
 export function useServerGames(games: ArchivedGame[]): ServerGames {
@@ -304,5 +318,20 @@ export function useServerGames(games: ArchivedGame[]): ServerGames {
       .finally(() => setBusy(false));
   }, [setUploaded]);
 
-  return { loggedIn, onServer, rows, pull, busy, error, signOut };
+  const withdraw = useCallback(() => {
+    setBusy(true);
+    leave()
+      .then(() => {
+        setLoggedIn(false);
+        setError(null);
+        // 로그아웃과 같은 뒷정리다. 올린 기록이 남으면 다음 사람의 판에 "서버에 있음"
+        // 이 붙는다. **기기 목록(games)은 건드리지 않는다** - 서버 것만 가는 일이다.
+        setUploaded({});
+        set서버목록([]);
+      })
+      .catch((err) => setError(noteTrouble("탈퇴", err).message))
+      .finally(() => setBusy(false));
+  }, [setUploaded]);
+
+  return { loggedIn, onServer, rows, pull, busy, error, signOut, withdraw };
 }

@@ -86,8 +86,37 @@
   }
 }
 
-.games-login > button.ghost {
+/*
+ * 글은 왼쪽, 단추는 오른쪽에 모은다. **첫 단추에만 건다** - 둘 다 걸면 로그아웃과
+ * 탈퇴가 양끝으로 벌어진다.
+ */
+.games-login > button.ghost:first-of-type {
   margin-left: auto;
+}
+
+/*
+ * 탈퇴를 누르면 펴지는 줄. 되돌릴 수 없어 보이는 일이라 한 번 더 묻는다.
+ * 폭 320 에서도 글이 넘치지 않게 단추를 아래 줄로 내린다.
+ */
+.games-leave {
+  margin: -8px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.games-leave-what {
+  margin: 0 0 10px;
+  color: var(--text);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+}
+
+.games-leave-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 /* 올리기가 어긋난 까닭. 목록 위에 남는다. */

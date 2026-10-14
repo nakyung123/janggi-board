@@ -71,7 +71,7 @@ function read(path: string): Promise<Response> {
  * 첫 쓰기가 바로 올 수 있다 - 쪽을 열고 바로 한 판 끝내는 경우다. 그때 토큰이 없으면
  * 그 한 번이 영문도 모르고 404 가 된다.
  */
-async function write(path: string, body?: unknown): Promise<Response> {
+async function write(path: string, body?: unknown, method = "POST"): Promise<Response> {
   let token = csrfToken();
   if (!token) {
     await read("/me").catch(() => undefined);
@@ -83,7 +83,7 @@ async function write(path: string, body?: unknown): Promise<Response> {
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
   return fetch(BASE + path, {
-    method: "POST",
+    method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT),
@@ -196,5 +196,21 @@ export async function fetchGame(id: number): Promise<ArchivedGame> {
 /** 로그아웃. 서버가 쿠키를 지운다. */
 export async function logout(): Promise<void> {
   const res = await write("/logout");
+  if (!res.ok) throw new ServerError(await reason(res));
+}
+
+/**
+ * 탈퇴. 서버의 기보가 사라지고 쿠키가 지워진다.
+ *
+ * **이 기기의 기보는 건드리지 않는다.** 서버에 둔 것만 간다. 부르는 쪽이 지우지 않게
+ * 여기 적어 둔다 - 로그아웃과 달라 보여서 "다 지우는 것" 으로 읽기 쉽다.
+ *
+ * 서버는 줄을 바로 지우지 않고 탈퇴한 때만 찍는다. 30일 안에 다시 로그인하면 기보가
+ * 돌아온다. 화면의 글도 그렇게 적혀 있어야 한다.
+ */
+export async function withdraw(): Promise<void> {
+  const res = await write("/me", undefined, "DELETE");
+  // 404 는 이미 탈퇴했거나 쿠키가 낡은 것이다. 쓰는 사람이 할 일은 같다 - 다시
+  // 로그인하는 것이고, 지금 상태로는 어차피 로그인이 풀려 있다.
   if (!res.ok) throw new ServerError(await reason(res));
 }

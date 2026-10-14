@@ -13,7 +13,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ArchivedGame } from "../janggi/archive";
 import type { ServerSummary } from "../server/api";
-import { fetchGames, fetchLoginState, uploadGame } from "../server/api";
+import { fetchGames, fetchLoginState, uploadGame, withdraw } from "../server/api";
 import { mergeRows, useServerGames } from "./useServerGames";
 
 vi.mock("../server/api", () => ({
@@ -23,11 +23,13 @@ vi.mock("../server/api", () => ({
   fetchGame: vi.fn(),
   uploadGame: vi.fn(),
   logout: vi.fn(),
+  withdraw: vi.fn(),
 }));
 
 const 로그인확인 = vi.mocked(fetchLoginState);
 const 목록받기 = vi.mocked(fetchGames);
 const 올리기 = vi.mocked(uploadGame);
+const 탈퇴하기 = vi.mocked(withdraw);
 
 /** 서버가 주는 목록 한 줄. 끝난 때와 번호만 다르게 쓴다. */
 function 서버판(clientId: string, endedAt = 1760000000000, 복기 = false): ServerSummary {
@@ -262,6 +264,39 @@ describe("로그아웃했다 다시 로그인하면", () => {
     // 서버가 가진 것을 다시 올리지 않는다.
     await 잠깐();
     expect(올리기).not.toHaveBeenCalled();
+  });
+
+  it("탈퇴하면 로그인이 풀리고 서버 표시가 사라진다 - 기기 목록은 그대로다", async () => {
+    로그인확인.mockResolvedValue(true);
+    목록받기.mockResolvedValue([서버판("예전판")]);
+    탈퇴하기.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useServerGames([판("예전판")]));
+    await waitFor(() => expect(result.current.onServer("예전판")).toBe(true));
+
+    result.current.withdraw();
+
+    await waitFor(() => expect(result.current.loggedIn).toBe(false));
+    // **기기 목록은 그대로다.** 서버에 둔 것만 가는 일이다.
+    expect(result.current.rows.map((r) => r.id)).toEqual(["예전판"]);
+    // 서버에 있다는 표시는 사라져야 한다 - 이제 없으니까.
+    expect(result.current.onServer("예전판")).toBe(false);
+    expect(result.current.rows[0].onServer).toBe(false);
+  });
+
+  it("탈퇴가 어긋나면 로그인이 풀리지 않는다 - 안 된 것을 된 것처럼 보이면 안 된다", async () => {
+    로그인확인.mockResolvedValue(true);
+    목록받기.mockResolvedValue([서버판("예전판")]);
+    탈퇴하기.mockRejectedValue(new Error("서버가 받지 않았습니다. (502)"));
+
+    const { result } = renderHook(() => useServerGames([판("예전판")]));
+    await waitFor(() => expect(result.current.onServer("예전판")).toBe(true));
+
+    result.current.withdraw();
+
+    await waitFor(() => expect(result.current.error).toContain("502"));
+    expect(result.current.loggedIn).toBe(true);
+    expect(result.current.onServer("예전판")).toBe(true);
   });
 
   it("목록을 못 받아도 올리기는 돈다", async () => {
