@@ -125,8 +125,8 @@ const LIVE_HOST = "janggi-ai.vercel.app";
  * 내가 확인하러 들어갈 때 붙이는 표. `?nostats` 가 있으면 무조건 dev 로 센다.
  *
  * **왜 `isBot()` 에 기대지 않나** - 2026-10-10 라이브를 확인할 때 Playwright 의
- * `navigator.webdriver` 가 false 로 나왔다. UA 의 `HeadlessChrome` 만이 걸렀다. 울타리
- * 하나가 운으로 걸린 것이고, 도구가 UA 를 바꾸는 날 나는 모른다 - **오염은 조용하다.**
+ * `navigator.webdriver` 가 false 로 나왔다. UA 의 `HeadlessChrome` 만이 걸렀다.
+ * 거르는 방법 하나가 운으로 걸린 것이고, 도구가 UA 를 바꾸는 날 나는 모른다 - **오염은 조용하다.**
  * 숫자가 조금 틀린 것은 틀린 줄도 모른다.
  *
  * 그래서 걸러지기를 바라는 대신 **내가 나라고 말하고** 들어간다. 봇을 알아맞히는 일은
@@ -202,7 +202,7 @@ function common(): Common {
  * 유실률이다. 재고 나면 나머지도 옮길지 정한다.
  *
  * 값은 요청 한 건이다. 하루 20세션이면 40건에서 80건이 되고 무료 한도가 달 200만
- * 건이다. 다만 **문지기 한도(분당 120)에는 더 가까워진다** - 사람이 몰리면
+ * 건이다. 다만 **서버의 분당 제한(120건)에는 더 가까워진다** - 사람이 몰리면
  * `JANGGI_GUARD_LIMIT_PER_MINUTE` 로 배포 없이 올린다.
  */
 const NOW: ReadonlySet<EventName> = new Set<EventName>([

@@ -4,7 +4,7 @@
 
 | 파일 | 하는 일 |
 | --- | --- |
-| `errors.ts` | 무슨 일이든 `{code, message, detail}` 로 바꾼다. **영어가 화면에 새지 않게 하는 울타리** |
+| `errors.ts` | 무슨 일이든 `{code, message, detail}` 로 바꾼다. **영어가 화면에 새지 않게 막는 곳** |
 | `feedback.tsx` | 기기 이름 붙이기(브라우저 · OS · 인앱)와 제보 창구 |
 | `events.ts` | 측정. 바깥으로 내보내는 자리는 **`send()` 하나뿐** |
 
