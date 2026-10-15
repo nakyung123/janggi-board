@@ -13,11 +13,11 @@
     급수를 골라 AI와 한 판 두고, 끝난 판을 한 수씩 되짚으며 복기를 받는 장기
     <br />
     <br />
-    <a href="https://github.com/nakyung123/janggi-board/releases">릴리스</a>
+    <a href="https://github.com/nakyung123/janggi-frontend/releases">릴리스</a>
     &middot;
-    <a href="https://github.com/nakyung123/janggi-board/issues/new?labels=bug">버그 제보</a>
+    <a href="https://github.com/nakyung123/janggi-frontend/issues/new?labels=bug">버그 제보</a>
     &middot;
-    <a href="https://github.com/nakyung123/janggi-board/issues/new?labels=enhancement">기능 제안</a>
+    <a href="https://github.com/nakyung123/janggi-frontend/issues/new?labels=enhancement">기능 제안</a>
   </p>
 </div>
 
@@ -90,8 +90,8 @@ NNUE 신경망을 얹은 것이고, WebAssembly 로 브라우저 안에서 돈�
 
 1. 저장소를 받는다.
    ```sh
-   git clone https://github.com/nakyung123/janggi-board.git
-   cd janggi-board
+   git clone https://github.com/nakyung123/janggi-frontend.git
+   cd janggi-frontend
    ```
 2. 패키지를 설치한다.
    ```sh
@@ -188,7 +188,7 @@ AI의 수     32포35
 
 하지 않기로 한 것: 박보 · 묘수풀이, 포진법 통계, 대국 중 훈수.
 
-제안과 알려진 문제는 [이슈](https://github.com/nakyung123/janggi-board/issues)에서 본다.
+제안과 알려진 문제는 [이슈](https://github.com/nakyung123/janggi-frontend/issues)에서 본다.
 
 <p align="right">(<a href="#readme-top">맨 위로</a>)</p>
 
@@ -223,7 +223,7 @@ AI의 수     32포35
 
 nakyung123 - [github.com/nakyung123](https://github.com/nakyung123)
 
-프로젝트: [https://github.com/nakyung123/janggi-board](https://github.com/nakyung123/janggi-board)
+프로젝트: [https://github.com/nakyung123/janggi-frontend](https://github.com/nakyung123/janggi-frontend)
 
 <p align="right">(<a href="#readme-top">맨 위로</a>)</p>
 
@@ -244,7 +244,7 @@ nakyung123 - [github.com/nakyung123](https://github.com/nakyung123)
 [license-shield]: https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg?style=for-the-badge
 [license-url]: LICENSE
 [release-shield]: https://img.shields.io/badge/release-notes-555.svg?style=for-the-badge
-[release-url]: https://github.com/nakyung123/janggi-board/releases
+[release-url]: https://github.com/nakyung123/janggi-frontend/releases
 [product-screenshot]: docs/images/screenshot.png
 [React-shield]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
 [React-url]: https://react.dev/

@@ -12,6 +12,14 @@ import { nextEntry, startHistory } from "./history";
 import { isMoveString, splitMove } from "./notation";
 import type { Side } from "./pieces";
 
+/**
+ * 저장한 기보 파일 맨 위에 적히는 형식 이름.
+ *
+ * **저장소 이름을 따라가지 않는다.** 저장소가 `janggi-board` 에서 `janggi-frontend` 로
+ * 바뀌었지만 이 글자는 그대로 둔다. 이미 저장해 둔 파일에 이 글자가 적혀 있고, 바꾸면
+ * 그 파일들이 전부 "모르는 기보 형식입니다" 로 거절된다. 형식이 실제로 달라질 때만
+ * 뒤의 숫자를 올린다.
+ */
 export const RECORD_FORMAT = "janggi-board/2";
 /** 급수·대국 결과가 없던 첫 형식. 읽기만 지원한다. */
 const RECORD_FORMAT_V1 = "janggi-board/1";
